@@ -2,18 +2,20 @@ public class Processor {
 
     int cycle = 0;
     int pc = 0; //Program counter
-    int instructions = 0;
+    int instructions = 0; //Number of instructions executed
     int[] mem = new int[1024];
     int[] rf = new int[32]; //Register file (physical)
-    //int[] instr = new int[512];
+    Instruction[] instr = new Instruction[512];
     boolean finished = false;
 
     public Processor() {
 
     }
 
-    public void Fetch() {
-
+    public Instruction Fetch() {
+        Instruction instruction = instr[pc];
+        cycle++;
+        return instruction;
     }
 
     public void Decode() {
@@ -33,8 +35,8 @@ public class Processor {
     }
 
     public void RunProcessor() {
-        while(!finished && pc < mem.length) {
-            Fetch();
+        while(!finished && pc < instr.length) {
+            Instruction ins = Fetch();
             Decode();
             Execute();
 
