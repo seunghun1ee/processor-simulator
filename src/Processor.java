@@ -63,13 +63,17 @@ public class Processor {
                 cycle++;
                 pc++;
                 break;
+            case JMP:
+                pc = ins.Const;
+                cycle++;
+                break;
             default:
                 System.out.println("Error, invalid opcode");
         }
         executedInsts++;
     }
 
-    public void Load() {
+    public void Memory() {
 
     }
 
@@ -86,7 +90,7 @@ public class Processor {
         instr[3] = new Instruction(Opcode.ADD, 2,0,1,0);
         instr[4] = new Instruction(Opcode.ADDI,3,2,0,10);
         instr[5] = new Instruction(Opcode.ST,1,3,0,-2);
-
+        instr[6] = new Instruction(Opcode.JMP,0,0,0,510);
         while(!finished && pc < instr.length) {
             System.out.println("PC " + pc);
             Instruction fetched = Fetch();

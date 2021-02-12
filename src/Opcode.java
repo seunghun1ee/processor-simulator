@@ -5,5 +5,6 @@ public enum Opcode {
     LD,
     LDI,
     ST,
-    STI
+    STI,
+    JMP
 }
