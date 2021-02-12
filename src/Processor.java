@@ -92,7 +92,7 @@ public class Processor {
         instr[5] = new Instruction(Opcode.ST,1,3,0,-2);
         instr[6] = new Instruction(Opcode.JMP,0,0,0,510);
         while(!finished && pc < instr.length) {
-            System.out.println("PC " + pc);
+            System.out.println("PC " + pc + " " + cycle + " number of cycles passed");
             Instruction fetched = Fetch();
             Instruction instruction = Decode(fetched);
             Execute(instruction);
