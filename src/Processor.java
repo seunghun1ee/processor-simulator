@@ -43,8 +43,33 @@ public class Processor {
                 cycle += 2;
                 pc++;
                 break;
+            case MUL:
+                rf[ins.Rd] = rf[ins.Rs1] * rf[ins.Rs2];
+                cycle += 4;
+                pc++;
+                break;
+            case DIV:
+                rf[ins.Rd] = rf[ins.Rs1] / rf[ins.Rs2];
+                cycle += 8;
+                pc++;
+                break;
+            case AND:
+                rf[ins.Rd] = rf[ins.Rs1] & rf[ins.Rs2];
+                cycle++;
+                pc++;
+                break;
+            case OR:
+                rf[ins.Rd] = rf[ins.Rs1] | rf[ins.Rs2];
+                cycle++;
+                pc++;
+                break;
             case LD:
                 rf[ins.Rd] = mem[rf[ins.Rs1] + ins.Const];
+                cycle++;
+                pc++;
+                break;
+            case LDC:
+                rf[ins.Rd] = ins.Const;
                 cycle++;
                 pc++;
                 break;
@@ -54,18 +79,54 @@ public class Processor {
                 pc++;
                 break;
             case ST:
-                mem[rf[ins.Rd] + ins.Const] = rf[ins.Rs1];
+                mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
                 cycle++;
                 pc++;
                 break;
             case STI:
-                mem[ins.Const] = rf[ins.Rs1];
+                mem[ins.Const] = rf[ins.Rd];
+                cycle++;
+                pc++;
+                break;
+            case MOVE:
+                rf[ins.Rd] = rf[ins.Rs1];
                 cycle++;
                 pc++;
                 break;
             case JMP:
                 pc = ins.Const;
                 cycle++;
+                break;
+            case BEQ:
+                if(rf[ins.Rs1] == rf[ins.Rs2]) {
+                    pc = ins.Const;
+                }
+                else {
+                    pc++;
+                }
+                cycle++;
+                break;
+            case BNE:
+                if(rf[ins.Rs1] != rf[ins.Rs2]) {
+                    pc = ins.Const;
+                }
+                else {
+                    pc++;
+                }
+                cycle++;
+                break;
+            case CMP:
+                if(rf[ins.Rs1] > rf[ins.Rs2]) {
+                    rf[ins.Rd] = 1;
+                }
+                else if(rf[ins.Rs1] == rf[ins.Rs2]) {
+                    rf[ins.Rd] = 0;
+                }
+                else {
+                    rf[ins.Rd] = -1;
+                }
+                cycle++;
+                pc++;
                 break;
             default:
                 System.out.println("Error, invalid opcode");

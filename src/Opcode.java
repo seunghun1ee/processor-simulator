@@ -2,9 +2,18 @@ public enum Opcode {
     NOOP,
     ADD,
     ADDI,
+    MUL,
+    DIV,
+    AND,
+    OR,
     LD,
     LDI,
+    LDC,
     ST,
     STI,
-    JMP
+    MOVE,
+    JMP,
+    BEQ,
+    BNE,
+    CMP
 }
