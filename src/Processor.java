@@ -3,9 +3,9 @@ public class Processor {
     int cycle = 0;
     int pc = 0; //Program counter
     int executedInsts = 0; //Number of instructions executed
-    int[] mem = new int[1024];
+    int[] mem;
     int[] rf = new int[32]; //Register file (physical)
-    Instruction[] instr = new Instruction[512];
+    Instruction[] instructions;
     boolean finished = false;
 
     public Processor() {
@@ -13,7 +13,7 @@ public class Processor {
     }
     //This will fetch int instead later
     public Instruction Fetch() {
-        Instruction instruction = instr[pc];
+        Instruction instruction = instructions[pc];
         cycle++;
         return instruction;
     }
@@ -82,16 +82,8 @@ public class Processor {
     }
 
     public void RunProcessor() {
-        mem[0] = 5;
-        mem[1] = 7;
-        instr[0] = new Instruction(Opcode.NOOP,0,0,0,0);
-        instr[1] = new Instruction(Opcode.LDI,0,0,0,0);
-        instr[2] = new Instruction(Opcode.LDI,1,0,0,1);
-        instr[3] = new Instruction(Opcode.ADD, 2,0,1,0);
-        instr[4] = new Instruction(Opcode.ADDI,3,2,0,10);
-        instr[5] = new Instruction(Opcode.ST,1,3,0,-2);
-        instr[6] = new Instruction(Opcode.JMP,0,0,0,510);
-        while(!finished && pc < instr.length) {
+
+        while(!finished && pc < instructions.length) {
             System.out.println("PC " + pc + " " + cycle + " number of cycles passed");
             Instruction fetched = Fetch();
             Instruction instruction = Decode(fetched);
