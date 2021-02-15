@@ -45,12 +45,12 @@ public class Processor {
                 break;
             case MUL:
                 rf[ins.Rd] = rf[ins.Rs1] * rf[ins.Rs2];
-                cycle += 4;
+                cycle += 3;
                 pc++;
                 break;
             case DIV:
                 rf[ins.Rd] = rf[ins.Rs1] / rf[ins.Rs2];
-                cycle += 8;
+                cycle += 4;
                 pc++;
                 break;
             case AND:
