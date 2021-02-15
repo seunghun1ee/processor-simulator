@@ -27,44 +27,45 @@ public class Processor {
         return ins;
     }
 
-    public void Execute(Instruction ins) {
+    public Integer Execute(Instruction ins) {
+        Integer data = null;
         switch (ins.opcode) {
             case NOOP:
                 cycle++;
                 pc++;
                 break;
             case ADD:
-                rf[ins.Rd] = rf[ins.Rs1] + rf[ins.Rs2];
+                data = rf[ins.Rs1] + rf[ins.Rs2];
                 cycle += 2;
                 pc++;
                 break;
             case ADDI:
-                rf[ins.Rd] = rf[ins.Rs1] + ins.Const;
+                data = rf[ins.Rs1] + ins.Const;
                 cycle += 2;
                 pc++;
                 break;
             case MUL:
-                rf[ins.Rd] = rf[ins.Rs1] * rf[ins.Rs2];
+                data = rf[ins.Rs1] * rf[ins.Rs2];
                 cycle += 3;
                 pc++;
                 break;
             case DIV:
-                rf[ins.Rd] = rf[ins.Rs1] / rf[ins.Rs2];
+                data = rf[ins.Rs1] / rf[ins.Rs2];
                 cycle += 4;
                 pc++;
                 break;
             case AND:
-                rf[ins.Rd] = rf[ins.Rs1] & rf[ins.Rs2];
+                data = rf[ins.Rs1] & rf[ins.Rs2];
                 cycle++;
                 pc++;
                 break;
             case OR:
-                rf[ins.Rd] = rf[ins.Rs1] | rf[ins.Rs2];
+                data = rf[ins.Rs1] | rf[ins.Rs2];
                 cycle++;
                 pc++;
                 break;
             case MOVE:
-                rf[ins.Rd] = rf[ins.Rs1];
+                data = rf[ins.Rs1];
                 cycle++;
                 pc++;
                 break;
@@ -92,13 +93,13 @@ public class Processor {
                 break;
             case CMP:
                 if(rf[ins.Rs1] > rf[ins.Rs2]) {
-                    rf[ins.Rd] = 1;
+                    data = 1;
                 }
                 else if(rf[ins.Rs1] == rf[ins.Rs2]) {
-                    rf[ins.Rd] = 0;
+                    data = 0;
                 }
                 else {
-                    rf[ins.Rd] = -1;
+                    data = -1;
                 }
                 cycle++;
                 pc++;
@@ -106,7 +107,8 @@ public class Processor {
             default:
                 break;
         }
-        executedInsts++;
+
+        return data;
     }
 
     public void Memory(Instruction ins) {
@@ -134,12 +136,14 @@ public class Processor {
             default:
                 break;
         }
-
         cycle++;
     }
 
-    public void WriteBack() {
-
+    public void WriteBack(Instruction ins, Integer data) {
+        if(data != null) {
+            rf[ins.Rd] = data;
+        }
+        cycle++;
     }
 
     public void RunProcessor() {
@@ -148,8 +152,10 @@ public class Processor {
             System.out.println("PC " + pc + " " + cycle + " number of cycles passed");
             Instruction fetched = Fetch();
             Instruction instruction = Decode(fetched);
-            Execute(instruction);
+            Integer data = Execute(instruction);
             Memory(instruction);
+            executedInsts++;
+            WriteBack(instruction, data);
         }
         System.out.println("Terminated");
     }
