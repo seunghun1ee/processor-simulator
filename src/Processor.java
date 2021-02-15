@@ -63,31 +63,6 @@ public class Processor {
                 cycle++;
                 pc++;
                 break;
-            case LD:
-                rf[ins.Rd] = mem[rf[ins.Rs1] + ins.Const];
-                cycle++;
-                pc++;
-                break;
-            case LDC:
-                rf[ins.Rd] = ins.Const;
-                cycle++;
-                pc++;
-                break;
-            case LDI:
-                rf[ins.Rd] = mem[ins.Const];
-                cycle++;
-                pc++;
-                break;
-            case ST:
-                mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
-                cycle++;
-                pc++;
-                break;
-            case STI:
-                mem[ins.Const] = rf[ins.Rd];
-                cycle++;
-                pc++;
-                break;
             case MOVE:
                 rf[ins.Rd] = rf[ins.Rs1];
                 cycle++;
@@ -129,13 +104,38 @@ public class Processor {
                 pc++;
                 break;
             default:
-                System.out.println("Error, invalid opcode");
+                break;
         }
         executedInsts++;
     }
 
-    public void Memory() {
+    public void Memory(Instruction ins) {
+        switch (ins.opcode) {
+            case LD:
+                rf[ins.Rd] = mem[rf[ins.Rs1] + ins.Const];
+                pc++;
+                break;
+            case LDC:
+                rf[ins.Rd] = ins.Const;
+                pc++;
+                break;
+            case LDI:
+                rf[ins.Rd] = mem[ins.Const];
+                pc++;
+                break;
+            case ST:
+                mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
+                pc++;
+                break;
+            case STI:
+                mem[ins.Const] = rf[ins.Rd];
+                pc++;
+                break;
+            default:
+                break;
+        }
 
+        cycle++;
     }
 
     public void WriteBack() {
@@ -149,6 +149,7 @@ public class Processor {
             Instruction fetched = Fetch();
             Instruction instruction = Decode(fetched);
             Execute(instruction);
+            Memory(instruction);
         }
         System.out.println("Terminated");
     }
