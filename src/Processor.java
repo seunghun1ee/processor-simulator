@@ -125,12 +125,20 @@ public class Processor {
                 rf[ins.Rd] = mem[ins.Const];
                 pc++;
                 break;
+            case LDX:
+                rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
+                pc++;
+                break;
             case ST:
                 mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
                 pc++;
                 break;
             case STI:
                 mem[ins.Const] = rf[ins.Rd];
+                pc++;
+                break;
+            case STX:
+                mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
                 pc++;
                 break;
             default:

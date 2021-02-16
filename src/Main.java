@@ -3,7 +3,8 @@ public class Main {
     public static void main(String[] args) {
         Instruction[] instructions = new Instruction[512];
         int[] mem = new int[1024];
-        //Testing program
+        //Functionality testing program
+        /*
         mem[0] = 5;
         mem[1] = 7;
         instructions[0] = new Instruction(Opcode.NOOP,0,0,0,0);
@@ -28,7 +29,25 @@ public class Main {
         instructions[22] = new Instruction(Opcode.CMP,11,0,1,0);
         instructions[23] = new Instruction(Opcode.STI,1,0,0,3);
         instructions[24] = new Instruction(Opcode.JMP,0,0,0,510);
+         */
 
+        //Vector addition
+        for(int i = 0; i < 100; i++) {
+            mem[10 + i] = i; //assigning A[i]
+            mem[120 + i] = i; //assigning B[i]
+        }
+        instructions[0] = new Instruction(Opcode.LDC,1,0,0,10); //pointer to array A
+        instructions[1] = new Instruction(Opcode.LDC,2,0,0,120); //pointer to array B
+        instructions[2] = new Instruction(Opcode.LDC,3,0,0,230); //pointer to array C
+        instructions[3] = new Instruction(Opcode.LDC,4,0,0,0); // i = 0
+        instructions[4] = new Instruction(Opcode.LDC,8,0,0,100); // for loop limit (100)
+        instructions[5] = new Instruction(Opcode.LDX,5,1,4,0); // a = A[&A + i]
+        instructions[6] = new Instruction(Opcode.LDX,6,2,4,0); // b = B[&B + i]
+        instructions[7] = new Instruction(Opcode.ADD,7,5,6,0); // c = a + b
+        instructions[8] = new Instruction(Opcode.STX,7,3,4,0); // C[&C + i] = c
+        instructions[9] = new Instruction(Opcode.ADDI,4,4,0,1); // i++
+        instructions[10] = new Instruction(Opcode.CMP,9,8,4,0); // i < 100 ?
+        instructions[11] = new Instruction(Opcode.BNE,0,9,0,5); //when i hit 100 don't branch
         Processor processor = new Processor();
         processor.instructions = instructions;
         processor.mem = mem;
