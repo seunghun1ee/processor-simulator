@@ -120,6 +120,7 @@ public class Processor {
                 cycle++;
                 break;
             default:
+                cycle++;
                 break;
         }
 
@@ -131,27 +132,32 @@ public class Processor {
             case LD:
                 rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
                 pc++;
+                cycle++;
                 break;
             case LDC:
                 rf[ins.Rd] = ins.Const;
                 pc++;
+                cycle++;
                 break;
             case LDI:
                 rf[ins.Rd] = mem[ins.Const];
                 pc++;
+                cycle++;
                 break;
             case ST:
                 mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
                 pc++;
+                cycle++;
                 break;
             case STI:
                 mem[ins.Const] = rf[ins.Rd];
                 pc++;
+                cycle++;
                 break;
             default:
+                cycle++;
                 break;
         }
-        cycle++;
     }
 
     public void WriteBack(Instruction ins, Integer data) {

@@ -37,25 +37,27 @@ public class Main {
          */
 
         //Vector addition
-        /*
-        for(int i = 0; i < 100; i++) {
-            mem[10 + i] = i; //assigning A[i]
-            mem[120 + i] = i; //assigning B[i]
+        int length = 5;
+        int ap = 2;
+        int bp = 10;
+        int cp = 16;
+        for(int i = 0; i < length; i++) {
+            mem[ap + i] = i; //assigning A[i]
+            mem[bp + i] = 2 * i; //assigning B[i]
         }
-        instructions[0] = new Instruction(Opcode.LDC,1,0,0,10); //pointer to array A
-        instructions[1] = new Instruction(Opcode.LDC,2,0,0,120); //pointer to array B
-        instructions[2] = new Instruction(Opcode.LDC,3,0,0,230); //pointer to array C
+        instructions[0] = new Instruction(Opcode.LDC,1,0,0,ap); //pointer to array A
+        instructions[1] = new Instruction(Opcode.LDC,2,0,0,bp); //pointer to array B
+        instructions[2] = new Instruction(Opcode.LDC,3,0,0,cp); //pointer to array C
         instructions[3] = new Instruction(Opcode.LDC,4,0,0,0); // i = 0
-        instructions[4] = new Instruction(Opcode.LDC,8,0,0,100); // for loop limit (100)
-        instructions[5] = new Instruction(Opcode.LDX,5,1,4,0); // a = A[&A + i]
-        instructions[6] = new Instruction(Opcode.LDX,6,2,4,0); // b = B[&B + i]
+        instructions[4] = new Instruction(Opcode.LDC,8,0,0,length); // for loop limit
+        instructions[5] = new Instruction(Opcode.LD,5,1,4,0); // a = A[&A + i], for loop starts
+        instructions[6] = new Instruction(Opcode.LD,6,2,4,0); // b = B[&B + i]
         instructions[7] = new Instruction(Opcode.ADD,7,5,6,0); // c = a + b
-        instructions[8] = new Instruction(Opcode.STX,7,3,4,0); // C[&C + i] = c
+        instructions[8] = new Instruction(Opcode.ST,7,3,4,0); // C[&C + i] = c
         instructions[9] = new Instruction(Opcode.ADDI,4,4,0,1); // i++
-        instructions[10] = new Instruction(Opcode.CMP,9,8,4,0); // i < 100 ?
-        instructions[11] = new Instruction(Opcode.BNE,0,9,0,5); //when i hit 100 don't branch
+        instructions[10] = new Instruction(Opcode.BLT,0,4,8,5); //branch back to for loop if i < 100
+        instructions[11] = new Instruction(Opcode.HALT,0,0,0,0); //Terminate
 
-         */
         Processor processor = new Processor();
         processor.instructions = instructions;
         processor.mem = mem;
