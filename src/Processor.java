@@ -49,9 +49,24 @@ public class Processor {
                 cycle += 3;
                 pc++;
                 break;
+            case MULI:
+                data = rf[ins.Rs1] * ins.Const;
+                cycle += 3;
+                pc++;
+                break;
             case DIV:
                 data = rf[ins.Rs1] / rf[ins.Rs2];
                 cycle += 4;
+                pc++;
+                break;
+            case DIVI:
+                data = rf[ins.Rs1] / ins.Const;
+                cycle += 4;
+                pc++;
+                break;
+            case NOT:
+                data = ~rf[ins.Rs1];
+                cycle++;
                 pc++;
                 break;
             case AND:
@@ -64,13 +79,17 @@ public class Processor {
                 cycle++;
                 pc++;
                 break;
-            case MOVE:
+            case MV:
                 data = rf[ins.Rs1];
                 cycle++;
                 pc++;
                 break;
-            case JMP:
+            case BR:
                 pc = ins.Const;
+                cycle++;
+                break;
+            case JMP:
+                pc = pc + ins.Const;
                 cycle++;
                 break;
             case BEQ:
@@ -82,8 +101,8 @@ public class Processor {
                 }
                 cycle++;
                 break;
-            case BNE:
-                if(rf[ins.Rs1] != rf[ins.Rs2]) {
+            case BLT:
+                if(rf[ins.Rs1] < rf[ins.Rs2]) {
                     pc = ins.Const;
                 }
                 else {
@@ -92,17 +111,13 @@ public class Processor {
                 cycle++;
                 break;
             case CMP:
-                if(rf[ins.Rs1] > rf[ins.Rs2]) {
-                    data = 1;
-                }
-                else if(rf[ins.Rs1] == rf[ins.Rs2]) {
-                    data = 0;
-                }
-                else {
-                    data = -1;
-                }
+                data = Integer.compare(rf[ins.Rs1], rf[ins.Rs2]);
                 cycle++;
                 pc++;
+                break;
+            case HALT:
+                finished = true;
+                cycle++;
                 break;
             default:
                 break;
@@ -114,7 +129,7 @@ public class Processor {
     public void Memory(Instruction ins) {
         switch (ins.opcode) {
             case LD:
-                rf[ins.Rd] = mem[rf[ins.Rs1] + ins.Const];
+                rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
                 pc++;
                 break;
             case LDC:
@@ -125,20 +140,12 @@ public class Processor {
                 rf[ins.Rd] = mem[ins.Const];
                 pc++;
                 break;
-            case LDX:
-                rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
-                pc++;
-                break;
             case ST:
-                mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
+                mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
                 pc++;
                 break;
             case STI:
                 mem[ins.Const] = rf[ins.Rd];
-                pc++;
-                break;
-            case STX:
-                mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
                 pc++;
                 break;
             default:
