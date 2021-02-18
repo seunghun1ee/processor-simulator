@@ -31,6 +31,11 @@ public class Processor {
         Integer data = null;
         switch (ins.opcode) {
             case NOOP:
+            case LD:
+            case LDC:
+            case LDI:
+            case ST:
+            case STI:
                 cycle++;
                 pc++;
                 break;
@@ -133,31 +138,26 @@ public class Processor {
                 if(ins.Rd != 0) {
                     rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
                 }
-                pc++;
                 cycle++;
                 break;
             case LDC:
                 if(ins.Rd != 0) {
                     rf[ins.Rd] = ins.Const;
                 }
-                pc++;
                 cycle++;
                 break;
             case LDI:
                 if(ins.Rd != 0) {
                     rf[ins.Rd] = mem[ins.Const];
                 }
-                pc++;
                 cycle++;
                 break;
             case ST:
                 mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
-                pc++;
                 cycle++;
                 break;
             case STI:
                 mem[ins.Const] = rf[ins.Rd];
-                pc++;
                 cycle++;
                 break;
             default:

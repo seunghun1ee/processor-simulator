@@ -4,7 +4,7 @@ public class Main {
         Instruction[] instructions = new Instruction[512];
         int[] mem = new int[1024];
         //Functionality testing program
-
+        /*
         mem[0] = 5;
         mem[1] = 7;
         instructions[0] = new Instruction(Opcode.LDC,0,0,0,1000);
@@ -34,9 +34,9 @@ public class Main {
         instructions[32] = new Instruction(Opcode.NOT,1,2,0,0);
         instructions[33] = new Instruction(Opcode.BR,0,0,0,500);
         instructions[500] = new Instruction(Opcode.HALT,0,0,0,0);
+         */
 
         //Vector addition
-        /*
         int length = 5;
         int ap = 2;
         int bp = 10;
@@ -57,8 +57,6 @@ public class Main {
         instructions[9] = new Instruction(Opcode.ADDI,4,4,0,1); // i++
         instructions[10] = new Instruction(Opcode.BLT,0,4,8,5); //branch back to for loop if i < 100
         instructions[11] = new Instruction(Opcode.HALT,0,0,0,0); //Terminate
-
-         */
 
         Processor processor = new Processor();
         processor.instructions = instructions;
