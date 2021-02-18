@@ -4,7 +4,7 @@ public class Processor {
     int pc = 0; //Program counter
     int executedInsts = 0; //Number of instructions executed
     int[] mem;
-    int[] rf = new int[32]; //Register file (physical)
+    int[] rf = new int[32]; //Register file (physical) register 0 always have value zero (input is ignored)
     Instruction[] instructions;
     boolean finished = false;
 
@@ -130,17 +130,23 @@ public class Processor {
     public void Memory(Instruction ins) {
         switch (ins.opcode) {
             case LD:
-                rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
+                if(ins.Rd != 0) {
+                    rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
+                }
                 pc++;
                 cycle++;
                 break;
             case LDC:
-                rf[ins.Rd] = ins.Const;
+                if(ins.Rd != 0) {
+                    rf[ins.Rd] = ins.Const;
+                }
                 pc++;
                 cycle++;
                 break;
             case LDI:
-                rf[ins.Rd] = mem[ins.Const];
+                if(ins.Rd != 0) {
+                    rf[ins.Rd] = mem[ins.Const];
+                }
                 pc++;
                 cycle++;
                 break;
@@ -161,7 +167,7 @@ public class Processor {
     }
 
     public void WriteBack(Instruction ins, Integer data) {
-        if(data != null) {
+        if(data != null && ins.Rd != 0) {
             rf[ins.Rd] = data;
         }
         cycle++;
