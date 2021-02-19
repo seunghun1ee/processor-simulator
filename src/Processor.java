@@ -34,8 +34,10 @@ public class Processor {
             case LD:
             case LDC:
             case LDI:
+            case LDO:
             case ST:
             case STI:
+            case STO:
                 cycle++;
                 pc++;
                 break;
@@ -46,6 +48,11 @@ public class Processor {
                 break;
             case ADDI:
                 data = rf[ins.Rs1] + ins.Const;
+                cycle += 2;
+                pc++;
+                break;
+            case SUB:
+                data = rf[ins.Rs1] - rf[ins.Rs2];
                 cycle += 2;
                 pc++;
                 break;
@@ -152,12 +159,22 @@ public class Processor {
                 }
                 cycle++;
                 break;
+            case LDO:
+                if(ins.Rd != 0) {
+                    rf[ins.Rd] = mem[rf[ins.Rs1] + ins.Const];
+                }
+                cycle++;
+                break;
             case ST:
                 mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
                 cycle++;
                 break;
             case STI:
                 mem[ins.Const] = rf[ins.Rd];
+                cycle++;
+                break;
+            case STO:
+                mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
                 cycle++;
                 break;
             default:
