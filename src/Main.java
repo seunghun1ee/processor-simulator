@@ -58,9 +58,40 @@ public class Main {
         instructions[10] = new Instruction(Opcode.BLT,0,4,8,5); //branch back to for loop if i < 100
         instructions[11] = new Instruction(Opcode.HALT,0,0,0,0); //Terminate
 
+        //Bubble sort
+        Instruction[] instructions2 = new Instruction[512];
+        int[] mem2 = new int[1024];
+
+        int[] arrayToSort = {512,52,61,3,-6,-127,75,21,98,1,874,-1239,431,94,10,36};
+        //int[] arrayToSort = {5,4,3,2,1};
+        int pointer = 2;
+        System.arraycopy(arrayToSort,0,mem2,pointer,arrayToSort.length);
+        instructions2[0] = new Instruction(Opcode.LDC,1,0,0,pointer); // load array pointer
+        instructions2[1] = new Instruction(Opcode.LDC,2,0,0,0); // i = 0
+        instructions2[2] = new Instruction(Opcode.LDC,4,0,0, arrayToSort.length); // load array length
+        instructions2[3] = new Instruction(Opcode.ADDI,5,4,0,-1); // outer for loop limit = length - 1
+        instructions2[4] = new Instruction(Opcode.SUB,6,4,2,0); // length - i, outer loop starting point
+        instructions2[5] = new Instruction(Opcode.LDC,3,0,0,0); // j = 0
+        instructions2[6] = new Instruction(Opcode.ADDI,6,6,0,-1); //inner for loop limit = length - i - 1
+        instructions2[7] = new Instruction(Opcode.LD,7,1,3,0); // a = array[j], inner loop starting point
+        instructions2[8] = new Instruction(Opcode.ADD,9,1,3,0); // pointer + j
+        instructions2[9] = new Instruction(Opcode.LDO,8,9,0,1); // b = array[j + 1]
+        instructions2[10] = new Instruction(Opcode.BLT,0,8,7,12); // if(b < a)
+        instructions2[11] = new Instruction(Opcode.BR,0,0,0,17); //if not b < a skip to the end of inner loop
+        instructions2[12] = new Instruction(Opcode.MV,10,7,0,0); // temp = a
+        instructions2[13] = new Instruction(Opcode.MV,7,8,0,0); // a = b
+        instructions2[14] = new Instruction(Opcode.MV,8,10,0,0); // b = temp, swap complete
+        instructions2[15] = new Instruction(Opcode.ST,7,1,3,0); // store array[j] = a
+        instructions2[16] = new Instruction(Opcode.STO,8,9,0,1); // store array[j + 1] = b
+        instructions2[17] = new Instruction(Opcode.ADDI,3,3,0,1); // j++
+        instructions2[18] = new Instruction(Opcode.BLT,0,3,6,7); // loop back to inner starting point if j < length - i - 1
+        instructions2[19] = new Instruction(Opcode.ADDI,2,2,0,1); // i++
+        instructions2[20] = new Instruction(Opcode.BLT,0,2,5,4); // loop back to outer starting point if i < length - 1
+        instructions2[21] = new Instruction(Opcode.HALT,0,0,0,0); // halt
+
         Processor processor = new Processor();
-        processor.instructions = instructions;
-        processor.mem = mem;
+        processor.instructions = instructions2;
+        processor.mem = mem2;
 	    processor.RunProcessor();
     }
 }
