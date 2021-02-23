@@ -20,6 +20,7 @@ public enum Opcode {
     MV,
     BR,
     JMP,
+    JR,
     BEQ,
     BLT,
     CMP,

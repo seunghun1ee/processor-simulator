@@ -89,6 +89,35 @@ public class Main {
         instructions2[20] = new Instruction(Opcode.BLT,0,2,5,4); // loop back to outer starting point if i < length - 1
         instructions2[21] = new Instruction(Opcode.HALT,0,0,0,0); // halt
 
+        // factorial (recursion)
+        Instruction[] instructions3 = new Instruction[512];
+        int[] mem3 = new int[1024];
+        int loc = 3;
+        int num = 5;
+        int sp = 100;
+        mem3[loc] = num;
+
+        instructions3[0] = new Instruction(Opcode.LDI,1,0,0,loc); // load argument
+        instructions3[1] = new Instruction(Opcode.MV,2,1,0,0); // copy argument
+        instructions3[2] = new Instruction(Opcode.LDC,29,0,0,sp); // gpr[29] is stack pointer
+        instructions3[3] = new Instruction(Opcode.LDC,31,0,0,5); // gpr[31] is return address
+        instructions3[4] = new Instruction(Opcode.BR,0,0,0,100); // function call
+        instructions3[5] = new Instruction(Opcode.HALT,0,0,0,0); // return address,
+        //factorial function
+        instructions3[100] = new Instruction(Opcode.BEQ,0,2,0,102); // function starting point, branch to base case
+        instructions3[101] = new Instruction(Opcode.BR,0,0,0,200); // recursive case
+        instructions3[102] = new Instruction(Opcode.LDC,5,0,0,1); // base case, return value 1
+        instructions3[103] = new Instruction(Opcode.JR,0,31,0,0); // return back
+        //recursive case
+        instructions3[200] = new Instruction(Opcode.ADDI,29,29,0,-2); // need to store num and ra, sp = sp - 2
+        instructions3[201] = new Instruction(Opcode.STO,31,29,0,0); // store ra to stack
+        instructions3[202] = new Instruction(Opcode.STO,2,29,0,-1); // store num to stack
+        instructions3[203] = new Instruction(Opcode.ADDI,2,2,0,-1); // num = num - 1
+        instructions3[204] = new Instruction(Opcode.LDC,31,0,0,206); // new return address
+        instructions3[205] = new Instruction(Opcode.BR,0,0,0,100); // call factorial
+
+
+
         Processor processor = new Processor();
         processor.instructions = instructions2;
         processor.mem = mem2;

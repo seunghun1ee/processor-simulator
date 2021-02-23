@@ -104,6 +104,10 @@ public class Processor {
                 pc = pc + ins.Const;
                 cycle++;
                 break;
+            case JR:
+                pc = ins.Rs1;
+                cycle++;
+                break;
             case BEQ:
                 if(rf[ins.Rs1] == rf[ins.Rs2]) {
                     pc = ins.Const;
