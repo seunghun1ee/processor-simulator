@@ -4,7 +4,7 @@ public class Processor3 {
     int pc = 0; //Program counter
     int executedInsts = 0; //Number of instructions executed
     int[] mem;
-    int[] rf = new int[32]; //Register file (physical) register 0 always have value zero (input is ignored)
+    int[] rf = new int[64]; //Register file register 0 always have value zero (input is ignored) 32 ARF 64 PRF
     Instruction[] instructions;
     boolean finished = false;
     Instruction fetched = new Instruction(Opcode.NOOP,0,0,0,0);
@@ -21,135 +21,160 @@ public class Processor3 {
     }
     //This will fetch int instead later
     private void Fetch() {
-        fetched = instructions[pc];
+        if(decodeBlocked && executeCycle > 1) { // if decode input is blocked and execute is processed more than 1 cycle
+            fetchBlocked = true; // fetch input is blocked
+        }
+        else {
+            fetchBlocked = false;
+            fetched = instructions[pc];
+            pc++;
+        }
         cycle++;
-        pc++;
+
     }
 
     private void Decode() {
-        if(fetched == null) {
-            decoded = new Instruction();
-            decoded.opcode = Opcode.NOOP;
+        if(executeBlocked && executeCycle > 1) { // if execute is processing previous instruction more than 1 cycle
+            decodeBlocked = true; // decode input is blocked
         }
         else {
-            decoded = fetched;
+            decodeBlocked = false;
+            if(fetched == null) {
+                decoded = new Instruction();
+                decoded.opcode = Opcode.NOOP;
+            }
+            else {
+                decoded = fetched;
+            }
         }
+
         cycle++;
     }
 
     private void Execute() {
-        switch (decoded.opcode) {
+        if(!executeBlocked) { // if execute input is not block, update executing instruction
+            executing = decoded;
+        }
+        switch (executing.opcode) {
             case ADD:
-                rf[decoded.Rd] = rf[decoded.Rs1] + rf[decoded.Rs2];
-                cycle += 2;
+                if(executeCycle < 1) {
+                    executeBlocked = true;
+                    executeCycle++;
+                }
+                else {
+                    rf[executing.Rd] = rf[executing.Rs1] + rf[executing.Rs2];
+                    executeBlocked = false;
+                    executeCycle = 0;
+                }
+                cycle++;
                 break;
             case ADDI:
-                rf[decoded.Rd] = rf[decoded.Rs1] + decoded.Const;
+                rf[executing.Rd] = rf[executing.Rs1] + executing.Const;
                 cycle += 2;
                 break;
             case SUB:
-                rf[decoded.Rd] = rf[decoded.Rs1] - rf[decoded.Rs2];
+                rf[executing.Rd] = rf[executing.Rs1] - rf[executing.Rs2];
                 cycle += 2;
                 break;
             case MUL:
-                rf[decoded.Rd] = rf[decoded.Rs1] * rf[decoded.Rs2];
+                rf[executing.Rd] = rf[executing.Rs1] * rf[executing.Rs2];
                 cycle += 3;
                 break;
             case MULI:
-                rf[decoded.Rd] = rf[decoded.Rs1] * decoded.Const;
+                rf[executing.Rd] = rf[executing.Rs1] * executing.Const;
                 cycle += 3;
                 break;
             case DIV:
-                rf[decoded.Rd] = rf[decoded.Rs1] / rf[decoded.Rs2];
+                rf[executing.Rd] = rf[executing.Rs1] / rf[executing.Rs2];
                 cycle += 4;
                 break;
             case DIVI:
-                rf[decoded.Rd] = rf[decoded.Rs1] / decoded.Const;
+                rf[executing.Rd] = rf[executing.Rs1] / executing.Const;
                 cycle += 4;
                 break;
             case NOT:
-                rf[decoded.Rd] = ~rf[decoded.Rs1];
+                rf[executing.Rd] = ~rf[executing.Rs1];
                 cycle++;
                 break;
             case AND:
-                rf[decoded.Rd] = rf[decoded.Rs1] & rf[decoded.Rs2];
+                rf[executing.Rd] = rf[executing.Rs1] & rf[executing.Rs2];
                 cycle++;
                 break;
             case OR:
-                rf[decoded.Rd] = rf[decoded.Rs1] | rf[decoded.Rs2];
+                rf[executing.Rd] = rf[executing.Rs1] | rf[executing.Rs2];
                 cycle++;
                 break;
             case MV:
-                rf[decoded.Rd] = rf[decoded.Rs1];
+                rf[executing.Rd] = rf[executing.Rs1];
                 cycle++;
                 break;
             case BR:
-                pc = decoded.Const;
+                pc = executing.Const;
                 cycle++;
                 fetched = new Instruction(Opcode.NOOP,0,0,0,0);
                 break;
             case JMP:
-                pc = pc + decoded.Const - 1;
+                pc = pc + executing.Const - 1;
                 cycle++;
                 fetched = new Instruction(Opcode.NOOP,0,0,0,0);
                 break;
             case JR:
-                pc = decoded.Rs1;
+                pc = executing.Rs1;
                 cycle++;
                 fetched = new Instruction(Opcode.NOOP,0,0,0,0);
                 break;
             case BEQ:
-                if(rf[decoded.Rs1] == rf[decoded.Rs2]) {
-                    pc = decoded.Const;
+                if(rf[executing.Rs1] == rf[executing.Rs2]) {
+                    pc = executing.Const;
                     fetched = new Instruction(Opcode.NOOP,0,0,0,0);
                 }
                 cycle++;
                 break;
             case BLT:
-                if(rf[decoded.Rs1] < rf[decoded.Rs2]) {
-                    pc = decoded.Const;
+                if(rf[executing.Rs1] < rf[executing.Rs2]) {
+                    pc = executing.Const;
                     fetched = new Instruction(Opcode.NOOP,0,0,0,0);
                 }
                 cycle++;
                 break;
             case CMP:
-                rf[decoded.Rd] = Integer.compare(rf[decoded.Rs1], rf[decoded.Rs2]);
+                rf[executing.Rd] = Integer.compare(rf[executing.Rs1], rf[executing.Rs2]);
                 cycle++;
                 break;
             case LD:
-                if(decoded.Rd != 0) {
-                    rf[decoded.Rd] = mem[rf[decoded.Rs1] + rf[decoded.Rs2]];
+                if(executing.Rd != 0) {
+                    rf[executing.Rd] = mem[rf[executing.Rs1] + rf[executing.Rs2]];
                 }
                 cycle++;
                 break;
             case LDC:
-                if(decoded.Rd != 0) {
-                    rf[decoded.Rd] = decoded.Const;
+                if(executing.Rd != 0) {
+                    rf[executing.Rd] = executing.Const;
                 }
                 cycle++;
                 break;
             case LDI:
-                if(decoded.Rd != 0) {
-                    rf[decoded.Rd] = mem[decoded.Const];
+                if(executing.Rd != 0) {
+                    rf[executing.Rd] = mem[executing.Const];
                 }
                 cycle++;
                 break;
             case LDO:
-                if(decoded.Rd != 0) {
-                    rf[decoded.Rd] = mem[rf[decoded.Rs1] + decoded.Const];
+                if(executing.Rd != 0) {
+                    rf[executing.Rd] = mem[rf[executing.Rs1] + executing.Const];
                 }
                 cycle++;
                 break;
             case ST:
-                mem[rf[decoded.Rs1] + rf[decoded.Rs2]] = rf[decoded.Rd];
+                mem[rf[executing.Rs1] + rf[executing.Rs2]] = rf[executing.Rd];
                 cycle++;
                 break;
             case STI:
-                mem[decoded.Const] = rf[decoded.Rd];
+                mem[executing.Const] = rf[executing.Rd];
                 cycle++;
                 break;
             case STO:
-                mem[rf[decoded.Rs1] + decoded.Const] = rf[decoded.Rd];
+                mem[rf[executing.Rs1] + executing.Const] = rf[executing.Rd];
                 cycle++;
                 break;
             case HALT:
