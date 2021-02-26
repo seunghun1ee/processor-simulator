@@ -122,5 +122,10 @@ public class Main {
         processor.instructions = instructions2;
         processor.mem = mem2;
 	    processor.RunProcessor();
+
+	    Processor3 processor3 = new Processor3();
+	    processor3.instructions = instructions;
+	    processor3.mem = mem;
+	    processor3.RunProcessor();
     }
 }
