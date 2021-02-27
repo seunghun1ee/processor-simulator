@@ -1,4 +1,4 @@
-public class Processor {
+public class Processor2 {
 
     int cycle = 0;
     int pc = 0; //Program counter
@@ -8,7 +8,7 @@ public class Processor {
     Instruction[] instructions;
     boolean finished = false;
 
-    public Processor() {
+    public Processor2() {
 
     }
     //This will fetch int instead later
@@ -27,107 +27,72 @@ public class Processor {
         return ins;
     }
 
-    public void Execute(Instruction ins) {
+    public Integer Execute(Instruction ins) {
+        Integer data = null;
         switch (ins.opcode) {
             case NOOP:
+            case LD:
+            case LDC:
+            case LDI:
+            case LDO:
+            case ST:
+            case STI:
+            case STO:
                 cycle++;
                 pc++;
                 break;
             case ADD:
-                rf[ins.Rd] = rf[ins.Rs1] + rf[ins.Rs2];
+                data = rf[ins.Rs1] + rf[ins.Rs2];
                 cycle += 2;
                 pc++;
                 break;
             case ADDI:
-                rf[ins.Rd] = rf[ins.Rs1] + ins.Const;
+                data = rf[ins.Rs1] + ins.Const;
                 cycle += 2;
                 pc++;
                 break;
             case SUB:
-                rf[ins.Rd] = rf[ins.Rs1] - rf[ins.Rs2];
+                data = rf[ins.Rs1] - rf[ins.Rs2];
                 cycle += 2;
                 pc++;
                 break;
             case MUL:
-                rf[ins.Rd] = rf[ins.Rs1] * rf[ins.Rs2];
+                data = rf[ins.Rs1] * rf[ins.Rs2];
                 cycle += 3;
                 pc++;
                 break;
             case MULI:
-                rf[ins.Rd] = rf[ins.Rs1] * ins.Const;
+                data = rf[ins.Rs1] * ins.Const;
                 cycle += 3;
                 pc++;
                 break;
             case DIV:
-                rf[ins.Rd] = rf[ins.Rs1] / rf[ins.Rs2];
+                data = rf[ins.Rs1] / rf[ins.Rs2];
                 cycle += 4;
                 pc++;
                 break;
             case DIVI:
-                rf[ins.Rd] = rf[ins.Rs1] / ins.Const;
+                data = rf[ins.Rs1] / ins.Const;
                 cycle += 4;
                 pc++;
                 break;
             case NOT:
-                rf[ins.Rd] = ~rf[ins.Rs1];
+                data = ~rf[ins.Rs1];
                 cycle++;
                 pc++;
                 break;
             case AND:
-                rf[ins.Rd] = rf[ins.Rs1] & rf[ins.Rs2];
+                data = rf[ins.Rs1] & rf[ins.Rs2];
                 cycle++;
                 pc++;
                 break;
             case OR:
-                rf[ins.Rd] = rf[ins.Rs1] | rf[ins.Rs2];
-                cycle++;
-                pc++;
-                break;
-            case LD:
-                if(ins.Rd != 0) {
-                    rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
-                }
-                cycle++;
-                pc++;
-                break;
-            case LDC:
-                if(ins.Rd != 0) {
-                    rf[ins.Rd] = ins.Const;
-                }
-                cycle++;
-                pc++;
-                break;
-            case LDI:
-                if(ins.Rd != 0) {
-                    rf[ins.Rd] = mem[ins.Const];
-                }
-                cycle++;
-                pc++;
-                break;
-            case LDO:
-                if(ins.Rd != 0) {
-                    rf[ins.Rd] = mem[rf[ins.Rs1] + ins.Const];
-                }
-                cycle++;
-                pc++;
-                break;
-            case ST:
-                mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
-                cycle++;
-                pc++;
-                break;
-            case STI:
-                mem[ins.Const] = rf[ins.Rd];
-                cycle++;
-                pc++;
-                break;
-            case STO:
-                mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
+                data = rf[ins.Rs1] | rf[ins.Rs2];
                 cycle++;
                 pc++;
                 break;
             case MV:
-                rf[ins.Rd] = rf[ins.Rs1];
+                data = rf[ins.Rs1];
                 cycle++;
                 pc++;
                 break;
@@ -162,7 +127,7 @@ public class Processor {
                 cycle++;
                 break;
             case CMP:
-                rf[ins.Rd] = Integer.compare(rf[ins.Rs1], rf[ins.Rs2]);
+                data = Integer.compare(rf[ins.Rs1], rf[ins.Rs2]);
                 cycle++;
                 pc++;
                 break;
@@ -175,6 +140,58 @@ public class Processor {
                 break;
         }
 
+        return data;
+    }
+
+    public void Memory(Instruction ins) {
+        switch (ins.opcode) {
+            case LD:
+                if(ins.Rd != 0) {
+                    rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
+                }
+                cycle++;
+                break;
+            case LDC:
+                if(ins.Rd != 0) {
+                    rf[ins.Rd] = ins.Const;
+                }
+                cycle++;
+                break;
+            case LDI:
+                if(ins.Rd != 0) {
+                    rf[ins.Rd] = mem[ins.Const];
+                }
+                cycle++;
+                break;
+            case LDO:
+                if(ins.Rd != 0) {
+                    rf[ins.Rd] = mem[rf[ins.Rs1] + ins.Const];
+                }
+                cycle++;
+                break;
+            case ST:
+                mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
+                cycle++;
+                break;
+            case STI:
+                mem[ins.Const] = rf[ins.Rd];
+                cycle++;
+                break;
+            case STO:
+                mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
+                cycle++;
+                break;
+            default:
+                cycle++;
+                break;
+        }
+    }
+
+    public void WriteBack(Instruction ins, Integer data) {
+        if(data != null && ins.Rd != 0) {
+            rf[ins.Rd] = data;
+        }
+        cycle++;
     }
 
     public void RunProcessor() {
@@ -183,10 +200,12 @@ public class Processor {
             //System.out.println("PC " + pc + " " + cycle + " number of cycles passed");
             Instruction fetched = Fetch();
             Instruction instruction = Decode(fetched);
-            Execute(instruction);
+            Integer data = Execute(instruction);
+            Memory(instruction);
             executedInsts++;
+            WriteBack(instruction, data);
         }
-        System.out.println("3 cycle scalar non-pipelined processor Terminated");
+        System.out.println("5 cycle scalar non-pipelined processor Terminated");
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");
         System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));

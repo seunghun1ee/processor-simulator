@@ -24,6 +24,7 @@ public class Instruction {
         switch (this.opcode) {
             case ADD:
             case ADDI:
+            case SUB:
                 cycle = 2;
                 break;
             case MUL:

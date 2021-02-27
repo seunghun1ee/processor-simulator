@@ -170,12 +170,15 @@ public class Processor3 {
     public void RunProcessor() {
 
         while(!finished && pc < instructions.length) {
-            System.out.println("PC " + pc + " " + cycle + " number of cycles passed");
+            //System.out.println("PC " + pc + " " + cycle + " number of cycles passed");
             Execute();
             Decode();
             Fetch();
         }
-        System.out.println("Terminated");
+        System.out.println("3 cycle scalar pipelined processor Terminated");
+        System.out.println(executedInsts + " instructions executed");
+        System.out.println(cycle + " cycles spent");
+        System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
     }
 
 }
