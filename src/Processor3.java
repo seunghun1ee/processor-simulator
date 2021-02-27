@@ -14,7 +14,6 @@ public class Processor3 {
     boolean decodeBlocked = false;
     boolean executeBlocked = false;
     int executeCycle = 0;
-    int execEndCycle = 0;
 
 
     public Processor3() {
@@ -25,24 +24,18 @@ public class Processor3 {
         if(decodeBlocked && executeCycle > 1) { // if decode input is blocked and execute is processed more than 1 cycle
             fetchBlocked = true; // fetch input is blocked
         }
-        else {
+        else if(pc < mem.length) {
             fetchBlocked = false;
             fetched = instructions[pc];
             pc++;
         }
         cycle++;
-
     }
 
     private void Decode() {
-        if(executeCycle > 1) { // if execute is processing previous instruction more than 1 cycle
-            decodeBlocked = true; // decode input is blocked
-        }
-        else { // getting overwritten too fast for MUL
-            decodeBlocked = false;
-
-        }
-
+        // if execute is processing previous instruction more than 1 cycle
+        // decode input is blocked
+        decodeBlocked = executeCycle > 1;
         if(!decodeBlocked) {
             if(fetched == null) {
                 decoded = new Instruction();
@@ -52,171 +45,10 @@ public class Processor3 {
                 decoded = fetched;
             }
         }
-
-        cycle++;
-    }
-
-    private void Decode2() {
-        if(cycle < execEndCycle) { // if execute is processing previous instruction more than 1 cycle
-            decodeBlocked = true; // decode input is blocked
-        }
-        else { // getting overwritten too fast for MUL
-            decodeBlocked = false;
-
-        }
-
-        if(!decodeBlocked) {
-            if(fetched == null) {
-                decoded = new Instruction();
-                decoded.opcode = Opcode.NOOP;
-            }
-            else {
-                decoded = fetched;
-            }
-        }
-
         cycle++;
     }
 
     private void Execute() {
-        if(!executeBlocked) { // if execute input is not block, update executing instruction
-            executing = decoded;
-        }
-        switch (executing.opcode) {
-            case ADD:
-                if(executeCycle < 1) {
-                    executeBlocked = true;
-                    executeCycle++;
-                }
-                else {
-                    rf[executing.Rd] = rf[executing.Rs1] + rf[executing.Rs2];
-                    executeBlocked = false;
-                    executeCycle = 0;
-                }
-                cycle++;
-                break;
-            case ADDI:
-                rf[executing.Rd] = rf[executing.Rs1] + executing.Const;
-                cycle += 2;
-                break;
-            case SUB:
-                rf[executing.Rd] = rf[executing.Rs1] - rf[executing.Rs2];
-                cycle += 2;
-                break;
-            case MUL:
-                rf[executing.Rd] = rf[executing.Rs1] * rf[executing.Rs2];
-                cycle += 3;
-                break;
-            case MULI:
-                rf[executing.Rd] = rf[executing.Rs1] * executing.Const;
-                cycle += 3;
-                break;
-            case DIV:
-                rf[executing.Rd] = rf[executing.Rs1] / rf[executing.Rs2];
-                cycle += 4;
-                break;
-            case DIVI:
-                rf[executing.Rd] = rf[executing.Rs1] / executing.Const;
-                cycle += 4;
-                break;
-            case NOT:
-                rf[executing.Rd] = ~rf[executing.Rs1];
-                cycle++;
-                break;
-            case AND:
-                rf[executing.Rd] = rf[executing.Rs1] & rf[executing.Rs2];
-                cycle++;
-                break;
-            case OR:
-                rf[executing.Rd] = rf[executing.Rs1] | rf[executing.Rs2];
-                cycle++;
-                break;
-            case MV:
-                rf[executing.Rd] = rf[executing.Rs1];
-                cycle++;
-                break;
-            case BR:
-                pc = executing.Const;
-                cycle++;
-                fetched = new Instruction(Opcode.NOOP,0,0,0,0);
-                break;
-            case JMP:
-                pc = pc + executing.Const - 1;
-                cycle++;
-                fetched = new Instruction(Opcode.NOOP,0,0,0,0);
-                break;
-            case JR:
-                pc = executing.Rs1;
-                cycle++;
-                fetched = new Instruction(Opcode.NOOP,0,0,0,0);
-                break;
-            case BEQ:
-                if(rf[executing.Rs1] == rf[executing.Rs2]) {
-                    pc = executing.Const;
-                    fetched = new Instruction(Opcode.NOOP,0,0,0,0);
-                }
-                cycle++;
-                break;
-            case BLT:
-                if(rf[executing.Rs1] < rf[executing.Rs2]) {
-                    pc = executing.Const;
-                    fetched = new Instruction(Opcode.NOOP,0,0,0,0);
-                }
-                cycle++;
-                break;
-            case CMP:
-                rf[executing.Rd] = Integer.compare(rf[executing.Rs1], rf[executing.Rs2]);
-                cycle++;
-                break;
-            case LD:
-                if(executing.Rd != 0) {
-                    rf[executing.Rd] = mem[rf[executing.Rs1] + rf[executing.Rs2]];
-                }
-                cycle++;
-                break;
-            case LDC:
-                if(executing.Rd != 0) {
-                    rf[executing.Rd] = executing.Const;
-                }
-                cycle++;
-                break;
-            case LDI:
-                if(executing.Rd != 0) {
-                    rf[executing.Rd] = mem[executing.Const];
-                }
-                cycle++;
-                break;
-            case LDO:
-                if(executing.Rd != 0) {
-                    rf[executing.Rd] = mem[rf[executing.Rs1] + executing.Const];
-                }
-                cycle++;
-                break;
-            case ST:
-                mem[rf[executing.Rs1] + rf[executing.Rs2]] = rf[executing.Rd];
-                cycle++;
-                break;
-            case STI:
-                mem[executing.Const] = rf[executing.Rd];
-                cycle++;
-                break;
-            case STO:
-                mem[rf[executing.Rs1] + executing.Const] = rf[executing.Rd];
-                cycle++;
-                break;
-            case HALT:
-                finished = true;
-                cycle++;
-                break;
-            case NOOP:
-            default:
-                cycle++;
-                break;
-        }
-        executedInsts++;
-    }
-
-    private void Execute2() {
         if(!executeBlocked) { // if execute input is not blocked, update executing instruction
             executing = decoded;
             executeCycle = 0;
@@ -229,21 +61,6 @@ public class Processor3 {
             executeBlocked = false;
         }
         executeCycle++;
-        cycle++;
-    }
-
-    private void Execute3() {
-        if(!executeBlocked) {
-            executing = decoded;
-            execEndCycle = cycle + executing.numCycles;
-        }
-        if(cycle < execEndCycle - 1) {
-            executeBlocked = true;
-        }
-        else {
-            finishExecution(executing);
-            executeBlocked = false;
-        }
         cycle++;
     }
 
@@ -319,7 +136,7 @@ public class Processor3 {
                 fetched = new Instruction(Opcode.NOOP,0,0,0,0);
                 break;
             case JMP:
-                pc = pc + ins.Const - 1;
+                pc = pc + ins.Const - 2; // By the time JMP is executed, pc is already incremeted twice
                 fetched = new Instruction(Opcode.NOOP,0,0,0,0);
                 break;
             case JR:
@@ -346,7 +163,7 @@ public class Processor3 {
                 break;
         }
 
-
+        executedInsts++;
 
     }
 
@@ -354,7 +171,7 @@ public class Processor3 {
 
         while(!finished && pc < instructions.length) {
             System.out.println("PC " + pc + " " + cycle + " number of cycles passed");
-            Execute2();
+            Execute();
             Decode();
             Fetch();
         }
