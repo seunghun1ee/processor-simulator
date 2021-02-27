@@ -116,11 +116,19 @@ public class Main {
         instructions3[204] = new Instruction(Opcode.LDC,31,0,0,206); // new return address
         instructions3[205] = new Instruction(Opcode.BR,0,0,0,100); // call factorial
 
-
-
         Processor processor = new Processor();
-        processor.instructions = instructions2;
-        processor.mem = mem2;
-	    processor.RunProcessor();
+        processor.instructions = instructions;
+        processor.mem = mem;
+        processor.RunProcessor();
+
+        Processor2 processor2 = new Processor2();
+        processor2.instructions = instructions;
+        processor2.mem = mem;
+	    processor2.RunProcessor();
+
+	    Processor3 processor3 = new Processor3();
+	    processor3.instructions = instructions;
+	    processor3.mem = mem;
+	    processor3.RunProcessor();
     }
 }
