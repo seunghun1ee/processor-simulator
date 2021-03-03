@@ -1,10 +1,11 @@
 public class Processor {
 
     int cycle = 0;
-    int pc = 0; //Program counter
     int executedInsts = 0; //Number of instructions executed
     int[] mem;
-    int[] rf = new int[64]; //Register file (physical) register 0 always have value zero (input is ignored)
+    int[] rf = new int[65]; //Register file (physical)
+    // register 0 always have value zero (input is ignored)
+    // $32 is Program counter ($pc)
     Instruction[] instructions;
     boolean finished = false;
 
@@ -13,7 +14,7 @@ public class Processor {
     }
     //This will fetch int instead later
     public Instruction Fetch() {
-        Instruction instruction = instructions[pc];
+        Instruction instruction = instructions[rf[32]];
         cycle++;
         return instruction;
     }
@@ -31,140 +32,140 @@ public class Processor {
         switch (ins.opcode) {
             case NOOP:
                 cycle++;
-                pc++;
+                rf[32]++;
                 break;
             case ADD:
                 rf[ins.Rd] = rf[ins.Rs1] + rf[ins.Rs2];
                 cycle += 2;
-                pc++;
+                rf[32]++;
                 break;
             case ADDI:
                 rf[ins.Rd] = rf[ins.Rs1] + ins.Const;
                 cycle += 2;
-                pc++;
+                rf[32]++;
                 break;
             case SUB:
                 rf[ins.Rd] = rf[ins.Rs1] - rf[ins.Rs2];
                 cycle += 2;
-                pc++;
+                rf[32]++;
                 break;
             case MUL:
                 rf[ins.Rd] = rf[ins.Rs1] * rf[ins.Rs2];
                 cycle += 3;
-                pc++;
+                rf[32]++;
                 break;
             case MULI:
                 rf[ins.Rd] = rf[ins.Rs1] * ins.Const;
                 cycle += 3;
-                pc++;
+                rf[32]++;
                 break;
             case DIV:
                 rf[ins.Rd] = rf[ins.Rs1] / rf[ins.Rs2];
                 cycle += 4;
-                pc++;
+                rf[32]++;
                 break;
             case DIVI:
                 rf[ins.Rd] = rf[ins.Rs1] / ins.Const;
                 cycle += 4;
-                pc++;
+                rf[32]++;
                 break;
             case NOT:
                 rf[ins.Rd] = ~rf[ins.Rs1];
                 cycle++;
-                pc++;
+                rf[32]++;
                 break;
             case AND:
                 rf[ins.Rd] = rf[ins.Rs1] & rf[ins.Rs2];
                 cycle++;
-                pc++;
+                rf[32]++;
                 break;
             case OR:
                 rf[ins.Rd] = rf[ins.Rs1] | rf[ins.Rs2];
                 cycle++;
-                pc++;
+                rf[32]++;
                 break;
             case LD:
                 if(ins.Rd != 0) {
                     rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
                 }
                 cycle++;
-                pc++;
+                rf[32]++;
                 break;
             case LDC:
                 if(ins.Rd != 0) {
                     rf[ins.Rd] = ins.Const;
                 }
                 cycle++;
-                pc++;
+                rf[32]++;
                 break;
             case LDI:
                 if(ins.Rd != 0) {
                     rf[ins.Rd] = mem[ins.Const];
                 }
                 cycle++;
-                pc++;
+                rf[32]++;
                 break;
             case LDO:
                 if(ins.Rd != 0) {
                     rf[ins.Rd] = mem[rf[ins.Rs1] + ins.Const];
                 }
                 cycle++;
-                pc++;
+                rf[32]++;
                 break;
             case ST:
                 mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
                 cycle++;
-                pc++;
+                rf[32]++;
                 break;
             case STI:
                 mem[ins.Const] = rf[ins.Rd];
                 cycle++;
-                pc++;
+                rf[32]++;
                 break;
             case STO:
                 mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
                 cycle++;
-                pc++;
+                rf[32]++;
                 break;
             case MV:
                 rf[ins.Rd] = rf[ins.Rs1];
                 cycle++;
-                pc++;
+                rf[32]++;
                 break;
             case BR:
-                pc = ins.Const;
+                rf[32] = ins.Const;
                 cycle++;
                 break;
             case JMP:
-                pc = pc + ins.Const;
+                rf[32] = rf[32] + ins.Const;
                 cycle++;
                 break;
             case JR:
-                pc = ins.Rs1;
+                rf[32] = rf[ins.Rs1];
                 cycle++;
                 break;
             case BEQ:
                 if(rf[ins.Rs1] == rf[ins.Rs2]) {
-                    pc = ins.Const;
+                    rf[32] = ins.Const;
                 }
                 else {
-                    pc++;
+                    rf[32]++;
                 }
                 cycle++;
                 break;
             case BLT:
                 if(rf[ins.Rs1] < rf[ins.Rs2]) {
-                    pc = ins.Const;
+                    rf[32] = ins.Const;
                 }
                 else {
-                    pc++;
+                    rf[32]++;
                 }
                 cycle++;
                 break;
             case CMP:
                 rf[ins.Rd] = Integer.compare(rf[ins.Rs1], rf[ins.Rs2]);
                 cycle++;
-                pc++;
+                rf[32]++;
                 break;
             case HALT:
                 finished = true;
@@ -179,7 +180,7 @@ public class Processor {
 
     public void RunProcessor() {
 
-        while(!finished && pc < instructions.length) {
+        while(!finished && rf[32] < instructions.length) {
             //System.out.println("PC " + pc + " " + cycle + " number of cycles passed");
             Instruction fetched = Fetch();
             Instruction instruction = Decode(fetched);
