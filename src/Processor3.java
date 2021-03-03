@@ -4,7 +4,9 @@ public class Processor3 {
     int pc = 0; //Program counter
     int executedInsts = 0; //Number of instructions executed
     int[] mem;
-    int[] rf = new int[64]; //Register file register 0 always have value zero (input is ignored) 32 ARF 64 PRF
+    int[] rf = new int[65]; //Register file (physical)
+    // register 0 always have value zero (input is ignored)
+    // $32 is Program counter for users ($pc)
     Instruction[] instructions;
     boolean finished = false;
     Instruction fetched = new Instruction(Opcode.NOOP,0,0,0,0);
@@ -49,6 +51,7 @@ public class Processor3 {
     }
 
     private void Execute() {
+        rf[32] = Integer.max(0, pc - 2);
         if(!executeBlocked) { // if execute input is not blocked, update executing instruction
             executing = decoded;
             executeCycle = 0;
@@ -133,25 +136,30 @@ public class Processor3 {
                 break;
             case BR:
                 pc = ins.Const;
+                rf[32] = pc;
                 fetched = new Instruction(Opcode.NOOP,0,0,0,0);
                 break;
             case JMP:
                 pc = pc + ins.Const - 2; // By the time JMP is executed, pc is already incremeted twice
+                rf[32] = pc;
                 fetched = new Instruction(Opcode.NOOP,0,0,0,0);
                 break;
             case JR:
-                pc = ins.Rs1;
+                pc = rf[ins.Rs1];
+                rf[32] = pc;
                 fetched = new Instruction(Opcode.NOOP,0,0,0,0);
                 break;
             case BEQ:
                 if(rf[ins.Rs1] == rf[ins.Rs2]) {
                     pc = ins.Const;
+                    rf[32] = pc;
                     fetched = new Instruction(Opcode.NOOP,0,0,0,0);
                 }
                 break;
             case BLT:
                 if(rf[ins.Rs1] < rf[ins.Rs2]) {
                     pc = ins.Const;
+                    rf[32] = pc;
                     fetched = new Instruction(Opcode.NOOP,0,0,0,0);
                 }
                 break;

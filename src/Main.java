@@ -129,13 +129,13 @@ public class Main {
         processor.RunProcessor();
 
         Processor2 processor2 = new Processor2();
-        processor2.instructions = instructions;
-        processor2.mem = mem;
+        processor2.instructions = instructions3;
+        processor2.mem = mem3;
 	    processor2.RunProcessor();
 
 	    Processor3 processor3 = new Processor3();
-	    processor3.instructions = instructions;
-	    processor3.mem = mem;
+	    processor3.instructions = instructions3;
+	    processor3.mem = mem3;
 	    processor3.RunProcessor();
     }
 }
