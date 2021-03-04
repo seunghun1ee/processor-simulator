@@ -3,20 +3,23 @@ public class Processor3 {
     int cycle = 0;
     int pc = 0; //Program counter
     int executedInsts = 0; //Number of instructions executed
-    int[] mem;
+    int executeCycle = 0; // cycles that was spent at execution phase
+    int stalledCycle = 0; // cycles that was spent while doing nothing
+    int[] mem; // memory from user
     int[] rf = new int[65]; //Register file (physical)
     // register 0 always have value zero (input is ignored)
     // $32 is Program counter for users ($pc)
-    Instruction[] instructions;
+    Instruction[] instructions; // instructions from user
     boolean finished = false;
+    // 3 pipeline registers
     Instruction fetched = null;
     Instruction decoded = null;
     Instruction executing = null;
+    // state of phases
     boolean fetchBlocked = false;
     boolean decodeBlocked = false;
     boolean executeBlocked = false;
-    int executeCycle = 0;
-    int stalledCycle = 0;
+
 
 
     public Processor3() {
@@ -66,7 +69,7 @@ public class Processor3 {
             }
         }
         else {
-            stalledCycle++;
+            stalledCycle++; // when executing is null, it's stall
         }
         executeCycle++;
         cycle++;
@@ -168,7 +171,7 @@ public class Processor3 {
                 fetched = null;
                 break;
             case JR:
-                pc = rf[ins.Rs1];
+                pc = rf[ins.Rs1] + ins.Const;
                 rf[32] = pc;
                 fetched = null;
                 break;
@@ -207,7 +210,6 @@ public class Processor3 {
     public void RunProcessor() {
 
         while(!finished && pc < instructions.length) {
-            //System.out.println("PC " + pc + " " + cycle + " number of cycles passed");
             Execute();
             Decode();
             Fetch();
@@ -217,6 +219,7 @@ public class Processor3 {
         System.out.println(cycle + " cycles spent");
         System.out.println(stalledCycle + " stalled cycles");
         System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
+        System.out.println("stalled_cycle/cycle ratio: " + ((float) stalledCycle / (float) cycle));
     }
 
 }
