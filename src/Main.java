@@ -123,15 +123,15 @@ public class Main {
         instructions3[210] = new Instruction(Opcode.JR,0,31,0,0); // return to $ra
 
 
-        Processor processor = new Processor();
-        processor.instructions = instructions3;
-        processor.mem = mem3;
-        processor.RunProcessor();
-
-        Processor2 processor2 = new Processor2();
-        processor2.instructions = instructions3;
-        processor2.mem = mem3;
-	    processor2.RunProcessor();
+//        Processor processor = new Processor();
+//        processor.instructions = instructions3;
+//        processor.mem = mem3;
+//        processor.RunProcessor();
+//
+//        Processor2 processor2 = new Processor2();
+//        processor2.instructions = instructions3;
+//        processor2.mem = mem3;
+//	    processor2.RunProcessor();
 
 	    Processor3 processor3 = new Processor3();
 	    processor3.instructions = instructions3;
