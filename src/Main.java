@@ -1,6 +1,10 @@
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+
 public class Main {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         Instruction[] instructions = new Instruction[512];
         int[] mem = new int[1024];
         //Functionality testing program
@@ -137,5 +141,18 @@ public class Main {
 	    processor3.instructions = instructions3;
 	    processor3.mem = mem3;
 	    processor3.RunProcessor();
+
+	    createDump(processor3.mem, "memory.txt");
+	    createDump(processor3.rf,"rf.txt");
+    }
+
+    private static void createDump(int[] array, String filePath) throws IOException {
+        FileWriter fileWriter = new FileWriter(filePath);
+        PrintWriter printWriter = new PrintWriter(fileWriter);
+        printWriter.println("Address  Value");
+        for(int i = 0; i < array.length; i++) {
+            printWriter.printf("%04d     %d\n",i,array[i]);
+        }
+        printWriter.close();
     }
 }
