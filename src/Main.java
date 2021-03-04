@@ -106,7 +106,8 @@ public class Main {
         instructions3[2] = new Instruction(Opcode.MV,4,1,0,0); // copy argument to $a0 ($4)
         instructions3[3] = new Instruction(Opcode.ADDI,31,32,0,2); // $ra = $pc + 2 (5)
         instructions3[4] = new Instruction(Opcode.BR,0,0,0,100); // call fac
-        instructions3[5] = new Instruction(Opcode.HALT,0,0,0,0); // halt
+        instructions3[5] = new Instruction(Opcode.STI,2,0,0,loc+1); // store returned result at mem[loc + 1]
+        instructions3[6] = new Instruction(Opcode.HALT,0,0,0,0); // halt
         //fac
         instructions3[100] = new Instruction(Opcode.BEQ,0,4,0,102); // $a0 == 0 then base case
         instructions3[101] = new Instruction(Opcode.BR,0,0,0,200); // call recursive case
@@ -137,13 +138,29 @@ public class Main {
 //        processor2.mem = mem3;
 //	    processor2.RunProcessor();
 
+        System.out.println("Benchmark1 - Vector addition");
+        Processor3 processor = new Processor3();
+        processor.instructions = instructions;
+        processor.mem = mem;
+        processor.RunProcessor();
+        createDump(processor.mem, "memory_bench1.txt");
+        createDump(processor.rf,"rf_bench1.txt");
+
+        System.out.println("Benchmark2 - Bubble sorting 16 element-sized array");
+        Processor3 processor2 = new Processor3();
+        processor2.instructions = instructions2;
+        processor2.mem = mem2;
+        processor2.RunProcessor();
+        createDump(processor2.mem, "memory_bench2.txt");
+        createDump(processor2.rf,"rf_bench2.txt");
+
+        System.out.println("Benchmark3 - Factorial(5)");
 	    Processor3 processor3 = new Processor3();
 	    processor3.instructions = instructions3;
 	    processor3.mem = mem3;
 	    processor3.RunProcessor();
-
-	    createDump(processor3.mem, "memory.txt");
-	    createDump(processor3.rf,"rf.txt");
+	    createDump(processor3.mem, "memory_bench3.txt");
+	    createDump(processor3.rf,"rf_bench3.txt");
     }
 
     private static void createDump(int[] array, String filePath) throws IOException {

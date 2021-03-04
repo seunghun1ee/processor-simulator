@@ -212,7 +212,7 @@ public class Processor3 {
             Decode();
             Fetch();
         }
-        System.out.println("3 cycle scalar pipelined processor Terminated");
+        System.out.println("Scalar pipelined (3-way) processor Terminated");
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");
         System.out.println(stalledCycle + " stalled cycles");
