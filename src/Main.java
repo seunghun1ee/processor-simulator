@@ -41,10 +41,10 @@ public class Main {
          */
 
         //Vector addition
-        int length = 5;
-        int ap = 2;
-        int bp = 10;
-        int cp = 16;
+        int length = 10;
+        int ap = 0;
+        int bp = 12;
+        int cp = 24;
         for(int i = 0; i < length; i++) {
             mem[ap + i] = i; //assigning A[i]
             mem[bp + i] = 2 * i; //assigning B[i]
@@ -97,7 +97,7 @@ public class Main {
         Instruction[] instructions3 = new Instruction[512];
         int[] mem3 = new int[1024];
         int loc = 3;
-        int num = 5;
+        int num = 8;
         int sp = 100;
         mem3[loc] = num;
         //main
@@ -138,7 +138,7 @@ public class Main {
 //        processor2.mem = mem3;
 //	    processor2.RunProcessor();
 
-        System.out.println("Benchmark1 - Vector addition");
+        System.out.println("Benchmark1 - Vector addition (size: 10)");
         Processor3 processor = new Processor3();
         processor.instructions = instructions;
         processor.mem = mem;
@@ -146,7 +146,7 @@ public class Main {
         createDump(processor.mem, "memory_bench1.txt");
         createDump(processor.rf,"rf_bench1.txt");
 
-        System.out.println("Benchmark2 - Bubble sorting 16 element-sized array");
+        System.out.println("Benchmark2 - Bubble sort (size: 16)");
         Processor3 processor2 = new Processor3();
         processor2.instructions = instructions2;
         processor2.mem = mem2;
@@ -154,7 +154,7 @@ public class Main {
         createDump(processor2.mem, "memory_bench2.txt");
         createDump(processor2.rf,"rf_bench2.txt");
 
-        System.out.println("Benchmark3 - Factorial(5)");
+        System.out.println("Benchmark3 - Factorial(8)");
 	    Processor3 processor3 = new Processor3();
 	    processor3.instructions = instructions3;
 	    processor3.mem = mem3;
