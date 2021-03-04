@@ -1,9 +1,9 @@
 public class Instruction {
-    Opcode opcode = null;
-    Integer Rd = null; //Destination register
-    Integer Rs1 = null; //Source register 1
-    Integer Rs2 = null; //Source register 2
-    Integer Const = null; //Constant for immediate operations
+    Opcode opcode = Opcode.NOOP;
+    Integer Rd = 0; //Destination register
+    Integer Rs1 = 0; //Source register 1
+    Integer Rs2 = 0; //Source register 2
+    Integer Const = 0; //Constant for immediate operations
     Integer numCycles = 1;
 
     public Instruction() {

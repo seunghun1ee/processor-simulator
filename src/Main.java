@@ -96,39 +96,46 @@ public class Main {
         int num = 5;
         int sp = 100;
         mem3[loc] = num;
+        //main
+        instructions3[0] = new Instruction(Opcode.LDC,29,0,0,sp); // $29 is $sp
+        instructions3[1] = new Instruction(Opcode.LDI,1,0,0,loc); // load argument
+        instructions3[2] = new Instruction(Opcode.MV,4,1,0,0); // copy argument to $a0 ($4)
+        instructions3[3] = new Instruction(Opcode.ADDI,31,32,0,2); // $ra = $pc + 2 (5)
+        instructions3[4] = new Instruction(Opcode.BR,0,0,0,100); // call fac
+        instructions3[5] = new Instruction(Opcode.HALT,0,0,0,0); // halt
+        //fac
+        instructions3[100] = new Instruction(Opcode.BEQ,0,4,0,102); // $a0 == 0 then base case
+        instructions3[101] = new Instruction(Opcode.BR,0,0,0,200); // call recursive case
+        instructions3[102] = new Instruction(Opcode.LDC,2,0,0,1); // load 1 to return value $v0
+        instructions3[103] = new Instruction(Opcode.JR,0,31,0,0); // return to $ra
+        //recursion
+        instructions3[200] = new Instruction(Opcode.ADDI,29,29,0,-2); // $sp -= 2 to store two elems
+        instructions3[201] = new Instruction(Opcode.STO,31,29,0,0); // store return address
+        instructions3[202] = new Instruction(Opcode.STO,4,29,0,1); // store $a0 at $sp + 1
+        instructions3[203] = new Instruction(Opcode.ADDI, 4,4,0,-1); // num -= 1
+        instructions3[204] = new Instruction(Opcode.ADDI,31,32,0,2); // $ra = $pc + 2 (206)
+        instructions3[205] = new Instruction(Opcode.BR,0,0,0,100); // call fac
+        //pop
+        instructions3[206] = new Instruction(Opcode.LDO,8,29,0,1); // load $t0 = num from sp + 1
+        instructions3[207] = new Instruction(Opcode.MUL,2,2,8,0); // $v0 *= $t0
+        instructions3[208] = new Instruction(Opcode.LDO,31,29,0,0); // load return address from sp + 0
+        instructions3[209] = new Instruction(Opcode.ADDI,29,29,0,2); // $sp += 2
+        instructions3[210] = new Instruction(Opcode.JR,0,31,0,0); // return to $ra
 
-        instructions3[0] = new Instruction(Opcode.LDI,1,0,0,loc); // load argument
-        instructions3[1] = new Instruction(Opcode.MV,2,1,0,0); // copy argument
-        instructions3[2] = new Instruction(Opcode.LDC,29,0,0,sp); // gpr[29] is stack pointer
-        instructions3[3] = new Instruction(Opcode.LDC,31,0,0,5); // gpr[31] is return address
-        instructions3[4] = new Instruction(Opcode.BR,0,0,0,100); // function call
-        instructions3[5] = new Instruction(Opcode.HALT,0,0,0,0); // return address,
-        //factorial function
-        instructions3[100] = new Instruction(Opcode.BEQ,0,2,0,102); // function starting point, branch to base case
-        instructions3[101] = new Instruction(Opcode.BR,0,0,0,200); // recursive case
-        instructions3[102] = new Instruction(Opcode.LDC,5,0,0,1); // base case, return value 1
-        instructions3[103] = new Instruction(Opcode.JR,0,31,0,0); // return back
-        //recursive case
-        instructions3[200] = new Instruction(Opcode.ADDI,29,29,0,-2); // need to store num and ra, sp = sp - 2
-        instructions3[201] = new Instruction(Opcode.STO,31,29,0,0); // store ra to stack
-        instructions3[202] = new Instruction(Opcode.STO,2,29,0,-1); // store num to stack
-        instructions3[203] = new Instruction(Opcode.ADDI,2,2,0,-1); // num = num - 1
-        instructions3[204] = new Instruction(Opcode.LDC,31,0,0,206); // new return address
-        instructions3[205] = new Instruction(Opcode.BR,0,0,0,100); // call factorial
 
-        Processor processor = new Processor();
-        processor.instructions = instructions;
-        processor.mem = mem;
-        processor.RunProcessor();
-
-        Processor2 processor2 = new Processor2();
-        processor2.instructions = instructions;
-        processor2.mem = mem;
-	    processor2.RunProcessor();
+//        Processor processor = new Processor();
+//        processor.instructions = instructions3;
+//        processor.mem = mem3;
+//        processor.RunProcessor();
+//
+//        Processor2 processor2 = new Processor2();
+//        processor2.instructions = instructions3;
+//        processor2.mem = mem3;
+//	    processor2.RunProcessor();
 
 	    Processor3 processor3 = new Processor3();
-	    processor3.instructions = instructions;
-	    processor3.mem = mem;
+	    processor3.instructions = instructions3;
+	    processor3.mem = mem3;
 	    processor3.RunProcessor();
     }
 }

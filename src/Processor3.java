@@ -4,16 +4,19 @@ public class Processor3 {
     int pc = 0; //Program counter
     int executedInsts = 0; //Number of instructions executed
     int[] mem;
-    int[] rf = new int[64]; //Register file register 0 always have value zero (input is ignored) 32 ARF 64 PRF
+    int[] rf = new int[65]; //Register file (physical)
+    // register 0 always have value zero (input is ignored)
+    // $32 is Program counter for users ($pc)
     Instruction[] instructions;
     boolean finished = false;
-    Instruction fetched = new Instruction(Opcode.NOOP,0,0,0,0);
-    Instruction decoded = new Instruction(Opcode.NOOP,0,0,0,0);
-    Instruction executing = new Instruction(Opcode.NOOP,0,0,0,0);
+    Instruction fetched = null;
+    Instruction decoded = null;
+    Instruction executing = null;
     boolean fetchBlocked = false;
     boolean decodeBlocked = false;
     boolean executeBlocked = false;
     int executeCycle = 0;
+    int stalledCycle = 0;
 
 
     public Processor3() {
@@ -30,6 +33,9 @@ public class Processor3 {
             pc++;
         }
         cycle++;
+        if(fetched == null) {
+            stalledCycle++;
+        }
     }
 
     private void Decode() {
@@ -37,15 +43,12 @@ public class Processor3 {
         // decode input is blocked
         decodeBlocked = executeCycle > 1;
         if(!decodeBlocked) {
-            if(fetched == null) {
-                decoded = new Instruction();
-                decoded.opcode = Opcode.NOOP;
-            }
-            else {
-                decoded = fetched;
-            }
+            decoded = fetched;
         }
         cycle++;
+        if(decoded == null) {
+            stalledCycle++;
+        }
     }
 
     private void Execute() {
@@ -53,12 +56,17 @@ public class Processor3 {
             executing = decoded;
             executeCycle = 0;
         }
-        if(executeCycle < executing.numCycles - 1) {
-            executeBlocked = true;
+        if(executing != null) {
+            if(executeCycle < executing.numCycles - 1) {
+                executeBlocked = true;
+            }
+            else {
+                finishExecution(executing);
+                executeBlocked = false;
+            }
         }
         else {
-            finishExecution(executing);
-            executeBlocked = false;
+            stalledCycle++;
         }
         executeCycle++;
         cycle++;
@@ -69,53 +77,68 @@ public class Processor3 {
             switch (ins.opcode) {
                 case ADD:
                     rf[ins.Rd] = rf[ins.Rs1] + rf[ins.Rs2];
+                    rf[32]++;
                     break;
                 case ADDI:
                     rf[ins.Rd] = rf[ins.Rs1] + ins.Const;
+                    rf[32]++;
                     break;
                 case SUB:
                     rf[ins.Rd] = rf[ins.Rs1] - rf[ins.Rs2];
+                    rf[32]++;
                     break;
                 case MUL:
                     rf[ins.Rd] = rf[ins.Rs1] * rf[ins.Rs2];
+                    rf[32]++;
                     break;
                 case MULI:
                     rf[ins.Rd] = rf[ins.Rs1] * ins.Const;
+                    rf[32]++;
                     break;
                 case DIV:
                     rf[ins.Rd] = rf[ins.Rs1] / rf[ins.Rs2];
+                    rf[32]++;
                     break;
                 case DIVI:
                     rf[ins.Rd] = rf[ins.Rs1] / ins.Const;
+                    rf[32]++;
                     break;
                 case NOT:
                     rf[ins.Rd] = ~rf[ins.Rs1];
+                    rf[32]++;
                     break;
                 case AND:
                     rf[ins.Rd] = rf[ins.Rs1] & rf[ins.Rs2];
+                    rf[32]++;
                     break;
                 case OR:
                     rf[ins.Rd] = rf[ins.Rs1] | rf[ins.Rs2];
+                    rf[32]++;
                     break;
                 case LD:
                     rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
+                    rf[32]++;
                     break;
                 case LDC:
                     rf[ins.Rd] = ins.Const;
+                    rf[32]++;
                     break;
                 case LDI:
                     rf[ins.Rd] = mem[ins.Const];
+                    rf[32]++;
                     break;
                 case LDO:
                     rf[ins.Rd] = mem[rf[ins.Rs1] + ins.Const];
+                    rf[32]++;
                     break;
                 case MV:
                     rf[ins.Rd] = rf[ins.Rs1];
+                    rf[32]++;
                     break;
                 case CMP:
                     rf[ins.Rd] = Integer.compare(rf[ins.Rs1], rf[ins.Rs2]);
+                    rf[32]++;
                     break;
-                case NOOP:
                 default:
                     break;
             }
@@ -124,47 +147,61 @@ public class Processor3 {
         switch (ins.opcode) { // instructions that are safe with gpr[0]
             case ST:
                 mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
+                rf[32]++;
                 break;
             case STI:
                 mem[ins.Const] = rf[ins.Rd];
+                rf[32]++;
                 break;
             case STO:
                 mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
+                rf[32]++;
                 break;
             case BR:
                 pc = ins.Const;
-                fetched = new Instruction(Opcode.NOOP,0,0,0,0);
+                rf[32] = pc;
+                fetched = null;
                 break;
             case JMP:
                 pc = pc + ins.Const - 2; // By the time JMP is executed, pc is already incremeted twice
-                fetched = new Instruction(Opcode.NOOP,0,0,0,0);
+                rf[32] = pc;
+                fetched = null;
                 break;
             case JR:
-                pc = ins.Rs1;
-                fetched = new Instruction(Opcode.NOOP,0,0,0,0);
+                pc = rf[ins.Rs1];
+                rf[32] = pc;
+                fetched = null;
                 break;
             case BEQ:
                 if(rf[ins.Rs1] == rf[ins.Rs2]) {
                     pc = ins.Const;
-                    fetched = new Instruction(Opcode.NOOP,0,0,0,0);
+                    rf[32] = pc;
+                    fetched = null;
+                }
+                else {
+                    rf[32]++;
                 }
                 break;
             case BLT:
                 if(rf[ins.Rs1] < rf[ins.Rs2]) {
                     pc = ins.Const;
-                    fetched = new Instruction(Opcode.NOOP,0,0,0,0);
+                    rf[32] = pc;
+                    fetched = null;
+                }
+                else {
+                    rf[32]++;
                 }
                 break;
             case HALT:
                 finished = true;
                 break;
             case NOOP:
+                rf[32]++;
+                break;
             default:
                 break;
         }
-
         executedInsts++;
-
     }
 
     public void RunProcessor() {
@@ -178,6 +215,7 @@ public class Processor3 {
         System.out.println("3 cycle scalar pipelined processor Terminated");
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");
+        System.out.println(stalledCycle + " stalled cycles");
         System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
     }
 
