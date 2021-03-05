@@ -161,24 +161,20 @@ public class Processor3 {
                 rf[32]++;
                 break;
             case BR:
-                pc = ins.Const;
-                rf[32] = pc;
+                rf[32] = pc = ins.Const;
                 fetched = null;
                 break;
             case JMP:
-                pc = rf[32] + ins.Const; // By the time JMP is executed, pc is already incremeted twice
-                rf[32] = pc;
+                rf[32] = pc = rf[32] + ins.Const; // By the time JMP is executed, pc is already incremeted twice
                 fetched = null;
                 break;
             case JR:
-                pc = rf[ins.Rs1] + ins.Const;
-                rf[32] = pc;
+                rf[32] = pc = rf[ins.Rs1] + ins.Const;
                 fetched = null;
                 break;
             case BEQ:
                 if(rf[ins.Rs1] == rf[ins.Rs2]) {
-                    pc = ins.Const;
-                    rf[32] = pc;
+                    rf[32] = pc = ins.Const;
                     fetched = null;
                 }
                 else {
@@ -187,8 +183,7 @@ public class Processor3 {
                 break;
             case BLT:
                 if(rf[ins.Rs1] < rf[ins.Rs2]) {
-                    pc = ins.Const;
-                    rf[32] = pc;
+                    rf[32] = pc = ins.Const;
                     fetched = null;
                 }
                 else {

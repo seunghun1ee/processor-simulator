@@ -138,7 +138,7 @@ public class Main {
 //        processor2.mem = mem3;
 //	    processor2.RunProcessor();
 
-        System.out.println("Benchmark1 - Vector addition (size: 10)");
+        System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
         Processor3 processor = new Processor3();
         processor.instructions = instructions;
         processor.mem = mem;
@@ -146,7 +146,7 @@ public class Main {
         createDump(processor.mem, "memory_bench1.txt");
         createDump(processor.rf,"rf_bench1.txt");
 
-        System.out.println("Benchmark2 - Bubble sort (size: 16)");
+        System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
         Processor3 processor2 = new Processor3();
         processor2.instructions = instructions2;
         processor2.mem = mem2;
@@ -154,7 +154,7 @@ public class Main {
         createDump(processor2.mem, "memory_bench2.txt");
         createDump(processor2.rf,"rf_bench2.txt");
 
-        System.out.println("Benchmark3 - Factorial(8)");
+        System.out.println("Benchmark3 - Factorial(" + num + ")");
 	    Processor3 processor3 = new Processor3();
 	    processor3.instructions = instructions3;
 	    processor3.mem = mem3;
