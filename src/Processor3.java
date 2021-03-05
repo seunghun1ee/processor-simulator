@@ -7,7 +7,7 @@ public class Processor3 {
     int stalledCycle = 0; // cycles that was spent while doing nothing
     int[] mem; // memory from user
     int[] rf = new int[65]; //Register file (physical)
-    // register 0 always have value zero (input is ignored)
+    // register 0 always have value zero ($zero, input is ignored)
     // $32 is Program counter for users ($pc)
     Instruction[] instructions; // instructions from user
     boolean finished = false;
@@ -76,7 +76,7 @@ public class Processor3 {
     }
 
     private void finishExecution(Instruction ins) {
-        if(ins.Rd != 0) { // register 0 is read-only
+        if(ins.Rd != 0 && ins.Rd != 32) { // register 0 & 32 is read-only ($zero, $pc)
             switch (ins.opcode) {
                 case ADD:
                     rf[ins.Rd] = rf[ins.Rs1] + rf[ins.Rs2];
@@ -166,7 +166,7 @@ public class Processor3 {
                 fetched = null;
                 break;
             case JMP:
-                pc = pc + ins.Const - 2; // By the time JMP is executed, pc is already incremeted twice
+                pc = rf[32] + ins.Const; // By the time JMP is executed, pc is already incremeted twice
                 rf[32] = pc;
                 fetched = null;
                 break;
