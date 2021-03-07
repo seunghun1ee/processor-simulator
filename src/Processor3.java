@@ -14,14 +14,14 @@ public class Processor3 {
     // 3 pipeline registers
     Instruction fetched = null;
     Instruction decoded = null;
-
-    Integer Rd = null;
-    Integer Rs1 = null;
-    Integer Rs2 = null;
-    Integer Const = null;
     Instruction executing = null;
 
+    Opcode memoryOpcode = null;
+    Integer memoryRd = null;
+    Integer memoryAddress = null;
+
     Integer resultData = null;
+    Integer resultAddress = null;
     // state of phases
     boolean fetchBlocked = false;
     boolean decodeBlocked = false;
@@ -83,7 +83,29 @@ public class Processor3 {
     }
 
     private void Memory() {
-
+        if(memoryOpcode != null && memoryRd != null && memoryAddress != null) {
+            switch (memoryOpcode) {
+                case LD:
+                case LDI:
+                case LDO:
+                    rf[memoryRd] = mem[memoryAddress];
+                    memoryOpcode = null;
+                    memoryRd = null;
+                    memoryAddress = null;
+                    break;
+                case ST:
+                case STI:
+                case STO:
+                    mem[memoryAddress] = rf[memoryRd];
+                    memoryOpcode = null;
+                    memoryRd = null;
+                    memoryAddress = null;
+                    break;
+                default:
+                    break;
+            }
+        }
+        cycle++;
     }
 
     private void WriteBack() {
@@ -158,7 +180,10 @@ public class Processor3 {
                     rf[32]++;
                     break;
                 case LD:
-                    rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
+                    //rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
+                    memoryOpcode = ins.opcode;
+                    memoryRd = ins.Rd;
+                    memoryAddress = rf[ins.Rs1] + rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case LDC:
@@ -166,11 +191,17 @@ public class Processor3 {
                     rf[32]++;
                     break;
                 case LDI:
-                    rf[ins.Rd] = mem[ins.Const];
+                    //rf[ins.Rd] = mem[ins.Const];
+                    memoryOpcode = ins.opcode;
+                    memoryRd = ins.Rd;
+                    memoryAddress = ins.Const;
                     rf[32]++;
                     break;
                 case LDO:
-                    rf[ins.Rd] = mem[rf[ins.Rs1] + ins.Const];
+                    //rf[ins.Rd] = mem[rf[ins.Rs1] + ins.Const];
+                    memoryOpcode = ins.opcode;
+                    memoryRd = ins.Rd;
+                    memoryAddress = rf[ins.Rs1] + ins.Const;
                     rf[32]++;
                     break;
                 case MV:
@@ -188,15 +219,24 @@ public class Processor3 {
 
         switch (ins.opcode) { // instructions that are safe with gpr[0]
             case ST:
-                mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
+                //mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
+                memoryOpcode = ins.opcode;
+                memoryRd = ins.Rd;
+                memoryAddress = rf[ins.Rs1] + rf[ins.Rs2];
                 rf[32]++;
                 break;
             case STI:
-                mem[ins.Const] = rf[ins.Rd];
+                //mem[ins.Const] = rf[ins.Rd];
+                memoryOpcode = ins.opcode;
+                memoryRd = ins.Rd;
+                memoryAddress = ins.Const;
                 rf[32]++;
                 break;
             case STO:
-                mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
+                //mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
+                memoryOpcode = ins.opcode;
+                memoryRd = ins.Rd;
+                memoryAddress = rf[ins.Rs1] + ins.Const;
                 rf[32]++;
                 break;
             case BR:
@@ -244,6 +284,7 @@ public class Processor3 {
     public void RunProcessor() {
 
         while(!finished && pc < instructions.length) {
+            Memory();
             Execute();
             Decode();
             Fetch();
