@@ -20,8 +20,12 @@ public class Processor3 {
     Integer memoryRd = null;
     Integer memoryAddress = null;
 
-    Integer resultData = null;
-    Integer resultAddress = null;
+    Integer resultData_ex = null;
+    Integer resultAddress_ex = null;
+    Integer resultData_mem = null;
+    Integer resultAddress_mem = null;
+    Integer writeBackData = null;
+    Integer writeBackLoc = null;
     // state of phases
     boolean fetchBlocked = false;
     boolean decodeBlocked = false;
@@ -88,7 +92,8 @@ public class Processor3 {
                 case LD:
                 case LDI:
                 case LDO:
-                    rf[memoryRd] = mem[memoryAddress];
+                    resultData_mem = mem[memoryAddress];
+                    resultAddress_mem = memoryRd;
                     memoryOpcode = null;
                     memoryRd = null;
                     memoryAddress = null;
@@ -109,9 +114,22 @@ public class Processor3 {
     }
 
     private void WriteBack() {
-        if(resultData != null) {
-
+        writeBackData = resultData_mem;
+        writeBackLoc = resultAddress_mem;
+        if(resultData_mem != null && resultAddress_mem != null) {
+            rf[writeBackLoc] = writeBackData;
+            resultAddress_mem = null;
+            resultData_mem = null;
         }
+        writeBackData = resultData_ex;
+        writeBackLoc = resultAddress_ex;
+        if(resultData_ex != null && resultAddress_ex != null) {
+            rf[writeBackLoc] = writeBackData;
+            resultAddress_ex = null;
+            resultData_ex = null;
+        }
+
+        cycle++;
     }
 
     private int getInstCycle(Instruction ins) {
@@ -140,43 +158,63 @@ public class Processor3 {
         if(ins.Rd != 0 && ins.Rd != 32) { // register 0 & 32 is read-only ($zero, $pc)
             switch (ins.opcode) {
                 case ADD:
-                    rf[ins.Rd] = rf[ins.Rs1] + rf[ins.Rs2];
+                    resultAddress_ex = ins.Rd;
+                    resultData_ex = rf[ins.Rs1] + rf[ins.Rs2];
+                    //rf[ins.Rd] = rf[ins.Rs1] + rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case ADDI:
-                    rf[ins.Rd] = rf[ins.Rs1] + ins.Const;
+                    resultAddress_ex = ins.Rd;
+                    resultData_ex = rf[ins.Rs1] + ins.Const;
+                    //rf[ins.Rd] = rf[ins.Rs1] + ins.Const;
                     rf[32]++;
                     break;
                 case SUB:
-                    rf[ins.Rd] = rf[ins.Rs1] - rf[ins.Rs2];
+                    resultAddress_ex = ins.Rd;
+                    resultData_ex = rf[ins.Rs1] - rf[ins.Rs2];
+                    //rf[ins.Rd] = rf[ins.Rs1] - rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case MUL:
-                    rf[ins.Rd] = rf[ins.Rs1] * rf[ins.Rs2];
+                    resultAddress_ex = ins.Rd;
+                    resultData_ex = rf[ins.Rs1] * rf[ins.Rs2];
+                    //rf[ins.Rd] = rf[ins.Rs1] * rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case MULI:
-                    rf[ins.Rd] = rf[ins.Rs1] * ins.Const;
+                    resultAddress_ex = ins.Rd;
+                    resultData_ex = rf[ins.Rs1] * ins.Const;
+                    //rf[ins.Rd] = rf[ins.Rs1] * ins.Const;
                     rf[32]++;
                     break;
                 case DIV:
-                    rf[ins.Rd] = rf[ins.Rs1] / rf[ins.Rs2];
+                    resultAddress_ex = ins.Rd;
+                    resultData_ex = rf[ins.Rs1] / rf[ins.Rs2];
+                    //rf[ins.Rd] = rf[ins.Rs1] / rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case DIVI:
-                    rf[ins.Rd] = rf[ins.Rs1] / ins.Const;
+                    resultAddress_ex = ins.Rd;
+                    resultData_ex = rf[ins.Rs1] / ins.Const;
+                    //rf[ins.Rd] = rf[ins.Rs1] / ins.Const;
                     rf[32]++;
                     break;
                 case NOT:
-                    rf[ins.Rd] = ~rf[ins.Rs1];
+                    resultAddress_ex = ins.Rd;
+                    resultData_ex = ~rf[ins.Rs1];
+                    //rf[ins.Rd] = ~rf[ins.Rs1];
                     rf[32]++;
                     break;
                 case AND:
-                    rf[ins.Rd] = rf[ins.Rs1] & rf[ins.Rs2];
+                    resultAddress_ex = ins.Rd;
+                    resultData_ex = rf[ins.Rs1] & rf[ins.Rs2];
+                    //rf[ins.Rd] = rf[ins.Rs1] & rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case OR:
-                    rf[ins.Rd] = rf[ins.Rs1] | rf[ins.Rs2];
+                    resultAddress_ex = ins.Rd;
+                    resultData_ex = rf[ins.Rs1] | rf[ins.Rs2];
+                    //rf[ins.Rd] = rf[ins.Rs1] | rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case LD:
@@ -187,7 +225,9 @@ public class Processor3 {
                     rf[32]++;
                     break;
                 case LDC:
-                    rf[ins.Rd] = ins.Const;
+                    resultAddress_ex = ins.Rd;
+                    resultData_ex = ins.Const;
+                    //rf[ins.Rd] = ins.Const;
                     rf[32]++;
                     break;
                 case LDI:
@@ -205,11 +245,15 @@ public class Processor3 {
                     rf[32]++;
                     break;
                 case MV:
-                    rf[ins.Rd] = rf[ins.Rs1];
+                    resultAddress_ex = ins.Rd;
+                    resultData_ex = rf[ins.Rs1];
+                    //rf[ins.Rd] = rf[ins.Rs1];
                     rf[32]++;
                     break;
                 case CMP:
-                    rf[ins.Rd] = Integer.compare(rf[ins.Rs1], rf[ins.Rs2]);
+                    resultAddress_ex = ins.Rd;
+                    resultData_ex = Integer.compare(rf[ins.Rs1], rf[ins.Rs2]);
+                    //rf[ins.Rd] = Integer.compare(rf[ins.Rs1], rf[ins.Rs2]);
                     rf[32]++;
                     break;
                 default:
@@ -284,6 +328,7 @@ public class Processor3 {
     public void RunProcessor() {
 
         while(!finished && pc < instructions.length) {
+            WriteBack();
             Memory();
             Execute();
             Decode();
