@@ -187,10 +187,12 @@ public class Processor {
             Execute(instruction);
             executedInsts++;
         }
-        System.out.println("3 cycle scalar non-pipelined processor Terminated");
+        System.out.println("Scalar non-pipelined (3-way) processor Terminated");
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");
+
         System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
+
     }
 
 }

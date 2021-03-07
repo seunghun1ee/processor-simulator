@@ -14,7 +14,14 @@ public class Processor3 {
     // 3 pipeline registers
     Instruction fetched = null;
     Instruction decoded = null;
+
+    Integer Rd = null;
+    Integer Rs1 = null;
+    Integer Rs2 = null;
+    Integer Const = null;
     Instruction executing = null;
+
+    Integer resultData = null;
     // state of phases
     boolean fetchBlocked = false;
     boolean decodeBlocked = false;
@@ -60,7 +67,7 @@ public class Processor3 {
             executeCycle = 0;
         }
         if(executing != null) {
-            if(executeCycle < executing.numCycles - 1) {
+            if(executeCycle < getInstCycle(executing) - 1) {
                 executeBlocked = true;
             }
             else {
@@ -73,6 +80,38 @@ public class Processor3 {
         }
         executeCycle++;
         cycle++;
+    }
+
+    private void Memory() {
+
+    }
+
+    private void WriteBack() {
+        if(resultData != null) {
+
+        }
+    }
+
+    private int getInstCycle(Instruction ins) {
+        int cycle = 1;
+        switch (ins.opcode) {
+            case ADD:
+            case ADDI:
+            case SUB:
+                cycle = 2;
+                break;
+            case MUL:
+            case MULI:
+                cycle = 3;
+                break;
+            case DIV:
+            case DIVI:
+                cycle = 4;
+                break;
+            default:
+                break;
+        }
+        return cycle;
     }
 
     private void finishExecution(Instruction ins) {
