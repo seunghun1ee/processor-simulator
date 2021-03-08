@@ -14,14 +14,16 @@ public class Processor3 {
     // 3 pipeline registers
     Instruction fetched = null;
     Instruction decoded = null;
-
-    Integer Rd = null;
-    Integer Rs1 = null;
-    Integer Rs2 = null;
-    Integer Const = null;
     Instruction executing = null;
-
+    // execution result registers
+    Integer executedData = null;
+    Integer executedAddress = null;
+    Opcode memoryOpcode = null;
+    Integer memoryRd = null;
+    Integer memoryAddress = null;
+    // final result registers before write back
     Integer resultData = null;
+    Integer resultAddress = null;
     // state of phases
     boolean fetchBlocked = false;
     boolean decodeBlocked = false;
@@ -83,13 +85,45 @@ public class Processor3 {
     }
 
     private void Memory() {
-
+        if(memoryOpcode != null && memoryRd != null && memoryAddress != null) {
+            switch (memoryOpcode) {
+                case LD:
+                case LDI:
+                case LDO:
+                    resultData = mem[memoryAddress];
+                    resultAddress = memoryRd;
+                    memoryOpcode = null;
+                    memoryRd = null;
+                    memoryAddress = null;
+                    break;
+                case ST:
+                case STI:
+                case STO:
+                    mem[memoryAddress] = rf[memoryRd];
+                    memoryOpcode = null;
+                    memoryRd = null;
+                    memoryAddress = null;
+                    break;
+                default:
+                    break;
+            }
+        }
+        else {
+            resultData = executedData;
+            resultAddress = executedAddress;
+            executedData = null;
+            executedAddress = null;
+        }
+        cycle++;
     }
 
     private void WriteBack() {
-        if(resultData != null) {
-
+        if(resultData != null && resultAddress != null) {
+            rf[resultAddress] = resultData;
+            resultAddress = null;
+            resultData = null;
         }
+        cycle++;
     }
 
     private int getInstCycle(Instruction ins) {
@@ -115,70 +149,122 @@ public class Processor3 {
     }
 
     private void finishExecution(Instruction ins) {
+        int source1 = rf[ins.Rs1];
+        int source2 = rf[ins.Rs2];
+        // Result forwarding from memory stage
+        if(resultAddress != null && resultAddress.equals(ins.Rs1)) {
+            source1 = resultData;
+        }
+        if(resultAddress != null && resultAddress.equals(ins.Rs2)) {
+            source2 = resultData;
+        }
+        // Result forwarding from execute stage
+        if(executedAddress != null && executedAddress.equals(ins.Rs1)) {
+            source1 = executedData;
+        }
+        if(executedAddress != null && executedAddress.equals(ins.Rs2)) {
+            source2 = executedData;
+        }
+
         if(ins.Rd != 0 && ins.Rd != 32) { // register 0 & 32 is read-only ($zero, $pc)
             switch (ins.opcode) {
                 case ADD:
-                    rf[ins.Rd] = rf[ins.Rs1] + rf[ins.Rs2];
+                    executedAddress = ins.Rd;
+                    executedData = source1 + source2;
+                    //rf[ins.Rd] = rf[ins.Rs1] + rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case ADDI:
-                    rf[ins.Rd] = rf[ins.Rs1] + ins.Const;
+                    executedAddress = ins.Rd;
+                    executedData = source1 + ins.Const;
+                    //rf[ins.Rd] = rf[ins.Rs1] + ins.Const;
                     rf[32]++;
                     break;
                 case SUB:
-                    rf[ins.Rd] = rf[ins.Rs1] - rf[ins.Rs2];
+                    executedAddress = ins.Rd;
+                    executedData = source1 - source2;
+                    //rf[ins.Rd] = rf[ins.Rs1] - rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case MUL:
-                    rf[ins.Rd] = rf[ins.Rs1] * rf[ins.Rs2];
+                    executedAddress = ins.Rd;
+                    executedData = source1 * source2;
+                    //rf[ins.Rd] = rf[ins.Rs1] * rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case MULI:
-                    rf[ins.Rd] = rf[ins.Rs1] * ins.Const;
+                    executedAddress = ins.Rd;
+                    executedData = source1 * ins.Const;
+                    //rf[ins.Rd] = rf[ins.Rs1] * ins.Const;
                     rf[32]++;
                     break;
                 case DIV:
-                    rf[ins.Rd] = rf[ins.Rs1] / rf[ins.Rs2];
+                    executedAddress = ins.Rd;
+                    executedData = source1 / source2;
+                    //rf[ins.Rd] = rf[ins.Rs1] / rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case DIVI:
-                    rf[ins.Rd] = rf[ins.Rs1] / ins.Const;
+                    executedAddress = ins.Rd;
+                    executedData = source1 / ins.Const;
+                    //rf[ins.Rd] = rf[ins.Rs1] / ins.Const;
                     rf[32]++;
                     break;
                 case NOT:
-                    rf[ins.Rd] = ~rf[ins.Rs1];
+                    executedAddress = ins.Rd;
+                    executedData = ~source1;
+                    //rf[ins.Rd] = ~rf[ins.Rs1];
                     rf[32]++;
                     break;
                 case AND:
-                    rf[ins.Rd] = rf[ins.Rs1] & rf[ins.Rs2];
+                    executedAddress = ins.Rd;
+                    executedData = source1 & source2;
+                    //rf[ins.Rd] = rf[ins.Rs1] & rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case OR:
-                    rf[ins.Rd] = rf[ins.Rs1] | rf[ins.Rs2];
+                    executedAddress = ins.Rd;
+                    executedData = source1 | source2;
+                    //rf[ins.Rd] = rf[ins.Rs1] | rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case LD:
-                    rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
+                    //rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
+                    memoryOpcode = ins.opcode;
+                    memoryRd = ins.Rd;
+                    memoryAddress = source1 + source2;
                     rf[32]++;
                     break;
                 case LDC:
-                    rf[ins.Rd] = ins.Const;
+                    executedAddress = ins.Rd;
+                    executedData = ins.Const;
+                    //rf[ins.Rd] = ins.Const;
                     rf[32]++;
                     break;
                 case LDI:
-                    rf[ins.Rd] = mem[ins.Const];
+                    //rf[ins.Rd] = mem[ins.Const];
+                    memoryOpcode = ins.opcode;
+                    memoryRd = ins.Rd;
+                    memoryAddress = ins.Const;
                     rf[32]++;
                     break;
                 case LDO:
-                    rf[ins.Rd] = mem[rf[ins.Rs1] + ins.Const];
+                    //rf[ins.Rd] = mem[rf[ins.Rs1] + ins.Const];
+                    memoryOpcode = ins.opcode;
+                    memoryRd = ins.Rd;
+                    memoryAddress = source1 + ins.Const;
                     rf[32]++;
                     break;
                 case MV:
-                    rf[ins.Rd] = rf[ins.Rs1];
+                    executedAddress = ins.Rd;
+                    executedData = source1;
+                    //rf[ins.Rd] = rf[ins.Rs1];
                     rf[32]++;
                     break;
                 case CMP:
-                    rf[ins.Rd] = Integer.compare(rf[ins.Rs1], rf[ins.Rs2]);
+                    executedAddress = ins.Rd;
+                    executedData = Integer.compare(source1, source2);
+                    //rf[ins.Rd] = Integer.compare(rf[ins.Rs1], rf[ins.Rs2]);
                     rf[32]++;
                     break;
                 default:
@@ -188,15 +274,24 @@ public class Processor3 {
 
         switch (ins.opcode) { // instructions that are safe with gpr[0]
             case ST:
-                mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
+                //mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
+                memoryOpcode = ins.opcode;
+                memoryRd = ins.Rd;
+                memoryAddress = source1 + source2;
                 rf[32]++;
                 break;
             case STI:
-                mem[ins.Const] = rf[ins.Rd];
+                //mem[ins.Const] = rf[ins.Rd];
+                memoryOpcode = ins.opcode;
+                memoryRd = ins.Rd;
+                memoryAddress = ins.Const;
                 rf[32]++;
                 break;
             case STO:
-                mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
+                //mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
+                memoryOpcode = ins.opcode;
+                memoryRd = ins.Rd;
+                memoryAddress = source1 + ins.Const;
                 rf[32]++;
                 break;
             case BR:
@@ -208,11 +303,11 @@ public class Processor3 {
                 fetched = null;
                 break;
             case JR:
-                rf[32] = pc = rf[ins.Rs1] + ins.Const;
+                rf[32] = pc = source1 + ins.Const;
                 fetched = null;
                 break;
             case BEQ:
-                if(rf[ins.Rs1] == rf[ins.Rs2]) {
+                if(source1 == source2) {
                     rf[32] = pc = ins.Const;
                     fetched = null;
                 }
@@ -221,7 +316,7 @@ public class Processor3 {
                 }
                 break;
             case BLT:
-                if(rf[ins.Rs1] < rf[ins.Rs2]) {
+                if(source1 < source2) {
                     rf[32] = pc = ins.Const;
                     fetched = null;
                 }
@@ -244,10 +339,14 @@ public class Processor3 {
     public void RunProcessor() {
 
         while(!finished && pc < instructions.length) {
+            WriteBack();
+            Memory();
             Execute();
             Decode();
             Fetch();
         }
+        //Writing back last data
+        WriteBack();
         System.out.println("Scalar pipelined (3-way) processor Terminated");
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");

@@ -127,6 +127,13 @@ public class Main {
         instructions3[209] = new Instruction(Opcode.ADDI,29,29,0,2); // $sp += 2
         instructions3[210] = new Instruction(Opcode.JR,0,31,0,0); // return to $ra
 
+        Instruction[] instructions4 = new Instruction[512];
+        int[] mem4 = new int[1024];
+        instructions4[0] = new Instruction(Opcode.LDC,1,0,0,3);
+        instructions4[1] = new Instruction(Opcode.LDC,2,0,0,50);
+        instructions4[2] = new Instruction(Opcode.ADDI,1,1,0,11);
+        instructions4[3] = new Instruction(Opcode.ADD,1,1,2,0);
+        instructions4[4] = new Instruction(Opcode.HALT,0,0,0,0);
 
 //        Processor processor = new Processor();
 //        processor.instructions = instructions3;
@@ -161,6 +168,13 @@ public class Main {
 	    processor3.RunProcessor();
 	    createDump(processor3.mem, "memory_bench3.txt");
 	    createDump(processor3.rf,"rf_bench3.txt");
+
+//	    Processor3 processor4 = new Processor3();
+//	    processor4.instructions = instructions4;
+//	    processor4.mem = mem4;
+//	    processor4.RunProcessor();
+//	    createDump(processor4.mem, "m_bench4.txt");
+//	    createDump(processor4.rf,"r_bench4.txt");
     }
 
     private static void createDump(int[] array, String filePath) throws IOException {
