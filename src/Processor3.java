@@ -15,17 +15,15 @@ public class Processor3 {
     Instruction fetched = null;
     Instruction decoded = null;
     Instruction executing = null;
-
+    // execution result registers
+    Integer executedData = null;
+    Integer executedAddress = null;
     Opcode memoryOpcode = null;
     Integer memoryRd = null;
     Integer memoryAddress = null;
-
-    Integer resultData_ex = null;
-    Integer resultAddress_ex = null;
-    Integer resultData_mem = null;
-    Integer resultAddress_mem = null;
-    Integer writeBackData = null;
-    Integer writeBackLoc = null;
+    // final result registers before write back
+    Integer resultData = null;
+    Integer resultAddress = null;
     // state of phases
     boolean fetchBlocked = false;
     boolean decodeBlocked = false;
@@ -92,8 +90,8 @@ public class Processor3 {
                 case LD:
                 case LDI:
                 case LDO:
-                    resultData_mem = mem[memoryAddress];
-                    resultAddress_mem = memoryRd;
+                    resultData = mem[memoryAddress];
+                    resultAddress = memoryRd;
                     memoryOpcode = null;
                     memoryRd = null;
                     memoryAddress = null;
@@ -110,25 +108,21 @@ public class Processor3 {
                     break;
             }
         }
+        else {
+            resultData = executedData;
+            resultAddress = executedAddress;
+            executedData = null;
+            executedAddress = null;
+        }
         cycle++;
     }
 
     private void WriteBack() {
-        writeBackData = resultData_mem;
-        writeBackLoc = resultAddress_mem;
-        if(resultData_mem != null && resultAddress_mem != null) {
-            rf[writeBackLoc] = writeBackData;
-            resultAddress_mem = null;
-            resultData_mem = null;
+        if(resultData != null && resultAddress != null) {
+            rf[resultAddress] = resultData;
+            resultAddress = null;
+            resultData = null;
         }
-        writeBackData = resultData_ex;
-        writeBackLoc = resultAddress_ex;
-        if(resultData_ex != null && resultAddress_ex != null) {
-            rf[writeBackLoc] = writeBackData;
-            resultAddress_ex = null;
-            resultData_ex = null;
-        }
-
         cycle++;
     }
 
@@ -158,79 +152,79 @@ public class Processor3 {
         int source1 = rf[ins.Rs1];
         int source2 = rf[ins.Rs2];
         // Result forwarding from memory stage
-        if(resultAddress_mem != null && resultAddress_mem.equals(ins.Rs1)) {
-            source1 = resultData_mem;
+        if(resultAddress != null && resultAddress.equals(ins.Rs1)) {
+            source1 = resultData;
         }
-        if(resultAddress_mem != null && resultAddress_mem.equals(ins.Rs2)) {
-            source2 = resultData_mem;
+        if(resultAddress != null && resultAddress.equals(ins.Rs2)) {
+            source2 = resultData;
         }
         // Result forwarding from execute stage
-        if(resultAddress_ex != null && resultAddress_ex.equals(ins.Rs1)) {
-            source1 = resultData_ex;
+        if(executedAddress != null && executedAddress.equals(ins.Rs1)) {
+            source1 = executedData;
         }
-        if(resultAddress_ex != null && resultAddress_ex.equals(ins.Rs2)) {
-            source2 = resultData_ex;
+        if(executedAddress != null && executedAddress.equals(ins.Rs2)) {
+            source2 = executedData;
         }
 
         if(ins.Rd != 0 && ins.Rd != 32) { // register 0 & 32 is read-only ($zero, $pc)
             switch (ins.opcode) {
                 case ADD:
-                    resultAddress_ex = ins.Rd;
-                    resultData_ex = source1 + source2;
+                    executedAddress = ins.Rd;
+                    executedData = source1 + source2;
                     //rf[ins.Rd] = rf[ins.Rs1] + rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case ADDI:
-                    resultAddress_ex = ins.Rd;
-                    resultData_ex = source1 + ins.Const;
+                    executedAddress = ins.Rd;
+                    executedData = source1 + ins.Const;
                     //rf[ins.Rd] = rf[ins.Rs1] + ins.Const;
                     rf[32]++;
                     break;
                 case SUB:
-                    resultAddress_ex = ins.Rd;
-                    resultData_ex = source1 - source2;
+                    executedAddress = ins.Rd;
+                    executedData = source1 - source2;
                     //rf[ins.Rd] = rf[ins.Rs1] - rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case MUL:
-                    resultAddress_ex = ins.Rd;
-                    resultData_ex = source1 * source2;
+                    executedAddress = ins.Rd;
+                    executedData = source1 * source2;
                     //rf[ins.Rd] = rf[ins.Rs1] * rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case MULI:
-                    resultAddress_ex = ins.Rd;
-                    resultData_ex = source1 * ins.Const;
+                    executedAddress = ins.Rd;
+                    executedData = source1 * ins.Const;
                     //rf[ins.Rd] = rf[ins.Rs1] * ins.Const;
                     rf[32]++;
                     break;
                 case DIV:
-                    resultAddress_ex = ins.Rd;
-                    resultData_ex = source1 / source2;
+                    executedAddress = ins.Rd;
+                    executedData = source1 / source2;
                     //rf[ins.Rd] = rf[ins.Rs1] / rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case DIVI:
-                    resultAddress_ex = ins.Rd;
-                    resultData_ex = source1 / ins.Const;
+                    executedAddress = ins.Rd;
+                    executedData = source1 / ins.Const;
                     //rf[ins.Rd] = rf[ins.Rs1] / ins.Const;
                     rf[32]++;
                     break;
                 case NOT:
-                    resultAddress_ex = ins.Rd;
-                    resultData_ex = ~source1;
+                    executedAddress = ins.Rd;
+                    executedData = ~source1;
                     //rf[ins.Rd] = ~rf[ins.Rs1];
                     rf[32]++;
                     break;
                 case AND:
-                    resultAddress_ex = ins.Rd;
-                    resultData_ex = source1 & source2;
+                    executedAddress = ins.Rd;
+                    executedData = source1 & source2;
                     //rf[ins.Rd] = rf[ins.Rs1] & rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case OR:
-                    resultAddress_ex = ins.Rd;
-                    resultData_ex = source1 | source2;
+                    executedAddress = ins.Rd;
+                    executedData = source1 | source2;
                     //rf[ins.Rd] = rf[ins.Rs1] | rf[ins.Rs2];
                     rf[32]++;
                     break;
@@ -242,8 +236,8 @@ public class Processor3 {
                     rf[32]++;
                     break;
                 case LDC:
-                    resultAddress_ex = ins.Rd;
-                    resultData_ex = ins.Const;
+                    executedAddress = ins.Rd;
+                    executedData = ins.Const;
                     //rf[ins.Rd] = ins.Const;
                     rf[32]++;
                     break;
@@ -262,14 +256,14 @@ public class Processor3 {
                     rf[32]++;
                     break;
                 case MV:
-                    resultAddress_ex = ins.Rd;
-                    resultData_ex = source1;
+                    executedAddress = ins.Rd;
+                    executedData = source1;
                     //rf[ins.Rd] = rf[ins.Rs1];
                     rf[32]++;
                     break;
                 case CMP:
-                    resultAddress_ex = ins.Rd;
-                    resultData_ex = Integer.compare(source1, source2);
+                    executedAddress = ins.Rd;
+                    executedData = Integer.compare(source1, source2);
                     //rf[ins.Rd] = Integer.compare(rf[ins.Rs1], rf[ins.Rs2]);
                     rf[32]++;
                     break;
@@ -351,6 +345,8 @@ public class Processor3 {
             Decode();
             Fetch();
         }
+        //Writing back last data
+        WriteBack();
         System.out.println("Scalar pipelined (3-way) processor Terminated");
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");
