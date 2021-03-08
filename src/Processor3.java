@@ -155,65 +155,75 @@ public class Processor3 {
     }
 
     private void finishExecution(Instruction ins) {
+        // Result forwarding from memory stage
+        int source1 = rf[ins.Rs1];
+        int source2 = rf[ins.Rs2];
+        if(resultAddress_mem != null && resultAddress_mem.equals(ins.Rs1)) {
+            source1 = resultData_mem;
+        }
+        if(resultAddress_mem != null && resultAddress_mem.equals(ins.Rs2)) {
+            source2 = resultData_mem;
+        }
+
         if(ins.Rd != 0 && ins.Rd != 32) { // register 0 & 32 is read-only ($zero, $pc)
             switch (ins.opcode) {
                 case ADD:
                     resultAddress_ex = ins.Rd;
-                    resultData_ex = rf[ins.Rs1] + rf[ins.Rs2];
+                    resultData_ex = source1 + source2;
                     //rf[ins.Rd] = rf[ins.Rs1] + rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case ADDI:
                     resultAddress_ex = ins.Rd;
-                    resultData_ex = rf[ins.Rs1] + ins.Const;
+                    resultData_ex = source1 + ins.Const;
                     //rf[ins.Rd] = rf[ins.Rs1] + ins.Const;
                     rf[32]++;
                     break;
                 case SUB:
                     resultAddress_ex = ins.Rd;
-                    resultData_ex = rf[ins.Rs1] - rf[ins.Rs2];
+                    resultData_ex = source1 - source2;
                     //rf[ins.Rd] = rf[ins.Rs1] - rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case MUL:
                     resultAddress_ex = ins.Rd;
-                    resultData_ex = rf[ins.Rs1] * rf[ins.Rs2];
+                    resultData_ex = source1 * source2;
                     //rf[ins.Rd] = rf[ins.Rs1] * rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case MULI:
                     resultAddress_ex = ins.Rd;
-                    resultData_ex = rf[ins.Rs1] * ins.Const;
+                    resultData_ex = source1 * ins.Const;
                     //rf[ins.Rd] = rf[ins.Rs1] * ins.Const;
                     rf[32]++;
                     break;
                 case DIV:
                     resultAddress_ex = ins.Rd;
-                    resultData_ex = rf[ins.Rs1] / rf[ins.Rs2];
+                    resultData_ex = source1 / source2;
                     //rf[ins.Rd] = rf[ins.Rs1] / rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case DIVI:
                     resultAddress_ex = ins.Rd;
-                    resultData_ex = rf[ins.Rs1] / ins.Const;
+                    resultData_ex = source1 / ins.Const;
                     //rf[ins.Rd] = rf[ins.Rs1] / ins.Const;
                     rf[32]++;
                     break;
                 case NOT:
                     resultAddress_ex = ins.Rd;
-                    resultData_ex = ~rf[ins.Rs1];
+                    resultData_ex = ~source1;
                     //rf[ins.Rd] = ~rf[ins.Rs1];
                     rf[32]++;
                     break;
                 case AND:
                     resultAddress_ex = ins.Rd;
-                    resultData_ex = rf[ins.Rs1] & rf[ins.Rs2];
+                    resultData_ex = source1 & source2;
                     //rf[ins.Rd] = rf[ins.Rs1] & rf[ins.Rs2];
                     rf[32]++;
                     break;
                 case OR:
                     resultAddress_ex = ins.Rd;
-                    resultData_ex = rf[ins.Rs1] | rf[ins.Rs2];
+                    resultData_ex = source1 | source2;
                     //rf[ins.Rd] = rf[ins.Rs1] | rf[ins.Rs2];
                     rf[32]++;
                     break;
@@ -221,7 +231,7 @@ public class Processor3 {
                     //rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
                     memoryOpcode = ins.opcode;
                     memoryRd = ins.Rd;
-                    memoryAddress = rf[ins.Rs1] + rf[ins.Rs2];
+                    memoryAddress = source1 + source2;
                     rf[32]++;
                     break;
                 case LDC:
@@ -241,18 +251,18 @@ public class Processor3 {
                     //rf[ins.Rd] = mem[rf[ins.Rs1] + ins.Const];
                     memoryOpcode = ins.opcode;
                     memoryRd = ins.Rd;
-                    memoryAddress = rf[ins.Rs1] + ins.Const;
+                    memoryAddress = source1 + ins.Const;
                     rf[32]++;
                     break;
                 case MV:
                     resultAddress_ex = ins.Rd;
-                    resultData_ex = rf[ins.Rs1];
+                    resultData_ex = source1;
                     //rf[ins.Rd] = rf[ins.Rs1];
                     rf[32]++;
                     break;
                 case CMP:
                     resultAddress_ex = ins.Rd;
-                    resultData_ex = Integer.compare(rf[ins.Rs1], rf[ins.Rs2]);
+                    resultData_ex = Integer.compare(source1, source2);
                     //rf[ins.Rd] = Integer.compare(rf[ins.Rs1], rf[ins.Rs2]);
                     rf[32]++;
                     break;
@@ -266,7 +276,7 @@ public class Processor3 {
                 //mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
                 memoryOpcode = ins.opcode;
                 memoryRd = ins.Rd;
-                memoryAddress = rf[ins.Rs1] + rf[ins.Rs2];
+                memoryAddress = source1 + source2;
                 rf[32]++;
                 break;
             case STI:
@@ -280,7 +290,7 @@ public class Processor3 {
                 //mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
                 memoryOpcode = ins.opcode;
                 memoryRd = ins.Rd;
-                memoryAddress = rf[ins.Rs1] + ins.Const;
+                memoryAddress = source1 + ins.Const;
                 rf[32]++;
                 break;
             case BR:
@@ -292,11 +302,11 @@ public class Processor3 {
                 fetched = null;
                 break;
             case JR:
-                rf[32] = pc = rf[ins.Rs1] + ins.Const;
+                rf[32] = pc = source1 + ins.Const;
                 fetched = null;
                 break;
             case BEQ:
-                if(rf[ins.Rs1] == rf[ins.Rs2]) {
+                if(source1 == source2) {
                     rf[32] = pc = ins.Const;
                     fetched = null;
                 }
@@ -305,7 +315,7 @@ public class Processor3 {
                 }
                 break;
             case BLT:
-                if(rf[ins.Rs1] < rf[ins.Rs2]) {
+                if(source1 < source2) {
                     rf[32] = pc = ins.Const;
                     fetched = null;
                 }

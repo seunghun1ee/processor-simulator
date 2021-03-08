@@ -138,21 +138,21 @@ public class Main {
 //        processor2.mem = mem3;
 //	    processor2.RunProcessor();
 
-//        System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
-//        Processor3 processor = new Processor3();
-//        processor.instructions = instructions;
-//        processor.mem = mem;
-//        processor.RunProcessor();
-//        createDump(processor.mem, "memory_bench1.txt");
-//        createDump(processor.rf,"rf_bench1.txt");
-//
-//        System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
-//        Processor3 processor2 = new Processor3();
-//        processor2.instructions = instructions2;
-//        processor2.mem = mem2;
-//        processor2.RunProcessor();
-//        createDump(processor2.mem, "memory_bench2.txt");
-//        createDump(processor2.rf,"rf_bench2.txt");
+        System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
+        Processor3 processor = new Processor3();
+        processor.instructions = instructions;
+        processor.mem = mem;
+        processor.RunProcessor();
+        createDump(processor.mem, "memory_bench1.txt");
+        createDump(processor.rf,"rf_bench1.txt");
+
+        System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
+        Processor3 processor2 = new Processor3();
+        processor2.instructions = instructions2;
+        processor2.mem = mem2;
+        processor2.RunProcessor();
+        createDump(processor2.mem, "memory_bench2.txt");
+        createDump(processor2.rf,"rf_bench2.txt");
 
         System.out.println("Benchmark3 - Factorial(" + num + ")");
 	    Processor3 processor3 = new Processor3();
