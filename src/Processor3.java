@@ -155,14 +155,21 @@ public class Processor3 {
     }
 
     private void finishExecution(Instruction ins) {
-        // Result forwarding from memory stage
         int source1 = rf[ins.Rs1];
         int source2 = rf[ins.Rs2];
+        // Result forwarding from memory stage
         if(resultAddress_mem != null && resultAddress_mem.equals(ins.Rs1)) {
             source1 = resultData_mem;
         }
         if(resultAddress_mem != null && resultAddress_mem.equals(ins.Rs2)) {
             source2 = resultData_mem;
+        }
+        // Result forwarding from execute stage
+        if(resultAddress_ex != null && resultAddress_ex.equals(ins.Rs1)) {
+            source1 = resultData_ex;
+        }
+        if(resultAddress_ex != null && resultAddress_ex.equals(ins.Rs2)) {
+            source2 = resultData_ex;
         }
 
         if(ins.Rd != 0 && ins.Rd != 32) { // register 0 & 32 is read-only ($zero, $pc)
