@@ -136,32 +136,24 @@ public class Main {
 //        instructions4[4] = new Instruction(Opcode.HALT,0,0,0,0);
 
         System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
-        Processor3 processor = new Processor3();
-        processor.instructions = instructions;
-        processor.mem = mem;
+        Processor3 processor = new Processor3(mem,instructions);
         processor.RunProcessor();
         createDump(processor.mem, "mem_bench1.txt");
         createDump(processor.rf,"rf_bench1.txt");
 
         System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
-        Processor3 processor2 = new Processor3();
-        processor2.instructions = instructions2;
-        processor2.mem = mem2;
+        Processor3 processor2 = new Processor3(mem2,instructions2);
         processor2.RunProcessor();
         createDump(processor2.mem, "mem_bench2.txt");
         createDump(processor2.rf,"rf_bench2.txt");
 
         System.out.println("Benchmark3 - Factorial(" + num + ")");
-	    Processor3 processor3 = new Processor3();
-	    processor3.instructions = instructions3;
-	    processor3.mem = mem3;
+	    Processor3 processor3 = new Processor3(mem3,instructions3);
 	    processor3.RunProcessor();
 	    createDump(processor3.mem, "mem_bench3.txt");
 	    createDump(processor3.rf,"rf_bench3.txt");
 
-//	    Processor3 processor4 = new Processor3();
-//	    processor4.instructions = instructions4;
-//	    processor4.mem = mem4;
+//	    Processor3 processor4 = new Processor3(mem4,instruction4);
 //	    processor4.RunProcessor();
 //	    createDump(processor4.mem, "mem_bench4.txt");
 //	    createDump(processor4.rf,"rf_bench4.txt");

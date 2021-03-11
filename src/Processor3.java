@@ -30,11 +30,11 @@ public class Processor3 {
     boolean executeBlocked = false;
 
 
-
-    public Processor3() {
-
+    public Processor3(int[] mem, Instruction[] instructions) {
+        this.mem = mem;
+        this.instructions = instructions;
     }
-    //This will fetch int instead later
+
     private void Fetch() {
         if(decodeBlocked && executeCycle > 1) { // if decode input is blocked and execute is processed more than 1 cycle
             fetchBlocked = true; // fetch input is blocked
@@ -285,7 +285,7 @@ public class Processor3 {
                 fetched = null;
                 break;
             case JMP:
-                rf[32] = pc = rf[32] + ins.Const; // By the time JMP is executed, pc is already incremented twice
+                rf[32] = pc = rf[32] + ins.Const;
                 fetched = null;
                 break;
             case JR:
