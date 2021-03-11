@@ -49,11 +49,11 @@ public class Main {
             mem[ap + i] = i; //assigning A[i]
             mem[bp + i] = 2 * i; //assigning B[i]
         }
-        instructions[0] = new Instruction(Opcode.LDC,1,0,0,ap); //pointer to array A
-        instructions[1] = new Instruction(Opcode.LDC,2,0,0,bp); //pointer to array B
-        instructions[2] = new Instruction(Opcode.LDC,3,0,0,cp); //pointer to array C
-        instructions[3] = new Instruction(Opcode.LDC,4,0,0,0); // i = 0
-        instructions[4] = new Instruction(Opcode.LDC,8,0,0,length); // for loop limit
+        instructions[0] = new Instruction(Opcode.MOVC,1,0,0,ap); //pointer to array A
+        instructions[1] = new Instruction(Opcode.MOVC,2,0,0,bp); //pointer to array B
+        instructions[2] = new Instruction(Opcode.MOVC,3,0,0,cp); //pointer to array C
+        instructions[3] = new Instruction(Opcode.MOVC,4,0,0,0); // i = 0
+        instructions[4] = new Instruction(Opcode.MOVC,8,0,0,length); // for loop limit
         instructions[5] = new Instruction(Opcode.LD,5,1,4,0); // a = A[&A + i], for loop starts
         instructions[6] = new Instruction(Opcode.LD,6,2,4,0); // b = B[&B + i]
         instructions[7] = new Instruction(Opcode.ADD,7,5,6,0); // c = a + b
@@ -70,21 +70,21 @@ public class Main {
         //int[] arrayToSort = {5,4,3,2,1};
         int pointer = 2;
         System.arraycopy(arrayToSort,0,mem2,pointer,arrayToSort.length);
-        instructions2[0] = new Instruction(Opcode.LDC,1,0,0,pointer); // load array pointer
-        instructions2[1] = new Instruction(Opcode.LDC,2,0,0,0); // i = 0
-        instructions2[2] = new Instruction(Opcode.LDC,4,0,0, arrayToSort.length); // load array length
+        instructions2[0] = new Instruction(Opcode.MOVC,1,0,0,pointer); // load array pointer
+        instructions2[1] = new Instruction(Opcode.MOVC,2,0,0,0); // i = 0
+        instructions2[2] = new Instruction(Opcode.MOVC,4,0,0, arrayToSort.length); // load array length
         instructions2[3] = new Instruction(Opcode.ADDI,5,4,0,-1); // outer for loop limit = length - 1
         instructions2[4] = new Instruction(Opcode.SUB,6,4,2,0); // length - i, outer loop starting point
-        instructions2[5] = new Instruction(Opcode.LDC,3,0,0,0); // j = 0
+        instructions2[5] = new Instruction(Opcode.MOVC,3,0,0,0); // j = 0
         instructions2[6] = new Instruction(Opcode.ADDI,6,6,0,-1); //inner for loop limit = length - i - 1
         instructions2[7] = new Instruction(Opcode.LD,7,1,3,0); // a = array[j], inner loop starting point
         instructions2[8] = new Instruction(Opcode.ADD,9,1,3,0); // pointer + j
         instructions2[9] = new Instruction(Opcode.LDO,8,9,0,1); // b = array[j + 1]
         instructions2[10] = new Instruction(Opcode.BLT,0,8,7,12); // if(b < a)
         instructions2[11] = new Instruction(Opcode.BR,0,0,0,17); //if not b < a skip to the end of inner loop
-        instructions2[12] = new Instruction(Opcode.MV,10,7,0,0); // temp = a
-        instructions2[13] = new Instruction(Opcode.MV,7,8,0,0); // a = b
-        instructions2[14] = new Instruction(Opcode.MV,8,10,0,0); // b = temp, swap complete
+        instructions2[12] = new Instruction(Opcode.MOV,10,7,0,0); // temp = a
+        instructions2[13] = new Instruction(Opcode.MOV,7,8,0,0); // a = b
+        instructions2[14] = new Instruction(Opcode.MOV,8,10,0,0); // b = temp, swap complete
         instructions2[15] = new Instruction(Opcode.ST,7,1,3,0); // store array[j] = a
         instructions2[16] = new Instruction(Opcode.STO,8,9,0,1); // store array[j + 1] = b
         instructions2[17] = new Instruction(Opcode.ADDI,3,3,0,1); // j++
@@ -101,9 +101,9 @@ public class Main {
         int sp = 100;
         mem3[loc] = num;
         //main
-        instructions3[0] = new Instruction(Opcode.LDC,29,0,0,sp); // $29 is $sp
+        instructions3[0] = new Instruction(Opcode.MOVC,29,0,0,sp); // $29 is $sp
         instructions3[1] = new Instruction(Opcode.LDI,1,0,0,loc); // load argument
-        instructions3[2] = new Instruction(Opcode.MV,4,1,0,0); // copy argument to $a0 ($4)
+        instructions3[2] = new Instruction(Opcode.MOV,4,1,0,0); // copy argument to $a0 ($4)
         instructions3[3] = new Instruction(Opcode.ADDI,31,32,0,2); // $ra = $pc + 2 (5)
         instructions3[4] = new Instruction(Opcode.BR,0,0,0,100); // call fac
         instructions3[5] = new Instruction(Opcode.STI,2,0,0,loc+1); // store returned result at mem[loc + 1]
@@ -111,7 +111,7 @@ public class Main {
         //fac
         instructions3[100] = new Instruction(Opcode.BEQ,0,4,0,102); // $a0 == 0 then base case
         instructions3[101] = new Instruction(Opcode.BR,0,0,0,200); // call recursive case
-        instructions3[102] = new Instruction(Opcode.LDC,2,0,0,1); // load 1 to return value $v0
+        instructions3[102] = new Instruction(Opcode.MOVC,2,0,0,1); // load 1 to return value $v0
         instructions3[103] = new Instruction(Opcode.JR,0,31,0,0); // return to $ra
         //recursion
         instructions3[200] = new Instruction(Opcode.ADDI,29,29,0,-2); // $sp -= 2 to store two elems

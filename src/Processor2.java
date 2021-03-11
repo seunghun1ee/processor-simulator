@@ -33,7 +33,7 @@ public class Processor2 {
         switch (ins.opcode) {
             case NOOP:
             case LD:
-            case LDC:
+            case MOVC:
             case LDI:
             case LDO:
             case ST:
@@ -92,7 +92,7 @@ public class Processor2 {
                 cycle++;
                 rf[32]++;
                 break;
-            case MV:
+            case MOV:
                 data = rf[ins.Rs1];
                 cycle++;
                 rf[32]++;
@@ -152,7 +152,7 @@ public class Processor2 {
                 }
                 cycle++;
                 break;
-            case LDC:
+            case MOVC:
                 if(ins.Rd != 0) {
                     rf[ins.Rd] = ins.Const;
                 }

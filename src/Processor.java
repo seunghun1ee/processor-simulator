@@ -91,7 +91,7 @@ public class Processor {
                 cycle++;
                 rf[32]++;
                 break;
-            case LDC:
+            case MOVC:
                 if(ins.Rd != 0) {
                     rf[ins.Rd] = ins.Const;
                 }
@@ -127,7 +127,7 @@ public class Processor {
                 cycle++;
                 rf[32]++;
                 break;
-            case MV:
+            case MOV:
                 rf[ins.Rd] = rf[ins.Rs1];
                 cycle++;
                 rf[32]++;

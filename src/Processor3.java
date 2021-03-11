@@ -65,7 +65,34 @@ public class Processor3 {
                 executeBlocked = true;
             }
             else {
-                finishExecution(executing);
+                switch (executing.opcode) {
+                    case ADD:
+                    case ADDI:
+                    case SUB:
+                    case MUL:
+                    case MULI:
+                    case DIV:
+                    case DIVI:
+                    case NOT:
+                    case AND:
+                    case OR:
+                    case MOV:
+                    case CMP:
+                        ALU_exe(executing);
+                        break;
+                    case LD:
+                    case LDI:
+                    case LDO:
+                    case ST:
+                    case STI:
+                    case STO:
+                        loadStore_exe(executing);
+                        break;
+                    default:
+                        finishExecution(executing);
+                        break;
+                }
+
                 executeBlocked = false;
             }
         }
@@ -132,6 +159,184 @@ public class Processor3 {
                 break;
         }
         return cycle;
+    }
+
+    private void ALU_exe(Instruction ins) {
+        int source1 = rf[ins.Rs1];
+        int source2 = rf[ins.Rs2];
+        // Result forwarding from memory stage
+        if(resultAddress != null && resultAddress.equals(ins.Rs1)) {
+            source1 = resultData;
+        }
+        if(resultAddress != null && resultAddress.equals(ins.Rs2)) {
+            source2 = resultData;
+        }
+        // Result forwarding from execute stage
+        if(executedAddress != null && executedAddress.equals(ins.Rs1)) {
+            source1 = executedData;
+        }
+        if(executedAddress != null && executedAddress.equals(ins.Rs2)) {
+            source2 = executedData;
+        }
+        if(ins.Rd != 0 && ins.Rd != 32) { // register 0 & 32 is read-only ($zero, $pc)
+            switch (ins.opcode) {
+                case ADD:
+                    executedAddress = ins.Rd;
+                    executedData = source1 + source2;
+                    //rf[ins.Rd] = rf[ins.Rs1] + rf[ins.Rs2];
+                    rf[32]++;
+                    break;
+                case ADDI:
+                    executedAddress = ins.Rd;
+                    executedData = source1 + ins.Const;
+                    //rf[ins.Rd] = rf[ins.Rs1] + ins.Const;
+                    rf[32]++;
+                    break;
+                case SUB:
+                    executedAddress = ins.Rd;
+                    executedData = source1 - source2;
+                    //rf[ins.Rd] = rf[ins.Rs1] - rf[ins.Rs2];
+                    rf[32]++;
+                    break;
+                case MUL:
+                    executedAddress = ins.Rd;
+                    executedData = source1 * source2;
+                    //rf[ins.Rd] = rf[ins.Rs1] * rf[ins.Rs2];
+                    rf[32]++;
+                    break;
+                case MULI:
+                    executedAddress = ins.Rd;
+                    executedData = source1 * ins.Const;
+                    //rf[ins.Rd] = rf[ins.Rs1] * ins.Const;
+                    rf[32]++;
+                    break;
+                case DIV:
+                    executedAddress = ins.Rd;
+                    executedData = source1 / source2;
+                    //rf[ins.Rd] = rf[ins.Rs1] / rf[ins.Rs2];
+                    rf[32]++;
+                    break;
+                case DIVI:
+                    executedAddress = ins.Rd;
+                    executedData = source1 / ins.Const;
+                    //rf[ins.Rd] = rf[ins.Rs1] / ins.Const;
+                    rf[32]++;
+                    break;
+                case NOT:
+                    executedAddress = ins.Rd;
+                    executedData = ~source1;
+                    //rf[ins.Rd] = ~rf[ins.Rs1];
+                    rf[32]++;
+                    break;
+                case AND:
+                    executedAddress = ins.Rd;
+                    executedData = source1 & source2;
+                    //rf[ins.Rd] = rf[ins.Rs1] & rf[ins.Rs2];
+                    rf[32]++;
+                    break;
+                case OR:
+                    executedAddress = ins.Rd;
+                    executedData = source1 | source2;
+                    //rf[ins.Rd] = rf[ins.Rs1] | rf[ins.Rs2];
+                    rf[32]++;
+                    break;
+                case MOVC:
+                    executedAddress = ins.Rd;
+                    executedData = ins.Const;
+                    //rf[ins.Rd] = ins.Const;
+                    rf[32]++;
+                    break;
+                case MOV:
+                    executedAddress = ins.Rd;
+                    executedData = source1;
+                    //rf[ins.Rd] = rf[ins.Rs1];
+                    rf[32]++;
+                    break;
+                case CMP:
+                    executedAddress = ins.Rd;
+                    executedData = Integer.compare(source1, source2);
+                    //rf[ins.Rd] = Integer.compare(rf[ins.Rs1], rf[ins.Rs2]);
+                    rf[32]++;
+                    break;
+                default:
+                    break;
+            }
+        }
+        executedInsts++;
+    }
+
+    private void loadStore_exe(Instruction ins) {
+        int source1 = rf[ins.Rs1];
+        int source2 = rf[ins.Rs2];
+        // Result forwarding from memory stage
+        if(resultAddress != null && resultAddress.equals(ins.Rs1)) {
+            source1 = resultData;
+        }
+        if(resultAddress != null && resultAddress.equals(ins.Rs2)) {
+            source2 = resultData;
+        }
+        // Result forwarding from execute stage
+        if(executedAddress != null && executedAddress.equals(ins.Rs1)) {
+            source1 = executedData;
+        }
+        if(executedAddress != null && executedAddress.equals(ins.Rs2)) {
+            source2 = executedData;
+        }
+
+        if(ins.Rd != 0 && ins.Rd != 32) { // register 0 & 32 is read-only ($zero, $pc)
+            switch (ins.opcode) {
+                case LD:
+                    //rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
+                    memoryOpcode = ins.opcode;
+                    memoryRd = ins.Rd;
+                    memoryAddress = source1 + source2;
+                    rf[32]++;
+                    break;
+                case LDI:
+                    //rf[ins.Rd] = mem[ins.Const];
+                    memoryOpcode = ins.opcode;
+                    memoryRd = ins.Rd;
+                    memoryAddress = ins.Const;
+                    rf[32]++;
+                    break;
+                case LDO:
+                    //rf[ins.Rd] = mem[rf[ins.Rs1] + ins.Const];
+                    memoryOpcode = ins.opcode;
+                    memoryRd = ins.Rd;
+                    memoryAddress = source1 + ins.Const;
+                    rf[32]++;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        switch (ins.opcode) { // instructions that are safe with gpr[0]
+            case ST:
+                //mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
+                memoryOpcode = ins.opcode;
+                memoryRd = ins.Rd;
+                memoryAddress = source1 + source2;
+                rf[32]++;
+                break;
+            case STI:
+                //mem[ins.Const] = rf[ins.Rd];
+                memoryOpcode = ins.opcode;
+                memoryRd = ins.Rd;
+                memoryAddress = ins.Const;
+                rf[32]++;
+                break;
+            case STO:
+                //mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
+                memoryOpcode = ins.opcode;
+                memoryRd = ins.Rd;
+                memoryAddress = source1 + ins.Const;
+                rf[32]++;
+                break;
+            default:
+                break;
+        }
+        executedInsts++;
     }
 
     private void finishExecution(Instruction ins) {
@@ -221,7 +426,7 @@ public class Processor3 {
                     memoryAddress = source1 + source2;
                     rf[32]++;
                     break;
-                case LDC:
+                case MOVC:
                     executedAddress = ins.Rd;
                     executedData = ins.Const;
                     //rf[ins.Rd] = ins.Const;
@@ -241,7 +446,7 @@ public class Processor3 {
                     memoryAddress = source1 + ins.Const;
                     rf[32]++;
                     break;
-                case MV:
+                case MOV:
                     executedAddress = ins.Rd;
                     executedData = source1;
                     //rf[ins.Rd] = rf[ins.Rs1];
