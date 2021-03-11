@@ -44,10 +44,10 @@ public class Processor3 {
             fetched = instructions[pc];
             pc++;
         }
-        cycle++;
-        if(fetched == null) {
-            stalledCycle++;
-        }
+//        cycle++;
+//        if(fetched == null) {
+//            stalledCycle++;
+//        }
     }
 
     private void Decode() {
@@ -57,10 +57,10 @@ public class Processor3 {
         if(!decodeBlocked) {
             decoded = fetched;
         }
-        cycle++;
-        if(decoded == null) {
-            stalledCycle++;
-        }
+//        cycle++;
+//        if(decoded == null) {
+//            stalledCycle++;
+//        }
     }
 
     private void Execute() {
@@ -77,11 +77,11 @@ public class Processor3 {
                 executeBlocked = false;
             }
         }
-        else {
-            stalledCycle++; // when executing is null, it's stall
-        }
+//        else {
+//            stalledCycle++; // when executing is null, it's stall
+//        }
         executeCycle++;
-        cycle++;
+//        cycle++;
     }
 
     private void Memory() {
@@ -114,7 +114,7 @@ public class Processor3 {
             executedData = null;
             executedAddress = null;
         }
-        cycle++;
+//        cycle++;
     }
 
     private void WriteBack() {
@@ -123,7 +123,7 @@ public class Processor3 {
             resultAddress = null;
             resultData = null;
         }
-        cycle++;
+//        cycle++;
     }
 
     private int getInstCycle(Instruction ins) {
@@ -344,6 +344,10 @@ public class Processor3 {
             Execute();
             Decode();
             Fetch();
+            cycle++;
+            if(fetchBlocked || (fetched == null) || decodeBlocked || (decoded == null) || executeBlocked) {
+                stalledCycle++;
+            }
         }
         //Writing back last data
         WriteBack();
