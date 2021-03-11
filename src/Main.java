@@ -127,54 +127,44 @@ public class Main {
         instructions3[209] = new Instruction(Opcode.ADDI,29,29,0,2); // $sp += 2
         instructions3[210] = new Instruction(Opcode.JR,0,31,0,0); // return to $ra
 
-        Instruction[] instructions4 = new Instruction[512];
-        int[] mem4 = new int[1024];
-        instructions4[0] = new Instruction(Opcode.LDC,1,0,0,3);
-        instructions4[1] = new Instruction(Opcode.LDC,2,0,0,51);
-        instructions4[2] = new Instruction(Opcode.DIV,3,2,1,0);
-        instructions4[3] = new Instruction(Opcode.MV,4,3,0,0);
-        instructions4[4] = new Instruction(Opcode.HALT,0,0,0,0);
+//        Instruction[] instructions4 = new Instruction[512];
+//        int[] mem4 = new int[1024];
+//        instructions4[0] = new Instruction(Opcode.LDC,1,0,0,3);
+//        instructions4[1] = new Instruction(Opcode.LDC,2,0,0,51);
+//        instructions4[2] = new Instruction(Opcode.DIV,3,2,1,0);
+//        instructions4[3] = new Instruction(Opcode.MV,4,3,0,0);
+//        instructions4[4] = new Instruction(Opcode.HALT,0,0,0,0);
 
-//        Processor processor = new Processor();
-//        processor.instructions = instructions3;
-//        processor.mem = mem3;
-//        processor.RunProcessor();
-//
-//        Processor2 processor2 = new Processor2();
-//        processor2.instructions = instructions3;
-//        processor2.mem = mem3;
-//	    processor2.RunProcessor();
+        System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
+        Processor3 processor = new Processor3();
+        processor.instructions = instructions;
+        processor.mem = mem;
+        processor.RunProcessor();
+        createDump(processor.mem, "mem_bench1.txt");
+        createDump(processor.rf,"rf_bench1.txt");
 
-//        System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
-//        Processor3 processor = new Processor3();
-//        processor.instructions = instructions;
-//        processor.mem = mem;
-//        processor.RunProcessor();
-//        createDump(processor.mem, "memory_bench1.txt");
-//        createDump(processor.rf,"rf_bench1.txt");
+        System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
+        Processor3 processor2 = new Processor3();
+        processor2.instructions = instructions2;
+        processor2.mem = mem2;
+        processor2.RunProcessor();
+        createDump(processor2.mem, "mem_bench2.txt");
+        createDump(processor2.rf,"rf_bench2.txt");
 
-//        System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
-//        Processor3 processor2 = new Processor3();
-//        processor2.instructions = instructions2;
-//        processor2.mem = mem2;
-//        processor2.RunProcessor();
-//        createDump(processor2.mem, "memory_bench2.txt");
-//        createDump(processor2.rf,"rf_bench2.txt");
-//
-//        System.out.println("Benchmark3 - Factorial(" + num + ")");
-//	    Processor3 processor3 = new Processor3();
-//	    processor3.instructions = instructions3;
-//	    processor3.mem = mem3;
-//	    processor3.RunProcessor();
-//	    createDump(processor3.mem, "memory_bench3.txt");
-//	    createDump(processor3.rf,"rf_bench3.txt");
+        System.out.println("Benchmark3 - Factorial(" + num + ")");
+	    Processor3 processor3 = new Processor3();
+	    processor3.instructions = instructions3;
+	    processor3.mem = mem3;
+	    processor3.RunProcessor();
+	    createDump(processor3.mem, "mem_bench3.txt");
+	    createDump(processor3.rf,"rf_bench3.txt");
 
-	    Processor3 processor4 = new Processor3();
-	    processor4.instructions = instructions4;
-	    processor4.mem = mem4;
-	    processor4.RunProcessor();
-	    createDump(processor4.mem, "m_bench4.txt");
-	    createDump(processor4.rf,"r_bench4.txt");
+//	    Processor3 processor4 = new Processor3();
+//	    processor4.instructions = instructions4;
+//	    processor4.mem = mem4;
+//	    processor4.RunProcessor();
+//	    createDump(processor4.mem, "mem_bench4.txt");
+//	    createDump(processor4.rf,"rf_bench4.txt");
     }
 
     private static void createDump(int[] array, String filePath) throws IOException {

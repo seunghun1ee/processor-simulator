@@ -44,10 +44,6 @@ public class Processor3 {
             fetched = instructions[pc];
             pc++;
         }
-//        cycle++;
-//        if(fetched == null) {
-//            stalledCycle++;
-//        }
     }
 
     private void Decode() {
@@ -57,10 +53,6 @@ public class Processor3 {
         if(!decodeBlocked) {
             decoded = fetched;
         }
-//        cycle++;
-//        if(decoded == null) {
-//            stalledCycle++;
-//        }
     }
 
     private void Execute() {
@@ -77,11 +69,7 @@ public class Processor3 {
                 executeBlocked = false;
             }
         }
-//        else {
-//            stalledCycle++; // when executing is null, it's stall
-//        }
         executeCycle++;
-//        cycle++;
     }
 
     private void Memory() {
@@ -114,7 +102,6 @@ public class Processor3 {
             executedData = null;
             executedAddress = null;
         }
-//        cycle++;
     }
 
     private void WriteBack() {
@@ -123,7 +110,6 @@ public class Processor3 {
             resultAddress = null;
             resultData = null;
         }
-//        cycle++;
     }
 
     private int getInstCycle(Instruction ins) {
@@ -299,7 +285,7 @@ public class Processor3 {
                 fetched = null;
                 break;
             case JMP:
-                rf[32] = pc = rf[32] + ins.Const; // By the time JMP is executed, pc is already incremeted twice
+                rf[32] = pc = rf[32] + ins.Const; // By the time JMP is executed, pc is already incremented twice
                 fetched = null;
                 break;
             case JR:
@@ -345,16 +331,17 @@ public class Processor3 {
             Decode();
             Fetch();
             cycle++;
-            if(fetchBlocked || (fetched == null) || decodeBlocked || (decoded == null) || executeBlocked) {
+            if(fetchBlocked || decodeBlocked || (executeBlocked && executeCycle > 1)) {
                 stalledCycle++;
             }
         }
-        //Writing back last data
-        WriteBack();
+        WriteBack(); // Writing back last data
+        cycle++;
         System.out.println("Scalar pipelined (3-way) processor Terminated");
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");
         System.out.println(stalledCycle + " stalled cycles");
+        System.out.println("cycles/instruction ratio: " + ((float) cycle) / (float) executedInsts);
         System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
         System.out.println("stalled_cycle/cycle ratio: " + ((float) stalledCycle / (float) cycle));
     }
