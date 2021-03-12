@@ -11,7 +11,7 @@ public class Processor3 {
     // $32 is Program counter for users ($pc)
     Instruction[] instructions; // instructions from user
     boolean finished = false;
-    // pipeline registers
+    // 3 pipeline registers
     Instruction fetched = null;
     Instruction decoded = null;
     Instruction executing = null;
@@ -44,10 +44,6 @@ public class Processor3 {
             fetched = instructions[pc];
             pc++;
         }
-    }
-
-    private void Dispatch() {
-
     }
 
     private void Decode() {
@@ -537,7 +533,6 @@ public class Processor3 {
             WriteBack();
             Memory();
             Execute();
-            Dispatch();
             Decode();
             Fetch();
             cycle++;
