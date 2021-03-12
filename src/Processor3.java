@@ -31,6 +31,8 @@ public class Processor3 {
 
     // Execution units
     ALU alu0 = new ALU();
+    ALU alu1 = new ALU();
+    LSU lsu0 = new LSU();
 
 
     public Processor3(int[] mem, Instruction[] instructions) {
@@ -106,19 +108,36 @@ public class Processor3 {
                         executedAddress = executing.Rd;
                         rf[32]++;
                         break;
-                    case LD:
-                    case LDI:
-                    case LDO:
+                    case LD: // rf[Rs1] + rf[Rs2]
                     case ST:
+                        input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
+                        input2 = resultForwarding(executing.Rs2,resultData,resultAddress);
+                        memoryOpcode = executing.opcode;
+                        memoryRd = executing.Rd;
+                        memoryAddress = lsu0.evaluate(executing.opcode,input1,input2);
+                        rf[32]++;
+                        break;
+                    case LDI: // Const
                     case STI:
+                        input1 = executing.Const;
+                        memoryOpcode = executing.opcode;
+                        memoryRd = executing.Rd;
+                        memoryAddress = lsu0.evaluate(executing.opcode,input1,input2);
+                        rf[32]++;
+                        break;
+                    case LDO: // rf[Rs1] + Const
                     case STO:
-                        loadStore_exe(executing);
+                        input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
+                        input2 = executing.Const;
+                        memoryOpcode = executing.opcode;
+                        memoryRd = executing.Rd;
+                        memoryAddress = lsu0.evaluate(executing.opcode,input1,input2);
+                        rf[32]++;
                         break;
                     default:
                         finishExecution(executing);
                         break;
                 }
-
                 executeBlocked = false;
                 executedInsts++;
             }
@@ -193,79 +212,6 @@ public class Processor3 {
             return forData;
         }
         return rf[insAddress];
-    }
-
-    private void loadStore_exe(Instruction ins) {
-        int source1 = rf[ins.Rs1];
-        int source2 = rf[ins.Rs2];
-        // Result forwarding from memory stage
-        if(resultAddress != null && resultAddress.equals(ins.Rs1)) {
-            source1 = resultData;
-        }
-        if(resultAddress != null && resultAddress.equals(ins.Rs2)) {
-            source2 = resultData;
-        }
-        // Result forwarding from execute stage
-        if(executedAddress != null && executedAddress.equals(ins.Rs1)) {
-            source1 = executedData;
-        }
-        if(executedAddress != null && executedAddress.equals(ins.Rs2)) {
-            source2 = executedData;
-        }
-
-        if(ins.Rd != 0 && ins.Rd != 32) { // register 0 & 32 is read-only ($zero, $pc)
-            switch (ins.opcode) {
-                case LD:
-                    //rf[ins.Rd] = mem[rf[ins.Rs1] + rf[ins.Rs2]];
-                    memoryOpcode = ins.opcode;
-                    memoryRd = ins.Rd;
-                    memoryAddress = source1 + source2;
-                    rf[32]++;
-                    break;
-                case LDI:
-                    //rf[ins.Rd] = mem[ins.Const];
-                    memoryOpcode = ins.opcode;
-                    memoryRd = ins.Rd;
-                    memoryAddress = ins.Const;
-                    rf[32]++;
-                    break;
-                case LDO:
-                    //rf[ins.Rd] = mem[rf[ins.Rs1] + ins.Const];
-                    memoryOpcode = ins.opcode;
-                    memoryRd = ins.Rd;
-                    memoryAddress = source1 + ins.Const;
-                    rf[32]++;
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        switch (ins.opcode) { // instructions that are safe with gpr[0]
-            case ST:
-                //mem[rf[ins.Rs1] + rf[ins.Rs2]] = rf[ins.Rd];
-                memoryOpcode = ins.opcode;
-                memoryRd = ins.Rd;
-                memoryAddress = source1 + source2;
-                rf[32]++;
-                break;
-            case STI:
-                //mem[ins.Const] = rf[ins.Rd];
-                memoryOpcode = ins.opcode;
-                memoryRd = ins.Rd;
-                memoryAddress = ins.Const;
-                rf[32]++;
-                break;
-            case STO:
-                //mem[rf[ins.Rs1] + ins.Const] = rf[ins.Rd];
-                memoryOpcode = ins.opcode;
-                memoryRd = ins.Rd;
-                memoryAddress = source1 + ins.Const;
-                rf[32]++;
-                break;
-            default:
-                break;
-        }
     }
 
     private void finishExecution(Instruction ins) {
