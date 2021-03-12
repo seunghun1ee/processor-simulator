@@ -65,20 +65,43 @@ public class Processor3 {
                 executeBlocked = true;
             }
             else {
+                int input1 = 0;
+                int input2 = 0;
                 switch (executing.opcode) {
-                    case ADD:
-                    case ADDI:
+                    case ADD: // ALU OPs that use rf[Rs1] and rf[Rs2]
                     case SUB:
                     case MUL:
-                    case MULI:
                     case DIV:
-                    case DIVI:
-                    case NOT:
+                    case CMP:
                     case AND:
                     case OR:
+                        input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
+                        input2 = resultForwarding(executing.Rs2,resultData,resultAddress);
+                        executedData = ALU(executing.opcode, input1, input2);
+                        executedAddress = executing.Rd;
+                        rf[32]++;
+                        break;
+                    case ADDI: // ALU OPs that use rf[Rs1] and Const
+                    case MULI:
+                    case DIVI:
+                        input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
+                        input2 = executing.Const;
+                        executedData = ALU(executing.opcode, input1, input2);
+                        executedAddress = executing.Rd;
+                        rf[32]++;
+                        break;
+                    case NOT: // ALU OPs that only use rf[Rs1]
                     case MOV:
-                    case CMP:
-                        ALU_exe(executing);
+                        input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
+                        executedData = ALU(executing.opcode, input1, input2);
+                        executedAddress = executing.Rd;
+                        rf[32]++;
+                        break;
+                    case MOVC: // ALU OPs that only use Const
+                        input1 = executing.Const;
+                        executedData = ALU(executing.opcode, input1, input2);
+                        executedAddress = executing.Rd;
+                        rf[32]++;
                         break;
                     case LD:
                     case LDI:
@@ -94,6 +117,7 @@ public class Processor3 {
                 }
 
                 executeBlocked = false;
+                executedInsts++;
             }
         }
         executeCycle++;
@@ -161,108 +185,41 @@ public class Processor3 {
         return cycle;
     }
 
-    private void ALU_exe(Instruction ins) {
-        int source1 = rf[ins.Rs1];
-        int source2 = rf[ins.Rs2];
-        // Result forwarding from memory stage
-        if(resultAddress != null && resultAddress.equals(ins.Rs1)) {
-            source1 = resultData;
+    private Integer resultForwarding(Integer insAddress, Integer forData, Integer forAddress) {
+        if(forAddress != null && forAddress.equals(insAddress)) {
+            return forData;
         }
-        if(resultAddress != null && resultAddress.equals(ins.Rs2)) {
-            source2 = resultData;
+        return rf[insAddress];
+    }
+
+    private Integer ALU(Opcode op, int input1, int input2) {
+        switch (op) {
+            case MOV:
+            case MOVC:
+                return input1;
+            case ADD:
+            case ADDI:
+                return input1 + input2;
+            case SUB:
+                return input1 - input2;
+            // Maybe mul and div to different execution unit?
+            case MUL:
+            case MULI:
+                return input1 * input2;
+            case DIV:
+            case DIVI:
+                return input1 / input2;
+            case NOT:
+                return ~input1;
+            case AND:
+                return input1 & input2;
+            case OR:
+                return input1 | input2;
+            case CMP:
+                return Integer.compare(input1,input2);
+            default:
+                return null;
         }
-        // Result forwarding from execute stage
-        if(executedAddress != null && executedAddress.equals(ins.Rs1)) {
-            source1 = executedData;
-        }
-        if(executedAddress != null && executedAddress.equals(ins.Rs2)) {
-            source2 = executedData;
-        }
-        if(ins.Rd != 0 && ins.Rd != 32) { // register 0 & 32 is read-only ($zero, $pc)
-            switch (ins.opcode) {
-                case ADD:
-                    executedAddress = ins.Rd;
-                    executedData = source1 + source2;
-                    //rf[ins.Rd] = rf[ins.Rs1] + rf[ins.Rs2];
-                    rf[32]++;
-                    break;
-                case ADDI:
-                    executedAddress = ins.Rd;
-                    executedData = source1 + ins.Const;
-                    //rf[ins.Rd] = rf[ins.Rs1] + ins.Const;
-                    rf[32]++;
-                    break;
-                case SUB:
-                    executedAddress = ins.Rd;
-                    executedData = source1 - source2;
-                    //rf[ins.Rd] = rf[ins.Rs1] - rf[ins.Rs2];
-                    rf[32]++;
-                    break;
-                case MUL:
-                    executedAddress = ins.Rd;
-                    executedData = source1 * source2;
-                    //rf[ins.Rd] = rf[ins.Rs1] * rf[ins.Rs2];
-                    rf[32]++;
-                    break;
-                case MULI:
-                    executedAddress = ins.Rd;
-                    executedData = source1 * ins.Const;
-                    //rf[ins.Rd] = rf[ins.Rs1] * ins.Const;
-                    rf[32]++;
-                    break;
-                case DIV:
-                    executedAddress = ins.Rd;
-                    executedData = source1 / source2;
-                    //rf[ins.Rd] = rf[ins.Rs1] / rf[ins.Rs2];
-                    rf[32]++;
-                    break;
-                case DIVI:
-                    executedAddress = ins.Rd;
-                    executedData = source1 / ins.Const;
-                    //rf[ins.Rd] = rf[ins.Rs1] / ins.Const;
-                    rf[32]++;
-                    break;
-                case NOT:
-                    executedAddress = ins.Rd;
-                    executedData = ~source1;
-                    //rf[ins.Rd] = ~rf[ins.Rs1];
-                    rf[32]++;
-                    break;
-                case AND:
-                    executedAddress = ins.Rd;
-                    executedData = source1 & source2;
-                    //rf[ins.Rd] = rf[ins.Rs1] & rf[ins.Rs2];
-                    rf[32]++;
-                    break;
-                case OR:
-                    executedAddress = ins.Rd;
-                    executedData = source1 | source2;
-                    //rf[ins.Rd] = rf[ins.Rs1] | rf[ins.Rs2];
-                    rf[32]++;
-                    break;
-                case MOVC:
-                    executedAddress = ins.Rd;
-                    executedData = ins.Const;
-                    //rf[ins.Rd] = ins.Const;
-                    rf[32]++;
-                    break;
-                case MOV:
-                    executedAddress = ins.Rd;
-                    executedData = source1;
-                    //rf[ins.Rd] = rf[ins.Rs1];
-                    rf[32]++;
-                    break;
-                case CMP:
-                    executedAddress = ins.Rd;
-                    executedData = Integer.compare(source1, source2);
-                    //rf[ins.Rd] = Integer.compare(rf[ins.Rs1], rf[ins.Rs2]);
-                    rf[32]++;
-                    break;
-                default:
-                    break;
-            }
-        }
-        executedInsts++;
     }
 
     private void loadStore_exe(Instruction ins) {
@@ -336,7 +293,6 @@ public class Processor3 {
             default:
                 break;
         }
-        executedInsts++;
     }
 
     private void finishExecution(Instruction ins) {
@@ -524,7 +480,6 @@ public class Processor3 {
             default:
                 break;
         }
-        executedInsts++;
     }
 
     public void RunProcessor() {
