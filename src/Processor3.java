@@ -29,6 +29,9 @@ public class Processor3 {
     boolean decodeBlocked = false;
     boolean executeBlocked = false;
 
+    // Execution units
+    ALU alu0 = new ALU();
+
 
     public Processor3(int[] mem, Instruction[] instructions) {
         this.mem = mem;
@@ -77,7 +80,7 @@ public class Processor3 {
                     case OR:
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
                         input2 = resultForwarding(executing.Rs2,resultData,resultAddress);
-                        executedData = ALU(executing.opcode, input1, input2);
+                        executedData = alu0.evaluate(executing.opcode, input1, input2);
                         executedAddress = executing.Rd;
                         rf[32]++;
                         break;
@@ -86,20 +89,20 @@ public class Processor3 {
                     case DIVI:
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
                         input2 = executing.Const;
-                        executedData = ALU(executing.opcode, input1, input2);
+                        executedData = alu0.evaluate(executing.opcode, input1, input2);
                         executedAddress = executing.Rd;
                         rf[32]++;
                         break;
                     case NOT: // ALU OPs that only use rf[Rs1]
                     case MOV:
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
-                        executedData = ALU(executing.opcode, input1, input2);
+                        executedData = alu0.evaluate(executing.opcode, input1, input2);
                         executedAddress = executing.Rd;
                         rf[32]++;
                         break;
                     case MOVC: // ALU OPs that only use Const
                         input1 = executing.Const;
-                        executedData = ALU(executing.opcode, input1, input2);
+                        executedData = alu0.evaluate(executing.opcode, input1, input2);
                         executedAddress = executing.Rd;
                         rf[32]++;
                         break;
@@ -190,36 +193,6 @@ public class Processor3 {
             return forData;
         }
         return rf[insAddress];
-    }
-
-    private Integer ALU(Opcode op, int input1, int input2) {
-        switch (op) {
-            case MOV:
-            case MOVC:
-                return input1;
-            case ADD:
-            case ADDI:
-                return input1 + input2;
-            case SUB:
-                return input1 - input2;
-            // Maybe mul and div to different execution unit?
-            case MUL:
-            case MULI:
-                return input1 * input2;
-            case DIV:
-            case DIVI:
-                return input1 / input2;
-            case NOT:
-                return ~input1;
-            case AND:
-                return input1 & input2;
-            case OR:
-                return input1 | input2;
-            case CMP:
-                return Integer.compare(input1,input2);
-            default:
-                return null;
-        }
     }
 
     private void loadStore_exe(Instruction ins) {
