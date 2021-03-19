@@ -7,6 +7,8 @@ public enum Opcode {
     MULI,
     DIV,
     DIVI,
+    SHL,
+    SHR,
     NOT,
     AND,
     OR,

@@ -87,6 +87,8 @@ public class Processor3 {
                     case CMP:
                     case AND:
                     case OR:
+                    case SHL:
+                    case SHR:
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
                         input2 = resultForwarding(executing.Rs2,resultData,resultAddress);
                         executedData = alu0.evaluate(executing.opcode, input1, input2);

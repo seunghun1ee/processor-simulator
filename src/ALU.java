@@ -21,6 +21,10 @@ public class ALU {
             case DIV:
             case DIVI:
                 return input1 / input2;
+            case SHL:
+                return input1 << input2;
+            case SHR:
+                return input1 >> input2;
             case NOT:
                 return ~input1;
             case AND:
