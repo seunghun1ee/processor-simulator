@@ -218,18 +218,19 @@ public class Processor3 {
     private int getInstCycle(Instruction ins) {
         int cycle = 1;
         switch (ins.opcode) {
-            case ADD:
-            case ADDI:
-            case SUB:
-                cycle = 2;
-                break;
             case MUL:
             case MULI:
-                cycle = 3;
+            case LD:
+            case LDO:
+            case LDI:
+            case ST:
+            case STO:
+            case STI:
+                cycle = 2;
                 break;
             case DIV:
             case DIVI:
-                cycle = 4;
+                cycle = 6;  //change it to 16 later
                 break;
             default:
                 break;
