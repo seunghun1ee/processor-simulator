@@ -1,5 +1,4 @@
-public class LSU {
-
+public class LSU extends ExecutionUnit{
     private final ALU agu;
 
     public LSU() {

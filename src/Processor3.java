@@ -148,15 +148,15 @@ public class Processor3 {
                     case JR:
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
                         input2 = resultForwarding(executing.Rs2,resultData,resultAddress);
-                        rf[32] = pc = bru0.evaluateBranchTarget(executing.opcode,rf[32],input1,input2,executing.Const);
+                        rf[32] = pc = bru0.evaluateTarget(executing.opcode,rf[32],input1,input2,executing.Const);
                         fetched = null;
                         break;
                     case BEQ:
                     case BLT:
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
                         input2 = resultForwarding(executing.Rs2,resultData,resultAddress);
-                        if(bru0.evaluateBranchCondition(executing.opcode,input1,input2)) {
-                            rf[32] = pc = bru0.evaluateBranchTarget(executing.opcode,rf[32],input1,input2,executing.Const);
+                        if(bru0.evaluateCondition(executing.opcode,input1,input2)) {
+                            rf[32] = pc = bru0.evaluateTarget(executing.opcode,rf[32],input1,input2,executing.Const);
                             fetched = null;
                         }
                         else {
@@ -199,7 +199,7 @@ public class Processor3 {
                     break;
             }
         }
-        else {
+        else { // not a memory instructions, skip
             resultData = executedData;
             resultAddress = executedAddress;
             executedData = null;

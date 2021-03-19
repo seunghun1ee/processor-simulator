@@ -127,31 +127,15 @@ public class Main {
         instructions3[209] = new Instruction(Opcode.ADDI,29,29,0,2); // $sp += 2
         instructions3[210] = new Instruction(Opcode.JR,0,31,0,0); // return to $ra
 
-//        Instruction[] instructions4 = new Instruction[512];
-//        int[] mem4 = new int[1024];
-//        instructions4[0] = new Instruction(Opcode.MOVC,1,0,0,1);
-//        instructions4[1] = new Instruction(Opcode.MOVC,2,0,0,0);
-//        instructions4[2] = new Instruction(Opcode.SHL,3,1,2,0); // 1 << 0 expecting 1
-//        instructions4[3] = new Instruction(Opcode.MOVC,2,0,0,31);
-//        instructions4[4] = new Instruction(Opcode.SHL,4,1,2,0); // 1 << 31 expecting 2147483648
-//        instructions4[5] = new Instruction(Opcode.MOVC,2,0,0,1);
-//        instructions4[6] = new Instruction(Opcode.SHL,5,1,2,0); // 1 << 1 expecting 2
-//        instructions4[7] = new Instruction(Opcode.MOVC,2,0,0,32);
-//        instructions4[8] = new Instruction(Opcode.SHL,6,1,2,0); // 1 << 32 expecting 0
-//        instructions4[9] = new Instruction(Opcode.MOVC,2,0,0,124);
-//        instructions4[10] = new Instruction(Opcode.SHL,7,1,2,0); // 1 << 124 expecting 0
-//        instructions4[11] = new Instruction(Opcode.MOVC,1,0,0,0x80000000);
-//        instructions4[12] = new Instruction(Opcode.MOVC,2,0,0,0);
-//        instructions4[13] = new Instruction(Opcode.SHR,8,1,2,0); // -1 >> 0 expecting -1
-//        instructions4[14] = new Instruction(Opcode.MOVC,2,0,0,1);
-//        instructions4[15] = new Instruction(Opcode.SHR,9,1,2,0); // -1 >> 1 expecting 0x7fffffff
-//        instructions4[16] = new Instruction(Opcode.MOVC,2,0,0,31);
-//        instructions4[17] = new Instruction(Opcode.SHR,10,1,2,0); // -1 >> 31 expecting
-//        instructions4[18] = new Instruction(Opcode.MOVC,2,0,0,32);
-//        instructions4[18] = new Instruction(Opcode.SHR,11,1,2,0); // -1 >> 32
-//        instructions4[19] = new Instruction(Opcode.MOVC,2,0,0,431);
-//        instructions4[20] = new Instruction(Opcode.SHR,12,1,2,0); // -1 >> 431
-//        instructions4[21] = new Instruction(Opcode.HALT,0,0,0,0);
+        Instruction[] instructions4 = new Instruction[512];
+        int[] mem4 = new int[1024];
+        instructions4[0] = new Instruction(Opcode.MOVC,1,0,0,10);
+        instructions4[1] = new Instruction(Opcode.MOVC,2,0,0,2);
+        instructions4[2] = new Instruction(Opcode.DIV,3,1,2,0);
+        instructions4[3] = new Instruction(Opcode.MUL,4,1,2,0);
+        instructions4[4] = new Instruction(Opcode.ADD,5,1,2,0);
+        instructions4[5] = new Instruction(Opcode.HALT,0,0,0,0);
+//
 
         System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
         Processor3 processor = new Processor3(mem,instructions);
@@ -171,7 +155,7 @@ public class Main {
 	    createDump(processor3.mem, "mem_bench3.txt");
 	    createDump(processor3.rf,"rf_bench3.txt");
 
-//	    Processor3 processor4 = new Processor3(mem4,instructions4);
+//	    Processor4 processor4 = new Processor4(mem4,instructions4);
 //	    processor4.RunProcessor();
 //	    createDump(processor4.mem, "mem_bench4.txt");
 //	    createDump(processor4.rf,"rf_bench4.txt");

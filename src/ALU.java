@@ -1,9 +1,10 @@
-public class ALU {
+public class ALU extends ExecutionUnit {
+
+
 
     public ALU() {
 
     }
-
     public Integer evaluate(Opcode op, int input1, int input2) {
         switch (op) {
             case MOV:
@@ -37,4 +38,5 @@ public class ALU {
                 return null;
         }
     }
+
 }

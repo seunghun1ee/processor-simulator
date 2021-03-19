@@ -4,7 +4,7 @@ public class BRU {
 
     }
 
-    public Integer evaluateBranchTarget(Opcode op, int currentPC, int input1, int input2, int input3) {
+    public Integer evaluateTarget(Opcode op, int currentPC, int input1, int input2, int input3) {
         switch (op) {
             case BR:
                 return input3;
@@ -31,7 +31,7 @@ public class BRU {
         }
     }
 
-    public boolean evaluateBranchCondition(Opcode op, int input1, int input2) {
+    public boolean evaluateCondition(Opcode op, int input1, int input2) {
         switch (op) {
             case BR:
             case JMP:
@@ -45,5 +45,4 @@ public class BRU {
                 return false;
         }
     }
-
 }
