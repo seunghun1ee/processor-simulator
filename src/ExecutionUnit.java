@@ -1,4 +1,4 @@
-public class ExecutionUnit {
+public abstract class ExecutionUnit {
 
     public boolean busy = false;
     public Opcode op = Opcode.NOOP;
@@ -32,7 +32,5 @@ public class ExecutionUnit {
         }
     }
 
-    Integer evaluate(Opcode opcode, Integer input1, Integer input2) {
-        return null;
-    }
+    public abstract Integer evaluate(Opcode opcode, Integer input1, Integer input2);
 }

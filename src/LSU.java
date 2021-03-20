@@ -5,8 +5,9 @@ public class LSU extends ExecutionUnit{
         this.agu = new ALU();
     }
 
-    public Integer evaluate(Opcode op, int input1, int input2) {
-        switch (op) {
+    @Override
+    public Integer evaluate(Opcode opcode, Integer input1, Integer input2) {
+        switch (opcode) {
             case LD:
             case LDO:
             case ST:

@@ -138,19 +138,19 @@ public class Main {
 //
 
         System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
-        Processor3 processor = new Processor3(mem,instructions);
+        Processor4 processor = new Processor4(mem,instructions);
         processor.RunProcessor();
         createDump(processor.mem, "mem_bench1.txt");
         createDump(processor.rf,"rf_bench1.txt");
 
         System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
-        Processor3 processor2 = new Processor3(mem2,instructions2);
+        Processor4 processor2 = new Processor4(mem2,instructions2);
         processor2.RunProcessor();
         createDump(processor2.mem, "mem_bench2.txt");
         createDump(processor2.rf,"rf_bench2.txt");
 
         System.out.println("Benchmark3 - Factorial(" + num + ")");
-	    Processor3 processor3 = new Processor3(mem3,instructions3);
+	    Processor4 processor3 = new Processor4(mem3,instructions3);
 	    processor3.RunProcessor();
 	    createDump(processor3.mem, "mem_bench3.txt");
 	    createDump(processor3.rf,"rf_bench3.txt");

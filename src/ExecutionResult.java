@@ -16,4 +16,10 @@ public class ExecutionResult {
         this.memRd = memRd;
         this.memAddress = memAddress;
     }
+
+    public ExecutionResult(Integer execData, Integer memAddress, Opcode memOp) {
+        this.execData = execData;
+        this.memOp = memOp;
+        this.memAddress = memAddress;
+    }
 }
