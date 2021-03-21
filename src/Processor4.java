@@ -12,7 +12,6 @@ public class Processor4 {
     int cycle = 0;
     int pc = 0; //Program counter
     int executedInsts = 0; //Number of instructions executed
-    int executeCycle = 0; // cycles that was spent at execution phase
     int stalledCycle = 0; // cycles that was spent while doing nothing
     int[] mem; // memory from user
     int[] rf = new int[65]; //Register file (physical)
@@ -133,6 +132,9 @@ public class Processor4 {
             validBits[dispatching.Rd] = false;
             dispatchedQueue.add(mop);
         }
+    }
+
+    private void Issue() {
     }
 
     private void Execute() {
