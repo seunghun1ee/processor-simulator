@@ -27,8 +27,6 @@ public class Processor4 {
     Queue<MicroOperation> dispatchedQueue = new LinkedList<>();
     Queue<ExecutionResult> executionResults = new LinkedList<>();
 
-    // execution result register
-    ExecutionResult execResult;
     // final result registers before write back
     Integer finalData = null;
     Integer finalAddress = null;
@@ -250,6 +248,7 @@ public class Processor4 {
                     case STI:
                     case STO:
                         mem[result.memAddress] = result.execData;
+                        validBits[result.memRd] = true;
                         break;
                 }
             }
@@ -308,6 +307,7 @@ public class Processor4 {
             if(fetchBlocked || decodeBlocked || dispatchBlocked || executeBlocked) {
                 stalledCycle++;
             }
+//            System.out.println("PC: "+ pc + " rf[32]: " + rf[32]);
         }
         WriteBack(); // Writing back last data
         cycle++;

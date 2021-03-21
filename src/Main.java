@@ -135,7 +135,7 @@ public class Main {
         instructions4[3] = new Instruction(Opcode.MUL,4,1,2,0);
         instructions4[4] = new Instruction(Opcode.ADD,5,1,2,0);
         instructions4[5] = new Instruction(Opcode.HALT,0,0,0,0);
-//
+
 
         System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
         Processor4 processor = new Processor4(mem,instructions);
