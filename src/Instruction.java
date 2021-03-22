@@ -5,6 +5,20 @@ public class Instruction {
     Integer Rs2 = 0; //Source register 2
     Integer Const = 0; //Constant for immediate operations
 
+    // data from source registers
+    Integer data1 = null;
+    Integer data2 = null;
+
+    // info for debugging
+    int id = 0;
+    int fetchComplete = 0;
+    int decodeComplete = 0;
+    int issueComplete = 0;
+    int dispatchComplete = 0;
+    int executeComplete = 0;
+    int memoryComplete = 0;
+    int writeBackComplete = 0;
+
     public Instruction() {
 
     }

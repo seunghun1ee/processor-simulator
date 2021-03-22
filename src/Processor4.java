@@ -13,6 +13,7 @@ public class Processor4 {
     int pc = 0; //Program counter
     int executedInsts = 0; //Number of instructions executed
     int stalledCycle = 0; // cycles that was spent while doing nothing
+    int insIdCount = 0;
     int[] mem; // memory from user
     int[] rf = new int[65]; //Register file (physical)
     boolean[] validBits = new boolean[65]; // simple scoreboard
@@ -53,8 +54,12 @@ public class Processor4 {
             if(ins == null) {
                 ins = new Instruction(); // NOOP
             }
+            ins.id = insIdCount;
+            ins.fetchComplete = cycle;
+
             fetchedQueue.add(ins);
             pc++;
+            insIdCount++;
         }
     }
 
@@ -62,6 +67,7 @@ public class Processor4 {
         decodeBlocked = decodedQueue.size() >= QUEUE_SIZE;
         if(decodedQueue.size() < QUEUE_SIZE && !fetchedQueue.isEmpty()) {
             Instruction decoded = fetchedQueue.remove();
+            decoded.decodeComplete = cycle;
             decodedQueue.add(decoded);
         }
     }
