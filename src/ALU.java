@@ -4,7 +4,7 @@ public class ALU extends ExecutionUnit {
 
     }
 
-    public Instruction execute2() {
+    public Instruction execute() {
         busy = true;
         if(unitCycles < opcodeCycle.getOpCycle(op) - 1) {
             unitCycles++;

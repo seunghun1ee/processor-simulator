@@ -5,6 +5,20 @@ public class LSU extends ExecutionUnit{
         this.agu = new ALU();
     }
 
+    public Instruction execute() {
+        busy = true;
+        if(unitCycles < opcodeCycle.getOpCycle(op) - 1) {
+            unitCycles++;
+            return null;
+        }
+        else {
+            busy = false;
+            unitCycles = 0;
+            executing.memAddress = evaluate(op,input1,input2);
+            return executing;
+        }
+    }
+
     @Override
     public Integer evaluate(Opcode opcode, Integer input1, Integer input2) {
         switch (opcode) {
@@ -18,20 +32,6 @@ public class LSU extends ExecutionUnit{
                 return agu.evaluate(Opcode.MOV,input1,0);
             default:
                 return null;
-        }
-    }
-
-    public Instruction execute2() {
-        busy = true;
-        if(unitCycles < opcodeCycle.getOpCycle(op) - 1) {
-            unitCycles++;
-            return null;
-        }
-        else {
-            busy = false;
-            unitCycles = 0;
-            executing.memAddress = evaluate(op,input1,input2);
-            return executing;
         }
     }
 }

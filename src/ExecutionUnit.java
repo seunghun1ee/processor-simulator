@@ -1,4 +1,4 @@
-public abstract class ExecutionUnit { // update after Processor4 deprecation
+public abstract class ExecutionUnit {
 
     public boolean busy = false;
     public Instruction executing = new Instruction();
@@ -19,19 +19,6 @@ public abstract class ExecutionUnit { // update after Processor4 deprecation
         this.input1 = 0;
         this.input2 = 0;
         executing = new Instruction();
-    }
-
-    public Integer execute() {
-        busy = true;
-        if(unitCycles < opcodeCycle.getOpCycle(op) - 1) {
-            unitCycles++;
-            return null;
-        }
-        else {
-            busy = false;
-            unitCycles = 0;
-            return evaluate(op,input1,input2);
-        }
     }
 
     public abstract Integer evaluate(Opcode opcode, Integer input1, Integer input2);

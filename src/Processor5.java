@@ -240,9 +240,9 @@ public class Processor5 {
             }
         }
         // ALUs and LSU works at here
-        Instruction alu0_result = alu0.execute2();
-        Instruction alu1_result = alu1.execute2();
-        Instruction lsu0_result = lsu0.execute2();
+        Instruction alu0_result = alu0.execute();
+        Instruction alu1_result = alu1.execute();
+        Instruction lsu0_result = lsu0.execute();
         if(alu0_result != null && alu0_result.result != null) {
             alu0_result.executeComplete = cycle; // save cycle number of execute stage
             executionResults.add(alu0_result);
