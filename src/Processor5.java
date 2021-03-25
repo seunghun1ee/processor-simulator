@@ -114,7 +114,19 @@ public class Processor5 {
             Instruction executing = reservationStations.peek();
             switch (executing.opcode) {
                 case HALT:
-                    finished = true;
+                    if(!alu0.busy && !alu1.busy && !lsu0.busy && executionResults.isEmpty() && beforeWriteBack == null) {
+                        reservationStations.remove();
+                        finished = true;
+                        rf[32]++;
+                        executing.executeComplete = cycle;
+                        finishedInsts.add(executing);
+                    }
+                    break;
+                case NOOP:
+                    reservationStations.remove();
+                    rf[32]++;
+                    executing.executeComplete = cycle;
+                    finishedInsts.add(executing);
                     break;
                 case ADD: // ALU OPs that use rf[Rs1] and rf[Rs2]
                 case SUB:

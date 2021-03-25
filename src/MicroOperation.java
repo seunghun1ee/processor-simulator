@@ -1,4 +1,4 @@
-public class MicroOperation {
+public class MicroOperation { // Processor4
     public Opcode opcode = Opcode.NOOP;
     public int Rd = 0;
     public int input1 = 0;
