@@ -20,4 +20,18 @@ public class LSU extends ExecutionUnit{
                 return null;
         }
     }
+
+    public Instruction execute2() {
+        busy = true;
+        if(unitCycles < opcodeCycle.getOpCycle(op) - 1) {
+            unitCycles++;
+            return null;
+        }
+        else {
+            busy = false;
+            unitCycles = 0;
+            executing.memAddress = evaluate(op,input1,input2);
+            return executing;
+        }
+    }
 }

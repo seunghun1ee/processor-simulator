@@ -4,6 +4,20 @@ public class ALU extends ExecutionUnit {
 
     }
 
+    public Instruction execute2() {
+        busy = true;
+        if(unitCycles < opcodeCycle.getOpCycle(op) - 1) {
+            unitCycles++;
+            return null;
+        }
+        else {
+            busy = false;
+            unitCycles = 0;
+            executing.result = evaluate(op,input1,input2);
+            return executing;
+        }
+    }
+
     @Override
     public Integer evaluate(Opcode opcode, Integer input1, Integer input2) {
         switch (opcode) {

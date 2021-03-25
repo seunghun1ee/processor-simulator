@@ -49,7 +49,7 @@ public class Processor4 {
 
     private void Fetch() {
         fetchBlocked = fetchedQueue.size() >= QUEUE_SIZE;
-        if(fetchedQueue.size() < QUEUE_SIZE && pc < mem.length) {
+        if(fetchedQueue.size() < QUEUE_SIZE && pc < instructions.length) {
             Instruction ins = instructions[pc];
             if(ins == null) {
                 ins = new Instruction(); // NOOP
