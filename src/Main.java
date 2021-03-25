@@ -155,7 +155,7 @@ public class Main {
 	    createDump(processor3.mem, "mem_bench3.txt");
 	    createDump(processor3.rf,"rf_bench3.txt");
 
-//	    Processor4 processor4 = new Processor4(mem4,instructions4);
+//	    Processor5 processor4 = new Processor5(mem4,instructions4);
 //	    processor4.RunProcessor();
 //	    createDump(processor4.mem, "mem_bench4.txt");
 //	    createDump(processor4.rf,"rf_bench4.txt");
