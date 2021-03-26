@@ -23,9 +23,9 @@ public class LSU extends ExecutionUnit{
     public Integer evaluate(Opcode opcode, Integer input1, Integer input2) {
         switch (opcode) {
             case LD:
-            case LDO:
+            case LDI:
             case ST:
-            case STO:
+            case STI:
                 return agu.evaluate(Opcode.ADD,input1,input2);
             default:
                 return null;

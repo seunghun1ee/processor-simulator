@@ -193,8 +193,8 @@ public class Processor5 {
                         reservationStations.remove();
                     }
                     break;
-                case LDO:
-                case STO:
+                case LDI:
+                case STI:
                     if(!lsu0.busy) {
                         lsu0.update(executing.opcode, executing.data1, executing.Const);
                         lsu0.executing = executing;
@@ -281,11 +281,11 @@ public class Processor5 {
             if(executed.memAddress != null) {
                 switch (executed.opcode) {
                     case LD:
-                    case LDO:
+                    case LDI:
                         executed.result = mem[executed.memAddress];
                         break;
                     case ST:
-                    case STO:
+                    case STI:
                         mem[executed.memAddress] = rf[executed.Rd];
                         break;
                 }
@@ -307,7 +307,7 @@ public class Processor5 {
     private void WriteBack() {
         if(beforeWriteBack != null) {
             Instruction writeBack = beforeWriteBack;
-            if(writeBack.Rd != 0 && writeBack.Rd != 32 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STO) {
+            if(writeBack.Rd != 0 && writeBack.Rd != 32 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STI) {
                 rf[writeBack.Rd] = writeBack.result;
                 validBits[writeBack.Rd] = true;
             }

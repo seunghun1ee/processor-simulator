@@ -47,7 +47,7 @@ public class Main {
         instructions2[6] = new Instruction(Opcode.ADDI,6,6,0,-1); //inner for loop limit = length - i - 1
         instructions2[7] = new Instruction(Opcode.LD,7,1,3,0); // a = array[j], inner loop starting point
         instructions2[8] = new Instruction(Opcode.ADD,9,1,3,0); // pointer + j
-        instructions2[9] = new Instruction(Opcode.LDO,8,9,0,1); // b = array[j + 1]
+        instructions2[9] = new Instruction(Opcode.LDI,8,9,0,1); // b = array[j + 1]
         instructions2[10] = new Instruction(Opcode.CMP,11,8,7,0); // $11 = cmp(b,a)
         instructions2[11] = new Instruction(Opcode.BRN,0,11,0,13); // if($11 < 0)
         instructions2[12] = new Instruction(Opcode.BR,0,0,0,18); //if not b < a skip to the end of inner loop
@@ -55,7 +55,7 @@ public class Main {
         instructions2[14] = new Instruction(Opcode.MOV,7,8,0,0); // a = b
         instructions2[15] = new Instruction(Opcode.MOV,8,10,0,0); // b = temp, swap complete
         instructions2[16] = new Instruction(Opcode.ST,7,1,3,0); // store array[j] = a
-        instructions2[17] = new Instruction(Opcode.STO,8,9,0,1); // store array[j + 1] = b
+        instructions2[17] = new Instruction(Opcode.STI,8,9,0,1); // store array[j + 1] = b
         instructions2[18] = new Instruction(Opcode.ADDI,3,3,0,1); // j++
         instructions2[19] = new Instruction(Opcode.CMP,11,3,6,0); // $11 = cmp(j, length - i - 1)
         instructions2[20] = new Instruction(Opcode.BRN,0,11,0,7); // loop back to inner starting point if j < length - i - 1
@@ -73,11 +73,11 @@ public class Main {
         mem3[loc] = num;
         //main
         instructions3[0] = new Instruction(Opcode.MOVC,29,0,0,sp); // $29 is $sp
-        instructions3[1] = new Instruction(Opcode.LDO,1,0,0,loc); // load argument
+        instructions3[1] = new Instruction(Opcode.LDI,1,0,0,loc); // load argument
         instructions3[2] = new Instruction(Opcode.MOV,4,1,0,0); // copy argument to $a0 ($4)
         instructions3[3] = new Instruction(Opcode.ADDI,31,32,0,2); // $ra = $pc + 2 (5)
         instructions3[4] = new Instruction(Opcode.BR,0,0,0,100); // call fac
-        instructions3[5] = new Instruction(Opcode.STO,2,0,0,loc+1); // store returned result at mem[loc + 1]
+        instructions3[5] = new Instruction(Opcode.STI,2,0,0,loc+1); // store returned result at mem[loc + 1]
         instructions3[6] = new Instruction(Opcode.HALT,0,0,0,0); // halt
         //fac
         instructions3[100] = new Instruction(Opcode.CMP,15,4,0,0); // $t7 = cmp($a0,$zero)
@@ -87,15 +87,15 @@ public class Main {
         instructions3[104] = new Instruction(Opcode.BR,0,31,0,0); // return to $ra
         //recursion
         instructions3[200] = new Instruction(Opcode.ADDI,29,29,0,-2); // $sp -= 2 to store two elems
-        instructions3[201] = new Instruction(Opcode.STO,31,29,0,0); // store return address
-        instructions3[202] = new Instruction(Opcode.STO,4,29,0,1); // store $a0 at $sp + 1
+        instructions3[201] = new Instruction(Opcode.STI,31,29,0,0); // store return address
+        instructions3[202] = new Instruction(Opcode.STI,4,29,0,1); // store $a0 at $sp + 1
         instructions3[203] = new Instruction(Opcode.ADDI, 4,4,0,-1); // num -= 1
         instructions3[204] = new Instruction(Opcode.ADDI,31,32,0,2); // $ra = $pc + 2 (206)
         instructions3[205] = new Instruction(Opcode.BR,0,0,0,100); // call fac
         //pop
-        instructions3[206] = new Instruction(Opcode.LDO,8,29,0,1); // load $t0 = num from sp + 1
+        instructions3[206] = new Instruction(Opcode.LDI,8,29,0,1); // load $t0 = num from sp + 1
         instructions3[207] = new Instruction(Opcode.MUL,2,2,8,0); // $v0 *= $t0
-        instructions3[208] = new Instruction(Opcode.LDO,31,29,0,0); // load return address from sp + 0
+        instructions3[208] = new Instruction(Opcode.LDI,31,29,0,0); // load return address from sp + 0
         instructions3[209] = new Instruction(Opcode.ADDI,29,29,0,2); // $sp += 2
         instructions3[210] = new Instruction(Opcode.BR,0,31,0,0); // return to $ra
 

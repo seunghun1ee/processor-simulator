@@ -147,8 +147,8 @@ public class Processor6 {
                 case ADDI: // ALU OPs that use rf[Rs1] and Const
                 case MULI:
                 case DIVI:
-                case LDO: // Load OP that uses rf[Rs1] and Const
-                case STO: // Store OP that uses rf[Rs1] and Const
+                case LDI: // Load OP that uses rf[Rs1] and Const
+                case STI: // Store OP that uses rf[Rs1] and Const
                     RS[rsIndex].op = issuing.opcode;
                     if(Qi[issuing.Rs1] != -1) { // Rs1 is dependent to instructions before
                         RS[rsIndex].Q1 = Qi[issuing.Rs1]; // store dependency
@@ -160,7 +160,7 @@ public class Processor6 {
                     // Const
                     RS[rsIndex].V2 = issuing.Const;
                     RS[rsIndex].Q2 = -1;
-                    if(issuing.opcode.equals(Opcode.STO)) { // if store instruction
+                    if(issuing.opcode.equals(Opcode.STI)) { // if store instruction
                         if(Qi[issuing.Rd] != -1) { // Register to store is dependent to instructions before
                             RS[rsIndex].Qs = Qi[issuing.Rd];
                         }
@@ -334,8 +334,8 @@ public class Processor6 {
                         reservationStations.remove();
                     }
                     break;
-                case LDO:
-                case STO:
+                case LDI:
+                case STI:
                     if(!lsu0.busy) {
                         lsu0.update(executing.opcode, executing.data1, executing.Const);
                         lsu0.executing = executing;
@@ -421,11 +421,11 @@ public class Processor6 {
             if(executed.memAddress != null) {
                 switch (executed.opcode) {
                     case LD:
-                    case LDO:
+                    case LDI:
                         executed.result = mem[executed.memAddress];
                         break;
                     case ST:
-                    case STO:
+                    case STI:
                         mem[executed.memAddress] = rf[executed.Rd];
                         break;
                 }
@@ -447,7 +447,7 @@ public class Processor6 {
     private void WriteBack() {
         if(beforeWriteBack != null) {
             Instruction writeBack = beforeWriteBack;
-            if(writeBack.Rd != 0 && writeBack.Rd != 32 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STO) {
+            if(writeBack.Rd != 0 && writeBack.Rd != 32 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STI) {
                 rf[writeBack.Rd] = writeBack.result;
                 validBits[writeBack.Rd] = true;
             }

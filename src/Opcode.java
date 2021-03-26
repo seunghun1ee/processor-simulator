@@ -14,9 +14,9 @@ public enum Opcode {
     OR, // rf[Rd] <- rf[Rs1] | rf[Rs2]
     MOVC, // rf[Rd] <- Const
     LD, // rf[Rd] <- mem[ rf[Rs1] + rf[Rs2] ]
-    LDO, // rf[Rd] <- mem[ rf[Rs1] + Const ]
+    LDI, // rf[Rd] <- mem[ rf[Rs1] + Const ]
     ST, // mem[ rf[Rs1] + rf[Rs2] ] <- rf[Rd]
-    STO, // mem[ rf[Rs1] + Const ] <- rf[Rd]
+    STI, // mem[ rf[Rs1] + Const ] <- rf[Rd]
     MOV, // rf[Rd] <- rf[Rs1]
     JMP, // pc <- pc + Const
     BR, // pc <- rf[Rs1] + Const

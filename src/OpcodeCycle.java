@@ -10,9 +10,9 @@ public class OpcodeCycle {
             case MUL:
             case MULI:
             case LD:
-            case LDO:
+            case LDI:
             case ST:
-            case STO:
+            case STI:
                 cycle = 2;
                 break;
             case DIV:
