@@ -91,7 +91,7 @@ public class Processor6 {
         issueBlocked = true;
         for(int i = 0; i < RS.length; i++) {
             if(!RS[i].busy) { // there is available rs
-                issueBlocked = false;
+                issueBlocked = false; // issue is not blocked
                 rsIndex = i; // get available rs index
                 break;
             }
@@ -196,8 +196,6 @@ public class Processor6 {
                     RS[rsIndex].ins = issuing;
                     break;
                 case MOVC: // ALU OPs that only use Const
-                case LDI: // Load OP that only uses Const
-                case STI: // Store OP that only uses Const
                     RS[rsIndex].op = issuing.opcode;
                     // Const
                     RS[rsIndex].V1 = issuing.Const;
@@ -205,29 +203,17 @@ public class Processor6 {
                     // No second operand
                     RS[rsIndex].V2 = 0;
                     RS[rsIndex].Q2 = -1;
-                    if(issuing.opcode.equals(Opcode.STI)) { // if store instruction
-                        if(Qi[issuing.Rd] != -1) { // Register to store is dependent to instructions before
-                            RS[rsIndex].Qs = Qi[issuing.Rd];
-                        }
-                        else { // no register to store dependency
-                            RS[rsIndex].Vs = rf[issuing.Rd];
-                            RS[rsIndex].Qs = -1;
-                        }
-                    }
-                    else {
-                        Qi[issuing.Rd] = rsIndex; // Set dependency to destination
-                    }
+                    Qi[issuing.Rd] = rsIndex; // Set dependency to destination
                     RS[rsIndex].busy = true;
                     issuing.issueComplete = cycle; // save cycle number of issue stage
                     RS[rsIndex].ins = issuing;
                     break;
-                case BR: // Unconditional branches that only use Const
-                case JMP:
+                case JMP:// Unconditional branches that only use Const
                     break;
-                case JR: // Unconditional branch that uses rf[Rs1] and Const
+                case BR: // Unconditional branch that uses rf[Rs1] and Const
                     break;
-                case BEQ: // Conditional branches that use rf[Rs1], rf[Rs2] and Const
-                case BLT:
+                case BRZ: // Conditional branches that use rf[Rs1] and Const
+                case BRN:
                     break;
                 default:
                     break;
@@ -356,17 +342,8 @@ public class Processor6 {
                         reservationStations.remove();
                     }
                     break;
-                case LDI:
-                case STI:
-                    if(!lsu0.busy) {
-                        lsu0.update(executing.opcode, executing.Const, 0);
-                        lsu0.executing = executing;
-                        reservationStations.remove();
-                    }
-                    break;
-                case BR: // Unconditional branch (Branches executed by BRU immediately)
-                case JMP:
-                case JR:
+                case JMP: // Unconditional branch (Branches executed by BRU immediately)
+                case BR:
                     reservationStations.remove();
                     rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.data2, executing.Const);
                     fetchedQueue.clear();
@@ -376,11 +353,11 @@ public class Processor6 {
                     finishedInsts.add(executing);
                     executedInsts++;
                     break;
-                case BEQ: // Conditional branch
-                case BLT:
+                case BRZ: // Conditional branch
+                case BRN:
                     reservationStations.remove();
-                    if (bru0.evaluateCondition(executing.opcode, executing.data1, executing.data2)) {
-                        rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.data2, executing.Const);
+                    if (bru0.evaluateCondition(executing.opcode, executing.data1, executing.Const)) {
+                        rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.Const, executing.Const);
                         fetchedQueue.clear();
                         decodedQueue.clear();
                         reservationStations.clear();
@@ -444,12 +421,10 @@ public class Processor6 {
             if(executed.memAddress != null) {
                 switch (executed.opcode) {
                     case LD:
-                    case LDI:
                     case LDO:
                         executed.result = mem[executed.memAddress];
                         break;
                     case ST:
-                    case STI:
                     case STO:
                         mem[executed.memAddress] = rf[executed.Rd];
                         break;
@@ -472,7 +447,7 @@ public class Processor6 {
     private void WriteBack() {
         if(beforeWriteBack != null) {
             Instruction writeBack = beforeWriteBack;
-            if(writeBack.Rd != 0 && writeBack.Rd != 32 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STO && writeBack.opcode != Opcode.STI) {
+            if(writeBack.Rd != 0 && writeBack.Rd != 32 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STO) {
                 rf[writeBack.Rd] = writeBack.result;
                 validBits[writeBack.Rd] = true;
             }

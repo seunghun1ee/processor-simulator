@@ -126,14 +126,6 @@ public class Processor3 {
                         memoryAddress = lsu0.evaluate(executing.opcode,input1,input2);
                         rf[32]++;
                         break;
-                    case LDI: // Const
-                    case STI:
-                        input1 = executing.Const;
-                        memoryOpcode = executing.opcode;
-                        memoryRd = executing.Rd;
-                        memoryAddress = lsu0.evaluate(executing.opcode,input1,input2);
-                        rf[32]++;
-                        break;
                     case LDO: // rf[Rs1] + Const
                     case STO:
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
@@ -143,18 +135,17 @@ public class Processor3 {
                         memoryAddress = lsu0.evaluate(executing.opcode,input1,input2);
                         rf[32]++;
                         break;
-                    case BR: // Branch ops
                     case JMP:
-                    case JR:
+                    case BR:
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
                         input2 = resultForwarding(executing.Rs2,resultData,resultAddress);
                         rf[32] = pc = bru0.evaluateTarget(executing.opcode,rf[32],input1,input2,executing.Const);
                         fetched = null;
                         break;
-                    case BEQ:
-                    case BLT:
+                    case BRZ:
+                    case BRN:
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
-                        input2 = resultForwarding(executing.Rs2,resultData,resultAddress);
+                        input2 = executing.Const;
                         if(bru0.evaluateCondition(executing.opcode,input1,input2)) {
                             rf[32] = pc = bru0.evaluateTarget(executing.opcode,rf[32],input1,input2,executing.Const);
                             fetched = null;
@@ -179,7 +170,6 @@ public class Processor3 {
         if(memoryOpcode != null && memoryRd != null && memoryAddress != null) {
             switch (memoryOpcode) {
                 case LD:
-                case LDI:
                 case LDO:
                     resultData = mem[memoryAddress];
                     resultAddress = memoryRd;
@@ -188,7 +178,6 @@ public class Processor3 {
                     memoryAddress = null;
                     break;
                 case ST:
-                case STI:
                 case STO:
                     mem[memoryAddress] = rf[memoryRd];
                     memoryOpcode = null;
@@ -224,10 +213,8 @@ public class Processor3 {
             case MULI:
             case LD:
             case LDO:
-            case LDI:
             case ST:
             case STO:
-            case STI:
                 cycle = 2;
                 break;
             case DIV:
@@ -259,6 +246,7 @@ public class Processor3 {
             if(fetchBlocked || decodeBlocked || (executeBlocked && executeCycle > 1)) {
                 stalledCycle++;
             }
+//            System.out.println("PC: "+ pc + " rf[32]: " + rf[32]);
         }
         WriteBack(); // Writing back last data
         cycle++;

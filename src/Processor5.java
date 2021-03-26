@@ -201,17 +201,9 @@ public class Processor5 {
                         reservationStations.remove();
                     }
                     break;
-                case LDI:
-                case STI:
-                    if(!lsu0.busy) {
-                        lsu0.update(executing.opcode, executing.Const, 0);
-                        lsu0.executing = executing;
-                        reservationStations.remove();
-                    }
-                    break;
-                case BR: // Unconditional branch (Branches executed by BRU immediately)
+                // Unconditional branch (Branches executed by BRU immediately)
                 case JMP:
-                case JR:
+                case BR:
                     reservationStations.remove();
                     rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.data2, executing.Const);
                     fetchedQueue.clear();
@@ -221,11 +213,11 @@ public class Processor5 {
                     finishedInsts.add(executing);
                     executedInsts++;
                     break;
-                case BEQ: // Conditional branch
-                case BLT:
+                case BRZ: // Conditional branch
+                case BRN:
                     reservationStations.remove();
-                    if (bru0.evaluateCondition(executing.opcode, executing.data1, executing.data2)) {
-                        rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.data2, executing.Const);
+                    if (bru0.evaluateCondition(executing.opcode, executing.data1, executing.Const)) {
+                        rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.Const, executing.Const);
                         fetchedQueue.clear();
                         decodedQueue.clear();
                         reservationStations.clear();
@@ -289,12 +281,10 @@ public class Processor5 {
             if(executed.memAddress != null) {
                 switch (executed.opcode) {
                     case LD:
-                    case LDI:
                     case LDO:
                         executed.result = mem[executed.memAddress];
                         break;
                     case ST:
-                    case STI:
                     case STO:
                         mem[executed.memAddress] = rf[executed.Rd];
                         break;
@@ -317,7 +307,7 @@ public class Processor5 {
     private void WriteBack() {
         if(beforeWriteBack != null) {
             Instruction writeBack = beforeWriteBack;
-            if(writeBack.Rd != 0 && writeBack.Rd != 32 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STO && writeBack.opcode != Opcode.STI) {
+            if(writeBack.Rd != 0 && writeBack.Rd != 32 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STO) {
                 rf[writeBack.Rd] = writeBack.result;
                 validBits[writeBack.Rd] = true;
             }
