@@ -24,8 +24,7 @@ public enum Opcode {
     BEQ, // pc <- Const if (rf[Rs1] == rf[Rs2]) with CMP redundant
     BLT, // pc <- Const if (rf[Rs1] < rf[Rs2])  with CMP redundant
     CMP, // rf[Rd] <- -1 if(rf[Rs1] < rf[Rs2]), 0 if(rf[Rs1] == rf[Rs2]), 1 if(rf[Rs1] > rf[Rs2])
-    BZ, // pc <- Const if (rf[Rs1] == 0)
-    BN, // pc <- Const if (rf[Rs1] < 0)
-    BP, // pc <- Const if (rf[Rs1] > 0)
+    BRZ, // pc <- Const if (rf[Rs1] == 0)
+    BRN, // pc <- Const if (rf[Rs1] < 0)
     HALT // Terminate processor
 }

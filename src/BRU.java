@@ -26,6 +26,20 @@ public class BRU {
                 else {
                     return currentPC;
                 }
+            case BRZ:
+                if(input1 == 0) {
+                    return input2;
+                }
+                else {
+                    return currentPC;
+                }
+            case BRN:
+                if(input1 < 0) {
+                    return input2;
+                }
+                else {
+                    return currentPC;
+                }
             default:
                 return null;
         }
@@ -41,6 +55,10 @@ public class BRU {
                 return input1 == input2;
             case BLT:
                 return input1 < input2;
+            case BRZ:
+                return input1 == 0;
+            case BRN:
+                return input1 < 0;
             default:
                 return false;
         }

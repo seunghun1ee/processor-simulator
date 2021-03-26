@@ -143,10 +143,10 @@ public class Processor3 {
                         rf[32] = pc = bru0.evaluateTarget(executing.opcode,rf[32],input1,input2,executing.Const);
                         fetched = null;
                         break;
-                    case BEQ:
-                    case BLT:
+                    case BRZ:
+                    case BRN:
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
-                        input2 = resultForwarding(executing.Rs2,resultData,resultAddress);
+                        input2 = executing.Const;
                         if(bru0.evaluateCondition(executing.opcode,input1,input2)) {
                             rf[32] = pc = bru0.evaluateTarget(executing.opcode,rf[32],input1,input2,executing.Const);
                             fetched = null;
@@ -247,6 +247,7 @@ public class Processor3 {
             if(fetchBlocked || decodeBlocked || (executeBlocked && executeCycle > 1)) {
                 stalledCycle++;
             }
+//            System.out.println("PC: "+ pc + " rf[32]: " + rf[32]);
         }
         WriteBack(); // Writing back last data
         cycle++;
