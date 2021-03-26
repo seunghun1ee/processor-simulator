@@ -15,12 +15,14 @@ public class Processor5 {
     int insIdCount = 1; // for assigning id to instructions
     int[] mem; // memory from user
     int[] rf = new int[65]; //Register file (physical)
-    boolean[] validBits = new boolean[65]; // simple scoreboard
+    boolean[] validBits = new boolean[rf.length]; // simple scoreboard
+    int[] Qi = new int[rf.length]; // Tomasulo: number of rs that the operation result will be stored to the register
     // register 0 always have value zero ($zero, input is ignored)
     // $32 is Program counter for users ($pc)
     Instruction[] instructions; // instructions from user
     boolean finished = false;
     int QUEUE_SIZE = 4;
+    int RS_SIZE = 4;
     Queue<Instruction> fetchedQueue = new LinkedList<>();
     Queue<Instruction> decodedQueue = new LinkedList<>();
     Queue<Instruction> reservationStations = new LinkedList<>(); // unified
@@ -84,7 +86,7 @@ public class Processor5 {
     }
 
     private void Issue() {
-        issueBlocked = reservationStations.size() >= QUEUE_SIZE;
+        issueBlocked = reservationStations.size() >= RS_SIZE + 1;
         Instruction beforeIssue = decodedQueue.peek();
         if(!issueBlocked && !decodedQueue.isEmpty()) {
             // Checking valid bit
