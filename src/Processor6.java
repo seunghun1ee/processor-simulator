@@ -100,7 +100,24 @@ public class Processor6 {
             Instruction issuing = decodedQueue.remove();
             switch (issuing.opcode) {
                 case NOOP:
+                    RS[rsIndex].op = issuing.opcode;
+                    RS[rsIndex].Q1 = -1;
+                    RS[rsIndex].Q2 = -1;
+                    RS[rsIndex].Qs = -1;
+                    RS[rsIndex].busy = true;
+                    issuing.issueComplete = cycle; // save cycle number of issue stage
+                    RS[rsIndex].ins = issuing;
+                    break;
                 case HALT:
+                    if(issuing.insAddress == rf[32]) { // when it is really the time to HALT
+                        RS[rsIndex].op = issuing.opcode;
+                        RS[rsIndex].Q1 = -1;
+                        RS[rsIndex].Q2 = -1;
+                        RS[rsIndex].Qs = -1;
+                        RS[rsIndex].busy = true;
+                        issuing.issueComplete = cycle; // save cycle number of issue stage
+                        RS[rsIndex].ins = issuing;
+                    }
                     break;
                 case ADD: // ALU OPs that use rf[Rs1] and rf[Rs2]
                 case SUB:
@@ -121,6 +138,7 @@ public class Processor6 {
                         RS[rsIndex].V1 = rf[issuing.Rs1];
                         RS[rsIndex].Q1 = -1;
                     }
+
                     if(Qi[issuing.Rs2] != -1) { // Rs2 is dependent to instruction before
                         RS[rsIndex].Q2 = Qi[issuing.Rs2]; // store dependency
                     }
@@ -128,6 +146,7 @@ public class Processor6 {
                         RS[rsIndex].V2 = rf[issuing.Rs2];
                         RS[rsIndex].Q2 = -1;
                     }
+
                     if(issuing.opcode.equals(Opcode.ST)) { // if store instruction
                         if(Qi[issuing.Rd] != -1) { // Register to store is dependent to instructions before
                             RS[rsIndex].Qs = Qi[issuing.Rd];
@@ -137,7 +156,8 @@ public class Processor6 {
                             RS[rsIndex].Qs = -1;
                         }
                     }
-                    else {
+                    // no dependency setting to special purpose registers
+                    else if(issuing.Rd != 0 && issuing.Rd != 32) {
                         Qi[issuing.Rd] = rsIndex; // Set dependency to destination
                     }
                     RS[rsIndex].busy = true;
@@ -149,6 +169,9 @@ public class Processor6 {
                 case DIVI:
                 case LDI: // Load OP that uses rf[Rs1] and Const
                 case STI: // Store OP that uses rf[Rs1] and Const
+                case BR: // Unconditional branch that uses rf[Rs1] and Const
+                case BRZ: // Conditional branches that use rf[Rs1] and Const
+                case BRN:
                     RS[rsIndex].op = issuing.opcode;
                     if(Qi[issuing.Rs1] != -1) { // Rs1 is dependent to instructions before
                         RS[rsIndex].Q1 = Qi[issuing.Rs1]; // store dependency
@@ -169,7 +192,12 @@ public class Processor6 {
                             RS[rsIndex].Qs = -1;
                         }
                     }
-                    else { // don't make dependency from branch
+                    // if branch instruction
+                    else if(issuing.opcode.equals(Opcode.BR) || issuing.opcode.equals(Opcode.BRZ) || issuing.opcode.equals(Opcode.BRN)) {
+                        Qi[32] = rsIndex; // set dependency to $pc
+                    }
+                    // no dependency setting to special purpose registers
+                    else if(issuing.Rd != 0 && issuing.Rd != 32) {
                         Qi[issuing.Rd] = rsIndex; // Set dependency to destination
                     }
                     RS[rsIndex].busy = true;
@@ -189,13 +217,16 @@ public class Processor6 {
                     // No second operand
                     RS[rsIndex].V2 = 0;
                     RS[rsIndex].Q2 = -1;
-
                     RS[rsIndex].busy = true;
-                    Qi[issuing.Rd] = rsIndex; // Set dependency to destination
+                    // no dependency setting to special purpose registers
+                    if(issuing.Rd != 0 && issuing.Rd != 32) {
+                        Qi[issuing.Rd] = rsIndex; // Set dependency to destination
+                    }
                     issuing.issueComplete = cycle; // save cycle number of issue stage
                     RS[rsIndex].ins = issuing;
                     break;
                 case MOVC: // ALU OPs that only use Const
+                case JMP: // Unconditional branches that only use Const
                     RS[rsIndex].op = issuing.opcode;
                     // Const
                     RS[rsIndex].V1 = issuing.Const;
@@ -203,47 +234,23 @@ public class Processor6 {
                     // No second operand
                     RS[rsIndex].V2 = 0;
                     RS[rsIndex].Q2 = -1;
-                    Qi[issuing.Rd] = rsIndex; // Set dependency to destination
+                    if(issuing.opcode.equals(Opcode.JMP)) { // don't make dependency from branch to destination
+                        Qi[32] = rsIndex; // Set dependency to $pc
+                    }
+                    // no dependency setting to special purpose registers
+                    else if(issuing.Rd != 0 && issuing.Rd != 32) {
+                        Qi[issuing.Rd] = rsIndex; // Set dependency to destination
+                    }
                     RS[rsIndex].busy = true;
                     issuing.issueComplete = cycle; // save cycle number of issue stage
                     RS[rsIndex].ins = issuing;
                     break;
-                case JMP:// Unconditional branches that only use Const
-                    break;
-                case BR: // Unconditional branch that uses rf[Rs1] and Const
-                    break;
-                case BRZ: // Conditional branches that use rf[Rs1] and Const
-                case BRN:
-                    break;
                 default:
+                    System.out.println("Invalid instruction");
+                    finished = true;
                     break;
             }
-
         }
-
-//        issueBlocked = reservationStations.size() >= QUEUE_SIZE;
-//        Instruction beforeIssue = decodedQueue.peek();
-//        if(!issueBlocked && !decodedQueue.isEmpty()) {
-//            // Checking valid bit
-//            if(validBits[beforeIssue.Rs1] && validBits[beforeIssue.Rs2]) {
-//                Instruction issuing = decodedQueue.remove();
-//                issuing.data1 = rf[issuing.Rs1];
-//                issuing.data2 = rf[issuing.Rs2];
-//                issuing = resultForwarding(issuing);
-//                if(issuing.Rd != 0 && issuing.Rd != 32) {
-//                    validBits[issuing.Rd] = false;
-//                }
-//                issuing.issueComplete = cycle; // save cycle number of issue stage
-//                reservationStations.add(issuing);
-//            }
-//        }
-//
-//        if(issueBlocked) { // stall: can't issue since rs is full
-//            Instruction ins = decodedQueue.peek();
-//            if(ins != null) {
-//                probes.add(new Probe(cycle,6,ins.id));
-//            }
-//        }
     }
 
     private void Dispatch() { // assigning operands to operations then push to ready to execute
