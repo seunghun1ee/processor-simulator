@@ -18,7 +18,6 @@ public enum Opcode {
     ST, // mem[ rf[Rs1] + rf[Rs2] ] <- rf[Rd]
     STO, // mem[ rf[Rs1] + Const ] <- rf[Rd]
     MOV, // rf[Rd] <- rf[Rs1]
-    BR, // pc <- Const
     JMP, // pc <- pc + Const
     JR, // pc <- rf[Rs1] + Const
     CMP, // rf[Rd] <- -1 if(rf[Rs1] < rf[Rs2]), 0 if(rf[Rs1] == rf[Rs2]), 1 if(rf[Rs1] > rf[Rs2])

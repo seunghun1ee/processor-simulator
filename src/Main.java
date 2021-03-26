@@ -50,7 +50,7 @@ public class Main {
         instructions2[9] = new Instruction(Opcode.LDO,8,9,0,1); // b = array[j + 1]
         instructions2[10] = new Instruction(Opcode.CMP,11,8,7,0); // $11 = cmp(b,a)
         instructions2[11] = new Instruction(Opcode.BRN,0,11,0,13); // if($11 < 0)
-        instructions2[12] = new Instruction(Opcode.BR,0,0,0,18); //if not b < a skip to the end of inner loop
+        instructions2[12] = new Instruction(Opcode.JR,0,0,0,18); //if not b < a skip to the end of inner loop
         instructions2[13] = new Instruction(Opcode.MOV,10,7,0,0); // temp = a
         instructions2[14] = new Instruction(Opcode.MOV,7,8,0,0); // a = b
         instructions2[15] = new Instruction(Opcode.MOV,8,10,0,0); // b = temp, swap complete
@@ -76,13 +76,13 @@ public class Main {
         instructions3[1] = new Instruction(Opcode.LDO,1,0,0,loc); // load argument
         instructions3[2] = new Instruction(Opcode.MOV,4,1,0,0); // copy argument to $a0 ($4)
         instructions3[3] = new Instruction(Opcode.ADDI,31,32,0,2); // $ra = $pc + 2 (5)
-        instructions3[4] = new Instruction(Opcode.BR,0,0,0,100); // call fac
+        instructions3[4] = new Instruction(Opcode.JR,0,0,0,100); // call fac
         instructions3[5] = new Instruction(Opcode.STO,2,0,0,loc+1); // store returned result at mem[loc + 1]
         instructions3[6] = new Instruction(Opcode.HALT,0,0,0,0); // halt
         //fac
         instructions3[100] = new Instruction(Opcode.CMP,15,4,0,0); // $t7 = cmp($a0,$zero)
         instructions3[101] = new Instruction(Opcode.BRZ,0,15,0,103); // $t7 == 0 then base case
-        instructions3[102] = new Instruction(Opcode.BR,0,0,0,200); // call recursive case
+        instructions3[102] = new Instruction(Opcode.JR,0,0,0,200); // call recursive case
         instructions3[103] = new Instruction(Opcode.MOVC,2,0,0,1); // load 1 to return value $v0
         instructions3[104] = new Instruction(Opcode.JR,0,31,0,0); // return to $ra
         //recursion
@@ -91,7 +91,7 @@ public class Main {
         instructions3[202] = new Instruction(Opcode.STO,4,29,0,1); // store $a0 at $sp + 1
         instructions3[203] = new Instruction(Opcode.ADDI, 4,4,0,-1); // num -= 1
         instructions3[204] = new Instruction(Opcode.ADDI,31,32,0,2); // $ra = $pc + 2 (206)
-        instructions3[205] = new Instruction(Opcode.BR,0,0,0,100); // call fac
+        instructions3[205] = new Instruction(Opcode.JR,0,0,0,100); // call fac
         //pop
         instructions3[206] = new Instruction(Opcode.LDO,8,29,0,1); // load $t0 = num from sp + 1
         instructions3[207] = new Instruction(Opcode.MUL,2,2,8,0); // $v0 *= $t0

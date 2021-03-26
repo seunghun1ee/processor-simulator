@@ -208,8 +208,7 @@ public class Processor6 {
                     issuing.issueComplete = cycle; // save cycle number of issue stage
                     RS[rsIndex].ins = issuing;
                     break;
-                case BR: // Unconditional branches that only use Const
-                case JMP:
+                case JMP:// Unconditional branches that only use Const
                     break;
                 case JR: // Unconditional branch that uses rf[Rs1] and Const
                     break;
@@ -343,8 +342,7 @@ public class Processor6 {
                         reservationStations.remove();
                     }
                     break;
-                case BR: // Unconditional branch (Branches executed by BRU immediately)
-                case JMP:
+                case JMP: // Unconditional branch (Branches executed by BRU immediately)
                 case JR:
                     reservationStations.remove();
                     rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.data2, executing.Const);

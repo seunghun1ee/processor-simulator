@@ -201,7 +201,7 @@ public class Processor5 {
                         reservationStations.remove();
                     }
                     break;
-                case BR: // Unconditional branch (Branches executed by BRU immediately)
+                // Unconditional branch (Branches executed by BRU immediately)
                 case JMP:
                 case JR:
                     reservationStations.remove();

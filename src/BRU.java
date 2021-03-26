@@ -6,8 +6,6 @@ public class BRU {
 
     public Integer evaluateTarget(Opcode op, int currentPC, int input1, int input2, int input3) {
         switch (op) {
-            case BR:
-                return input3;
             case JMP:
                 return currentPC + input3;
             case JR:
@@ -33,7 +31,6 @@ public class BRU {
 
     public boolean evaluateCondition(Opcode op, int input1, int input2) {
         switch (op) {
-            case BR:
             case JMP:
             case JR:
                 return true;

@@ -135,7 +135,6 @@ public class Processor3 {
                         memoryAddress = lsu0.evaluate(executing.opcode,input1,input2);
                         rf[32]++;
                         break;
-                    case BR: // Branch ops
                     case JMP:
                     case JR:
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
