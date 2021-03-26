@@ -12,7 +12,7 @@ public class Processor5 {
     int pc = 0; //Program counter
     int executedInsts = 0; //Number of instructions executed
     int stalledCycle = 0; // cycles that was spent while doing nothing
-    int insIdCount = 0;
+    int insIdCount = 1;
     int[] mem; // memory from user
     int[] rf = new int[65]; //Register file (physical)
     boolean[] validBits = new boolean[65]; // simple scoreboard
@@ -63,7 +63,7 @@ public class Processor5 {
         }
 
         if(fetchBlocked) { // stall can't fetch because the buffer is full
-            probes.add(new Probe(cycle,0,-1));
+            probes.add(new Probe(cycle,0,0));
         }
     }
 
@@ -246,6 +246,7 @@ public class Processor5 {
         if(alu0_result != null && alu0_result.result != null) {
             alu0_result.executeComplete = cycle; // save cycle number of execute stage
             executionResults.add(alu0_result);
+            validBits[alu0_result.Rd] = true;
             alu0.reset();
             rf[32]++;
             executedInsts++;
@@ -253,6 +254,7 @@ public class Processor5 {
         if(alu1_result != null && alu1_result.result != null) {
             alu1_result.executeComplete = cycle; // save cycle number of execute stage
             executionResults.add(alu1_result);
+            validBits[alu1_result.Rd] = true;
             alu1.reset();
             rf[32]++;
             executedInsts++;
@@ -292,9 +294,9 @@ public class Processor5 {
                     case STI:
                     case STO:
                         mem[executed.memAddress] = rf[executed.Rd];
-                        validBits[executed.Rd] = true;
                         break;
                 }
+                validBits[executed.Rd] = true;
                 executed.memoryComplete = cycle; // save cycle number of memory stage
                 beforeWriteBack = executed;
             }
@@ -324,11 +326,19 @@ public class Processor5 {
 
     private Instruction resultForwarding(Instruction ins) {
         Instruction clone = new Instruction(ins);
+        if(beforeWriteBack != null) {
+            if(ins.Rs1.equals(beforeWriteBack.Rd) && beforeWriteBack.result != null) {
+                clone.data1 = beforeWriteBack.result;
+            }
+            if(ins.Rs2.equals(beforeWriteBack.Rd) && beforeWriteBack.result != null) {
+                clone.data2 = beforeWriteBack.result;
+            }
+        }
         for(Instruction resultIns : executionResults) {
-            if(ins.Rs1.equals(resultIns.Rd)) {
+            if(ins.Rs1.equals(resultIns.Rd) && resultIns.result != null) {
                 clone.data1 = resultIns.result;
             }
-            if(ins.Rs2.equals(resultIns.Rd)) {
+            if(ins.Rs2.equals(resultIns.Rd) && resultIns.result != null) {
                 clone.data2 = resultIns.result;
             }
         }
@@ -356,12 +366,12 @@ public class Processor5 {
         TraceEncoder traceEncoder = new TraceEncoder(finishedInsts);
         ProbeEncoder probeEncoder = new ProbeEncoder(probes,cycle);
         try {
-            traceEncoder.createTrace("trace_test.out");
+            traceEncoder.createTrace("../ACA-tracer/trace.out");
         } catch (IOException e) {
             e.printStackTrace();
         }
         try {
-            probeEncoder.createProbe("probe_test.out");
+            probeEncoder.createProbe("../ACA-tracer/probe.out");
         } catch (IOException e) {
             e.printStackTrace();
         }
