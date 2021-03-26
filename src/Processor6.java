@@ -196,8 +196,6 @@ public class Processor6 {
                     RS[rsIndex].ins = issuing;
                     break;
                 case MOVC: // ALU OPs that only use Const
-                case LDI: // Load OP that only uses Const
-                case STI: // Store OP that only uses Const
                     RS[rsIndex].op = issuing.opcode;
                     // Const
                     RS[rsIndex].V1 = issuing.Const;
@@ -205,18 +203,7 @@ public class Processor6 {
                     // No second operand
                     RS[rsIndex].V2 = 0;
                     RS[rsIndex].Q2 = -1;
-                    if(issuing.opcode.equals(Opcode.STI)) { // if store instruction
-                        if(Qi[issuing.Rd] != -1) { // Register to store is dependent to instructions before
-                            RS[rsIndex].Qs = Qi[issuing.Rd];
-                        }
-                        else { // no register to store dependency
-                            RS[rsIndex].Vs = rf[issuing.Rd];
-                            RS[rsIndex].Qs = -1;
-                        }
-                    }
-                    else {
-                        Qi[issuing.Rd] = rsIndex; // Set dependency to destination
-                    }
+                    Qi[issuing.Rd] = rsIndex; // Set dependency to destination
                     RS[rsIndex].busy = true;
                     issuing.issueComplete = cycle; // save cycle number of issue stage
                     RS[rsIndex].ins = issuing;
@@ -356,14 +343,6 @@ public class Processor6 {
                         reservationStations.remove();
                     }
                     break;
-                case LDI:
-                case STI:
-                    if(!lsu0.busy) {
-                        lsu0.update(executing.opcode, executing.Const, 0);
-                        lsu0.executing = executing;
-                        reservationStations.remove();
-                    }
-                    break;
                 case BR: // Unconditional branch (Branches executed by BRU immediately)
                 case JMP:
                 case JR:
@@ -444,12 +423,10 @@ public class Processor6 {
             if(executed.memAddress != null) {
                 switch (executed.opcode) {
                     case LD:
-                    case LDI:
                     case LDO:
                         executed.result = mem[executed.memAddress];
                         break;
                     case ST:
-                    case STI:
                     case STO:
                         mem[executed.memAddress] = rf[executed.Rd];
                         break;
