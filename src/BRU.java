@@ -12,20 +12,6 @@ public class BRU {
                 return currentPC + input3;
             case JR:
                 return input1 + input3;
-            case BEQ:
-                if(input1 == input2) {
-                    return input3;
-                }
-                else {
-                    return currentPC;
-                }
-            case BLT:
-                if(input1 < input2) {
-                    return input3;
-                }
-                else {
-                    return currentPC;
-                }
             case BRZ:
                 if(input1 == 0) {
                     return input2;
@@ -51,10 +37,6 @@ public class BRU {
             case JMP:
             case JR:
                 return true;
-            case BEQ:
-                return input1 == input2;
-            case BLT:
-                return input1 < input2;
             case BRZ:
                 return input1 == 0;
             case BRN:

@@ -213,8 +213,8 @@ public class Processor6 {
                     break;
                 case JR: // Unconditional branch that uses rf[Rs1] and Const
                     break;
-                case BEQ: // Conditional branches that use rf[Rs1], rf[Rs2] and Const
-                case BLT:
+                case BRZ: // Conditional branches that use rf[Rs1] and Const
+                case BRN:
                     break;
                 default:
                     break;
@@ -355,11 +355,11 @@ public class Processor6 {
                     finishedInsts.add(executing);
                     executedInsts++;
                     break;
-                case BEQ: // Conditional branch
-                case BLT:
+                case BRZ: // Conditional branch
+                case BRN:
                     reservationStations.remove();
-                    if (bru0.evaluateCondition(executing.opcode, executing.data1, executing.data2)) {
-                        rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.data2, executing.Const);
+                    if (bru0.evaluateCondition(executing.opcode, executing.data1, executing.Const)) {
+                        rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.Const, executing.Const);
                         fetchedQueue.clear();
                         decodedQueue.clear();
                         reservationStations.clear();
