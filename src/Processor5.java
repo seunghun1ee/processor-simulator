@@ -9,10 +9,10 @@ public class Processor5 {
     }
 
     int cycle = 0;
-    int pc = 0; //Program counter
-    int executedInsts = 0; //Number of instructions executed
-    int stalledCycle = 0; // cycles that was spent while doing nothing
-    int insIdCount = 1;
+    int pc = 0; // Program counter
+    int executedInsts = 0; // Number of instructions executed
+    int stalledCycle = 0;
+    int insIdCount = 1; // for assigning id to instructions
     int[] mem; // memory from user
     int[] rf = new int[65]; //Register file (physical)
     boolean[] validBits = new boolean[65]; // simple scoreboard
@@ -29,7 +29,7 @@ public class Processor5 {
     // final result registers before write back
     Instruction beforeWriteBack;
 
-    // state of phases
+    // state of pipeline stages
     boolean fetchBlocked = false;
     boolean decodeBlocked = false;
     boolean issueBlocked = false;
@@ -88,12 +88,14 @@ public class Processor5 {
         Instruction beforeIssue = decodedQueue.peek();
         if(!issueBlocked && !decodedQueue.isEmpty()) {
             // Checking valid bit
-            if(((validBits[beforeIssue.Rs1] || beforeIssue.Rs1 == 0) && (validBits[beforeIssue.Rs2] || beforeIssue.Rs2 == 0))) {
+            if(validBits[beforeIssue.Rs1] && validBits[beforeIssue.Rs2]) {
                 Instruction issuing = decodedQueue.remove();
                 issuing.data1 = rf[issuing.Rs1];
                 issuing.data2 = rf[issuing.Rs2];
                 issuing = resultForwarding(issuing);
-                validBits[issuing.Rd] = false;
+                if(issuing.Rd != 0 && issuing.Rd != 32) {
+                    validBits[issuing.Rd] = false;
+                }
                 issuing.issueComplete = cycle; // save cycle number of issue stage
                 reservationStations.add(issuing);
             }
