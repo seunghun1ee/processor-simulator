@@ -19,6 +19,7 @@ public class Instruction {
     int fetchComplete = 0;
     int decodeComplete = 0;
     int issueComplete = 0;
+    int dispatchComplete = 0;
     int executeComplete = 0;
     int memoryComplete = 0;
     int writeBackComplete = 0;
@@ -50,6 +51,7 @@ public class Instruction {
         this.fetchComplete = ins.fetchComplete;
         this.decodeComplete = ins.decodeComplete;
         this.issueComplete = ins.issueComplete;
+        this.dispatchComplete = ins.dispatchComplete;
         this.executeComplete = ins.executeComplete;
         this.memoryComplete = ins.memoryComplete;
         this.writeBackComplete = ins.writeBackComplete;

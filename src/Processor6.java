@@ -1,9 +1,9 @@
 import java.io.IOException;
 import java.util.*;
 
-public class Processor5 {
+public class Processor6 {
 
-    public Processor5(int[] mem, Instruction[] instructions) {
+    public Processor6(int[] mem, Instruction[] instructions) {
         this.mem = mem;
         this.instructions = instructions;
     }
@@ -16,14 +16,17 @@ public class Processor5 {
     int[] mem; // memory from user
     int[] rf = new int[65]; //Register file (physical)
     boolean[] validBits = new boolean[rf.length]; // simple scoreboard
+    int[] Qi = new int[rf.length]; // Tomasulo: number of rs that the operation result will be stored to the register
     // register 0 always have value zero ($zero, input is ignored)
     // $32 is Program counter for users ($pc)
     Instruction[] instructions; // instructions from user
     boolean finished = false;
     int QUEUE_SIZE = 4;
+    int RS_SIZE = 8;
     Queue<Instruction> fetchedQueue = new LinkedList<>();
     Queue<Instruction> decodedQueue = new LinkedList<>();
     Queue<Instruction> reservationStations = new LinkedList<>(); // unified
+    ReservationStation[] RS = new ReservationStation[RS_SIZE]; // unified reservation station
     Queue<Instruction> executionResults = new LinkedList<>();
 
     // final result registers before write back
@@ -83,30 +86,182 @@ public class Processor5 {
         }
     }
 
-    private void Issue() {
-        issueBlocked = reservationStations.size() >= QUEUE_SIZE;
-        Instruction beforeIssue = decodedQueue.peek();
-        if(!issueBlocked && !decodedQueue.isEmpty()) {
-            // Checking valid bit
-            if(validBits[beforeIssue.Rs1] && validBits[beforeIssue.Rs2]) {
-                Instruction issuing = decodedQueue.remove();
-                issuing.data1 = rf[issuing.Rs1];
-                issuing.data2 = rf[issuing.Rs2];
-                issuing = resultForwarding(issuing);
-                if(issuing.Rd != 0 && issuing.Rd != 32) {
-                    validBits[issuing.Rd] = false;
-                }
-                issuing.issueComplete = cycle; // save cycle number of issue stage
-                reservationStations.add(issuing);
+    private void Issue() { // issuing decoded instruction to reservation stations
+        int rsIndex = -1;
+        issueBlocked = true;
+        for(int i = 0; i < RS.length; i++) {
+            if(!RS[i].busy) { // there is available rs
+                issueBlocked = false;
+                rsIndex = i; // get available rs index
+                break;
             }
+        }
+        if(!issueBlocked && !decodedQueue.isEmpty()) {
+            Instruction issuing = decodedQueue.remove();
+            switch (issuing.opcode) {
+                case NOOP:
+                case HALT:
+                    break;
+                case ADD: // ALU OPs that use rf[Rs1] and rf[Rs2]
+                case SUB:
+                case MUL:
+                case DIV:
+                case CMP:
+                case AND:
+                case OR:
+                case SHL:
+                case SHR:
+                case LD: // Load OP that uses rf[Rs1] and rf[Rs2]
+                case ST: // Store OP that uses rf[Rs1] and rf[Rs2]
+                    RS[rsIndex].op = issuing.opcode;
+                    if(Qi[issuing.Rs1] != -1) { // Rs1 is dependent to instructions before
+                        RS[rsIndex].Q1 = Qi[issuing.Rs1]; // store dependency
+                    }
+                    else { // no Rs1 dependency
+                        RS[rsIndex].V1 = rf[issuing.Rs1];
+                        RS[rsIndex].Q1 = -1;
+                    }
+                    if(Qi[issuing.Rs2] != -1) { // Rs2 is dependent to instruction before
+                        RS[rsIndex].Q2 = Qi[issuing.Rs2]; // store dependency
+                    }
+                    else { // no Rs2 dependency
+                        RS[rsIndex].V2 = rf[issuing.Rs2];
+                        RS[rsIndex].Q2 = -1;
+                    }
+                    if(issuing.opcode.equals(Opcode.ST)) { // if store instruction
+                        if(Qi[issuing.Rd] != -1) { // Register to store is dependent to instructions before
+                            RS[rsIndex].Qs = Qi[issuing.Rd];
+                        }
+                        else { // no register to store dependency
+                            RS[rsIndex].Vs = rf[issuing.Rd];
+                            RS[rsIndex].Qs = -1;
+                        }
+                    }
+                    else {
+                        Qi[issuing.Rd] = rsIndex; // Set dependency to destination
+                    }
+                    RS[rsIndex].busy = true;
+                    issuing.issueComplete = cycle; // save cycle number of issue stage
+                    RS[rsIndex].ins = issuing;
+                    break;
+                case ADDI: // ALU OPs that use rf[Rs1] and Const
+                case MULI:
+                case DIVI:
+                case LDO: // Load OP that uses rf[Rs1] and Const
+                case STO: // Store OP that uses rf[Rs1] and Const
+                    RS[rsIndex].op = issuing.opcode;
+                    if(Qi[issuing.Rs1] != -1) { // Rs1 is dependent to instructions before
+                        RS[rsIndex].Q1 = Qi[issuing.Rs1]; // store dependency
+                    }
+                    else { // no Rs1 dependency
+                        RS[rsIndex].V1 = rf[issuing.Rs1];
+                        RS[rsIndex].Q1 = -1;
+                    }
+                    // Const
+                    RS[rsIndex].V2 = issuing.Const;
+                    RS[rsIndex].Q2 = -1;
+                    if(issuing.opcode.equals(Opcode.STO)) { // if store instruction
+                        if(Qi[issuing.Rd] != -1) { // Register to store is dependent to instructions before
+                            RS[rsIndex].Qs = Qi[issuing.Rd];
+                        }
+                        else { // no register to store dependency
+                            RS[rsIndex].Vs = rf[issuing.Rd];
+                            RS[rsIndex].Qs = -1;
+                        }
+                    }
+                    else { // don't make dependency from branch
+                        Qi[issuing.Rd] = rsIndex; // Set dependency to destination
+                    }
+                    RS[rsIndex].busy = true;
+                    issuing.issueComplete = cycle; // save cycle number of issue stage
+                    RS[rsIndex].ins = issuing;
+                    break;
+                case NOT: // ALU OPs that only use rf[Rs1]
+                case MOV:
+                    RS[rsIndex].op = issuing.opcode;
+                    if(Qi[issuing.Rs1] != -1) { // Rs1 is dependent to instructions before
+                        RS[rsIndex].Q1 = Qi[issuing.Rs1]; // store dependency
+                    }
+                    else { // no Rs1 dependency
+                        RS[rsIndex].V1 = rf[issuing.Rs1];
+                        RS[rsIndex].Q1 = -1;
+                    }
+                    // No second operand
+                    RS[rsIndex].V2 = 0;
+                    RS[rsIndex].Q2 = -1;
+
+                    RS[rsIndex].busy = true;
+                    Qi[issuing.Rd] = rsIndex; // Set dependency to destination
+                    issuing.issueComplete = cycle; // save cycle number of issue stage
+                    RS[rsIndex].ins = issuing;
+                    break;
+                case MOVC: // ALU OPs that only use Const
+                case LDI: // Load OP that only uses Const
+                case STI: // Store OP that only uses Const
+                    RS[rsIndex].op = issuing.opcode;
+                    // Const
+                    RS[rsIndex].V1 = issuing.Const;
+                    RS[rsIndex].Q1 = -1;
+                    // No second operand
+                    RS[rsIndex].V2 = 0;
+                    RS[rsIndex].Q2 = -1;
+                    if(issuing.opcode.equals(Opcode.STI)) { // if store instruction
+                        if(Qi[issuing.Rd] != -1) { // Register to store is dependent to instructions before
+                            RS[rsIndex].Qs = Qi[issuing.Rd];
+                        }
+                        else { // no register to store dependency
+                            RS[rsIndex].Vs = rf[issuing.Rd];
+                            RS[rsIndex].Qs = -1;
+                        }
+                    }
+                    else {
+                        Qi[issuing.Rd] = rsIndex; // Set dependency to destination
+                    }
+                    RS[rsIndex].busy = true;
+                    issuing.issueComplete = cycle; // save cycle number of issue stage
+                    RS[rsIndex].ins = issuing;
+                    break;
+                case BR: // Unconditional branches that only use Const
+                case JMP:
+                    break;
+                case JR: // Unconditional branch that uses rf[Rs1] and Const
+                    break;
+                case BEQ: // Conditional branches that use rf[Rs1], rf[Rs2] and Const
+                case BLT:
+                    break;
+                default:
+                    break;
+            }
+
         }
 
-        if(issueBlocked) { // stall: can't issue since rs is full
-            Instruction ins = decodedQueue.peek();
-            if(ins != null) {
-                probes.add(new Probe(cycle,6,ins.id));
-            }
-        }
+//        issueBlocked = reservationStations.size() >= QUEUE_SIZE;
+//        Instruction beforeIssue = decodedQueue.peek();
+//        if(!issueBlocked && !decodedQueue.isEmpty()) {
+//            // Checking valid bit
+//            if(validBits[beforeIssue.Rs1] && validBits[beforeIssue.Rs2]) {
+//                Instruction issuing = decodedQueue.remove();
+//                issuing.data1 = rf[issuing.Rs1];
+//                issuing.data2 = rf[issuing.Rs2];
+//                issuing = resultForwarding(issuing);
+//                if(issuing.Rd != 0 && issuing.Rd != 32) {
+//                    validBits[issuing.Rd] = false;
+//                }
+//                issuing.issueComplete = cycle; // save cycle number of issue stage
+//                reservationStations.add(issuing);
+//            }
+//        }
+//
+//        if(issueBlocked) { // stall: can't issue since rs is full
+//            Instruction ins = decodedQueue.peek();
+//            if(ins != null) {
+//                probes.add(new Probe(cycle,6,ins.id));
+//            }
+//        }
+    }
+
+    private void Dispatch() { // assigning operands to operations then push to ready to execute
+
     }
 
     private void Execute() {
@@ -350,11 +505,14 @@ public class Processor5 {
 
     public void RunProcessor() {
         Arrays.fill(validBits, true);
+        Arrays.fill(Qi,-1);
+        Arrays.fill(RS,new ReservationStation());
         int cycleLimit = 10000;
         while(!finished && pc < instructions.length && cycle < cycleLimit) {
             WriteBack();
             Memory();
             Execute();
+            Dispatch();
             Issue();
             Decode();
             Fetch();
@@ -379,7 +537,7 @@ public class Processor5 {
         if(cycle >= cycleLimit) {
             System.out.println("Time out");
         }
-        System.out.println("Scalar pipelined (6-stage) processor Terminated");
+        System.out.println("Scalar pipelined (7-stage) processor Terminated");
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");
         System.out.println(stalledCycle + " stalled cycles");
