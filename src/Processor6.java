@@ -210,7 +210,7 @@ public class Processor6 {
                     break;
                 case JMP:// Unconditional branches that only use Const
                     break;
-                case JR: // Unconditional branch that uses rf[Rs1] and Const
+                case BR: // Unconditional branch that uses rf[Rs1] and Const
                     break;
                 case BRZ: // Conditional branches that use rf[Rs1] and Const
                 case BRN:
@@ -343,7 +343,7 @@ public class Processor6 {
                     }
                     break;
                 case JMP: // Unconditional branch (Branches executed by BRU immediately)
-                case JR:
+                case BR:
                     reservationStations.remove();
                     rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.data2, executing.Const);
                     fetchedQueue.clear();

@@ -203,7 +203,7 @@ public class Processor5 {
                     break;
                 // Unconditional branch (Branches executed by BRU immediately)
                 case JMP:
-                case JR:
+                case BR:
                     reservationStations.remove();
                     rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.data2, executing.Const);
                     fetchedQueue.clear();

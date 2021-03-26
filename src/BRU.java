@@ -8,7 +8,7 @@ public class BRU {
         switch (op) {
             case JMP:
                 return currentPC + input3;
-            case JR:
+            case BR:
                 return input1 + input3;
             case BRZ:
                 if(input1 == 0) {
@@ -32,7 +32,7 @@ public class BRU {
     public boolean evaluateCondition(Opcode op, int input1, int input2) {
         switch (op) {
             case JMP:
-            case JR:
+            case BR:
                 return true;
             case BRZ:
                 return input1 == 0;

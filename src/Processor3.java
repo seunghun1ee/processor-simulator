@@ -136,7 +136,7 @@ public class Processor3 {
                         rf[32]++;
                         break;
                     case JMP:
-                    case JR:
+                    case BR:
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
                         input2 = resultForwarding(executing.Rs2,resultData,resultAddress);
                         rf[32] = pc = bru0.evaluateTarget(executing.opcode,rf[32],input1,input2,executing.Const);
