@@ -201,14 +201,6 @@ public class Processor5 {
                         reservationStations.remove();
                     }
                     break;
-                case LDI:
-                case STI:
-                    if(!lsu0.busy) {
-                        lsu0.update(executing.opcode, executing.Const, 0);
-                        lsu0.executing = executing;
-                        reservationStations.remove();
-                    }
-                    break;
                 case BR: // Unconditional branch (Branches executed by BRU immediately)
                 case JMP:
                 case JR:
@@ -289,12 +281,10 @@ public class Processor5 {
             if(executed.memAddress != null) {
                 switch (executed.opcode) {
                     case LD:
-                    case LDI:
                     case LDO:
                         executed.result = mem[executed.memAddress];
                         break;
                     case ST:
-                    case STI:
                     case STO:
                         mem[executed.memAddress] = rf[executed.Rd];
                         break;
