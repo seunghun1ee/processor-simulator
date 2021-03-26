@@ -91,7 +91,7 @@ public class Processor6 {
         issueBlocked = true;
         for(int i = 0; i < RS.length; i++) {
             if(!RS[i].busy) { // there is available rs
-                issueBlocked = false;
+                issueBlocked = false; // issue is not blocked
                 rsIndex = i; // get available rs index
                 break;
             }
