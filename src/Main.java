@@ -102,11 +102,11 @@ public class Main {
         mem3[loc] = num;
         //main
         instructions3[0] = new Instruction(Opcode.MOVC,29,0,0,sp); // $29 is $sp
-        instructions3[1] = new Instruction(Opcode.LDI,1,0,0,loc); // load argument
+        instructions3[1] = new Instruction(Opcode.LDO,1,0,0,loc); // load argument
         instructions3[2] = new Instruction(Opcode.MOV,4,1,0,0); // copy argument to $a0 ($4)
         instructions3[3] = new Instruction(Opcode.ADDI,31,32,0,2); // $ra = $pc + 2 (5)
         instructions3[4] = new Instruction(Opcode.BR,0,0,0,100); // call fac
-        instructions3[5] = new Instruction(Opcode.STI,2,0,0,loc+1); // store returned result at mem[loc + 1]
+        instructions3[5] = new Instruction(Opcode.STO,2,0,0,loc+1); // store returned result at mem[loc + 1]
         instructions3[6] = new Instruction(Opcode.HALT,0,0,0,0); // halt
         //fac
         instructions3[100] = new Instruction(Opcode.BEQ,0,4,0,102); // $a0 == 0 then base case
