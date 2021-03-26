@@ -205,7 +205,7 @@ public class Processor5 {
                 case JMP:
                 case BR:
                     reservationStations.remove();
-                    rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.data2, executing.Const);
+                    rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.Const);
                     fetchedQueue.clear();
                     decodedQueue.clear();
                     reservationStations.clear();
@@ -216,8 +216,8 @@ public class Processor5 {
                 case BRZ: // Conditional branch
                 case BRN:
                     reservationStations.remove();
-                    if (bru0.evaluateCondition(executing.opcode, executing.data1, executing.Const)) {
-                        rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.Const, executing.Const);
+                    if (bru0.evaluateCondition(executing.opcode, executing.data1)) {
+                        rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.Const);
                         fetchedQueue.clear();
                         decodedQueue.clear();
                         reservationStations.clear();
