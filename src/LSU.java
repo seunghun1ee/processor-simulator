@@ -27,9 +27,6 @@ public class LSU extends ExecutionUnit{
             case ST:
             case STO:
                 return agu.evaluate(Opcode.ADD,input1,input2);
-            case LDI:
-            case STI:
-                return agu.evaluate(Opcode.MOV,input1,0);
             default:
                 return null;
         }
