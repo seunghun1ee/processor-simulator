@@ -105,6 +105,7 @@ public class Processor6 {
             Instruction issuing = decodedQueue.remove();
             switch (issuing.opcode) {
                 case NOOP:
+                case HALT:
                     RS[rsIndex].op = issuing.opcode;
                     RS[rsIndex].Q1 = -1;
                     RS[rsIndex].Q2 = -1;
@@ -114,19 +115,6 @@ public class Processor6 {
                     issuing.issueComplete = cycle; // save cycle number of issue stage
                     issuing.rsIndex = rsIndex;
                     RS[rsIndex].ins = issuing;
-                    break;
-                case HALT:
-                    if(issuing.insAddress == rf[32]) { // when it is really the time to HALT
-                        RS[rsIndex].op = issuing.opcode;
-                        RS[rsIndex].Q1 = -1;
-                        RS[rsIndex].Q2 = -1;
-                        RS[rsIndex].Qs = -1;
-                        RS[rsIndex].busy = true;
-                        RS[rsIndex].type = OpType.OTHER;
-                        issuing.issueComplete = cycle; // save cycle number of issue stage
-                        issuing.rsIndex = rsIndex;
-                        RS[rsIndex].ins = issuing;
-                    }
                     break;
                 case ADD: // ALU OPs that use rf[Rs1] and rf[Rs2]
                 case SUB:
@@ -341,6 +329,12 @@ public class Processor6 {
                     break;
             }
         }
+        if(decodedQueue.isEmpty()) {
+            probes.add(new Probe(cycle,8,-1));
+        }
+        else if(issueBlocked) {
+            probes.add(new Probe(cycle,7,decodedQueue.peek().id));
+        }
     }
 
     private void Dispatch() { // finding ready to execute rs
@@ -361,6 +355,10 @@ public class Processor6 {
             RS[rs_otherReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
         }
         dispatchBlocked = (rs_aluReady == -1) && (rs_lsuReady == -1) && (rs_bruReady == -1) && (rs_otherReady == -1);
+
+        if(dispatchBlocked) {
+            probes.add(new Probe(cycle,6,-1));
+        }
     }
 
     private void assignOperands(ReservationStation[] RS) {
@@ -399,6 +397,7 @@ public class Processor6 {
                 rs_execute.ins.data1 = rs_execute.V1;
                 rs_execute.ins.data2 = rs_execute.V2;
                 executing = rs_execute.ins;
+                executing.executeComplete = cycle;
                 if (!alu0.busy) {
                     alu0.update(executing.opcode, executing.data1, executing.data2);
                     alu0.executing = executing;
@@ -414,6 +413,7 @@ public class Processor6 {
                 rs_execute.ins.data1 = rs_execute.V1;
                 rs_execute.ins.data2 = rs_execute.V2;
                 executing = rs_execute.ins;
+                executing.executeComplete = cycle;
                 if(!lsu0.busy) {
                     lsu0.update(executing.opcode, executing.data1, executing.data2);
                     lsu0.executing = executing;
@@ -425,19 +425,21 @@ public class Processor6 {
                 rs_execute.ins.data1 = rs_execute.V1;
                 rs_execute.ins.data2 = rs_execute.V2;
                 executing = rs_execute.ins;
+                executing.executeComplete = cycle;
+                executing.memoryComplete = cycle + 1;
+                executing.writeBackComplete = cycle + 2;
                 RS[executing.rsIndex].executing = true;
                 if (bru0.evaluateCondition(executing.opcode, executing.data1)) {
                     rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.data2);
                     // Flushing
                     fetchedQueue.clear();
                     decodedQueue.clear();
-                    for(int i=0; i < RS.length; i++) {
-                        RS[i] = new ReservationStation();
-                    }
+//                    for(int i=0; i < RS.length; i++) {
+//                        RS[i] = new ReservationStation();
+//                    }
                 } else {
                     rf[32]++;
                 }
-                executing.executeComplete = cycle;
                 finishedInsts.add(executing);
                 executedInsts++;
                 Qi[32] = -1;
@@ -449,7 +451,7 @@ public class Processor6 {
                 rs_execute.ins.data2 = rs_execute.V2;
                 executing = rs_execute.ins;
                 if(executing.opcode.equals(Opcode.HALT)) {
-                    if(!alu0.busy && !alu1.busy && !lsu0.busy && executionResults.isEmpty() && beforeWriteBack == null) {
+                    if(rf[32] >= executing.insAddress && !alu0.busy && !alu1.busy && !lsu0.busy && executionResults.isEmpty() && beforeWriteBack == null) {
                         RS[executing.rsIndex].executing = true;
                         finished = true;
                         rf[32]++;
@@ -462,6 +464,8 @@ public class Processor6 {
                     RS[executing.rsIndex].executing = true;
                     rf[32]++;
                     executing.executeComplete = cycle;
+                    executing.memoryComplete = cycle + 1;
+                    executing.writeBackComplete = cycle + 2;
                     finishedInsts.add(executing);
                     RS[rs_otherReady] = new ReservationStation();
                 }
@@ -472,7 +476,7 @@ public class Processor6 {
         Instruction alu1_result = alu1.execute();
         Instruction lsu0_result = lsu0.execute();
         if(alu0_result != null && alu0_result.result != null) {
-            alu0_result.executeComplete = cycle; // save cycle number of execute stage
+            //alu0_result.executeComplete = cycle; // save cycle number of execute stage
             executionResults.add(alu0_result);
             resultForwarding2(alu0_result);
             //RS[alu0_result.rsIndex] = new ReservationStation();
@@ -481,7 +485,7 @@ public class Processor6 {
             executedInsts++;
         }
         if(alu1_result != null && alu1_result.result != null) {
-            alu1_result.executeComplete = cycle; // save cycle number of execute stage
+            //alu1_result.executeComplete = cycle; // save cycle number of execute stage
             executionResults.add(alu1_result);
             resultForwarding2(alu1_result);
             //RS[alu1_result.rsIndex] = new ReservationStation();
@@ -490,7 +494,7 @@ public class Processor6 {
             executedInsts++;
         }
         if(lsu0_result != null && lsu0_result.memAddress != null) {
-            lsu0_result.executeComplete = cycle; // save cycle number of execute stage
+            //lsu0_result.executeComplete = cycle; // save cycle number of execute stage
             executionResults.add(lsu0_result);
             RS[lsu0_result.rsIndex].A = lsu0_result.memAddress;
             lsu0.reset();
