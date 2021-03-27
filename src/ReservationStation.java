@@ -7,6 +7,8 @@ public class ReservationStation {
     public int Qs = -1; // index of dependent reservation station (store)
     public int Vs = 0; // effective value to store
     public Instruction ins = new Instruction();
+    public boolean executing = false;
+    public OpType type = OpType.UNDEFINED;
 
     public ReservationStation() {
 

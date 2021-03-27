@@ -15,20 +15,24 @@ public class Processor6 {
     int insIdCount = 1; // for assigning id to instructions
     int[] mem; // memory from user
     int[] rf = new int[65]; //Register file (physical)
-    boolean[] validBits = new boolean[rf.length]; // simple scoreboard
     int[] Qi = new int[rf.length]; // Tomasulo: number of rs that the operation result will be stored to the register
     // register 0 always have value zero ($zero, input is ignored)
     // $32 is Program counter for users ($pc)
     Instruction[] instructions; // instructions from user
     boolean finished = false;
     int QUEUE_SIZE = 4;
-    int RS_SIZE = 8;
+    int RS_SIZE = 4;
     Queue<Instruction> fetchedQueue = new LinkedList<>();
     Queue<Instruction> decodedQueue = new LinkedList<>();
-    Queue<Instruction> reservationStations = new LinkedList<>(); // unified
-    ReservationStation[] RS = new ReservationStation[RS_SIZE]; // unified reservation station
+    Queue<Instruction> reservationStations = new LinkedList<>(); // old
+    ReservationStation[] RS = new ReservationStation[RS_SIZE * 4]; // unified reservation station
     Queue<Instruction> executionResults = new LinkedList<>();
-
+    
+    int rs_aluReady = -1;
+    int rs_lsuReady = -1;
+    int rs_bruReady = -1;
+    int rs_otherReady = -1;
+    
     // final result registers before write back
     Instruction beforeWriteBack;
 
@@ -36,6 +40,7 @@ public class Processor6 {
     boolean fetchBlocked = false;
     boolean decodeBlocked = false;
     boolean issueBlocked = false;
+    boolean dispatchBlocked = false;
     boolean executeBlocked = false;
     boolean euAllBusy = false;
 
@@ -105,7 +110,9 @@ public class Processor6 {
                     RS[rsIndex].Q2 = -1;
                     RS[rsIndex].Qs = -1;
                     RS[rsIndex].busy = true;
+                    RS[rsIndex].type = OpType.OTHER;
                     issuing.issueComplete = cycle; // save cycle number of issue stage
+                    issuing.rsIndex = rsIndex;
                     RS[rsIndex].ins = issuing;
                     break;
                 case HALT:
@@ -115,7 +122,9 @@ public class Processor6 {
                         RS[rsIndex].Q2 = -1;
                         RS[rsIndex].Qs = -1;
                         RS[rsIndex].busy = true;
+                        RS[rsIndex].type = OpType.OTHER;
                         issuing.issueComplete = cycle; // save cycle number of issue stage
+                        issuing.rsIndex = rsIndex;
                         RS[rsIndex].ins = issuing;
                     }
                     break;
@@ -128,6 +137,33 @@ public class Processor6 {
                 case OR:
                 case SHL:
                 case SHR:
+                    RS[rsIndex].op = issuing.opcode;
+                    if(Qi[issuing.Rs1] != -1) { // Rs1 is dependent to instructions before
+                        RS[rsIndex].Q1 = Qi[issuing.Rs1]; // store dependency
+                    }
+                    else { // no Rs1 dependency
+                        RS[rsIndex].V1 = rf[issuing.Rs1];
+                        RS[rsIndex].Q1 = -1;
+                    }
+
+                    if(Qi[issuing.Rs2] != -1) { // Rs2 is dependent to instruction before
+                        RS[rsIndex].Q2 = Qi[issuing.Rs2]; // store dependency
+                    }
+                    else { // no Rs2 dependency
+                        RS[rsIndex].V2 = rf[issuing.Rs2];
+                        RS[rsIndex].Q2 = -1;
+                    }
+                    
+                    // no dependency setting to special purpose registers
+                    if(issuing.Rd != 0 && issuing.Rd != 32) {
+                        Qi[issuing.Rd] = rsIndex; // Set dependency to destination
+                    }
+                    RS[rsIndex].busy = true;
+                    RS[rsIndex].type = OpType.ALU;
+                    issuing.issueComplete = cycle; // save cycle number of issue stage
+                    issuing.rsIndex = rsIndex;
+                    RS[rsIndex].ins = issuing;
+                    break;
                 case LD: // Load OP that uses rf[Rs1] and rf[Rs2]
                 case ST: // Store OP that uses rf[Rs1] and rf[Rs2]
                     RS[rsIndex].op = issuing.opcode;
@@ -146,7 +182,7 @@ public class Processor6 {
                         RS[rsIndex].V2 = rf[issuing.Rs2];
                         RS[rsIndex].Q2 = -1;
                     }
-
+                    
                     if(issuing.opcode.equals(Opcode.ST)) { // if store instruction
                         if(Qi[issuing.Rd] != -1) { // Register to store is dependent to instructions before
                             RS[rsIndex].Qs = Qi[issuing.Rd];
@@ -161,17 +197,37 @@ public class Processor6 {
                         Qi[issuing.Rd] = rsIndex; // Set dependency to destination
                     }
                     RS[rsIndex].busy = true;
+                    RS[rsIndex].type = OpType.LSU;
                     issuing.issueComplete = cycle; // save cycle number of issue stage
+                    issuing.rsIndex = rsIndex;
                     RS[rsIndex].ins = issuing;
                     break;
                 case ADDI: // ALU OPs that use rf[Rs1] and Const
                 case MULI:
                 case DIVI:
+                    RS[rsIndex].op = issuing.opcode;
+                    if(Qi[issuing.Rs1] != -1) { // Rs1 is dependent to instructions before
+                        RS[rsIndex].Q1 = Qi[issuing.Rs1]; // store dependency
+                    }
+                    else { // no Rs1 dependency
+                        RS[rsIndex].V1 = rf[issuing.Rs1];
+                        RS[rsIndex].Q1 = -1;
+                    }
+                    // Const
+                    RS[rsIndex].V2 = issuing.Const;
+                    RS[rsIndex].Q2 = -1;
+                    // no dependency setting to special purpose registers
+                    if(issuing.Rd != 0 && issuing.Rd != 32) {
+                        Qi[issuing.Rd] = rsIndex; // Set dependency to destination
+                    }
+                    RS[rsIndex].busy = true;
+                    RS[rsIndex].type = OpType.ALU;
+                    issuing.issueComplete = cycle; // save cycle number of issue stage
+                    issuing.rsIndex = rsIndex;
+                    RS[rsIndex].ins = issuing;
+                    break;
                 case LDI: // Load OP that uses rf[Rs1] and Const
                 case STI: // Store OP that uses rf[Rs1] and Const
-                case BR: // Unconditional branch that uses rf[Rs1] and Const
-                case BRZ: // Conditional branches that use rf[Rs1] and Const
-                case BRN:
                     RS[rsIndex].op = issuing.opcode;
                     if(Qi[issuing.Rs1] != -1) { // Rs1 is dependent to instructions before
                         RS[rsIndex].Q1 = Qi[issuing.Rs1]; // store dependency
@@ -192,16 +248,36 @@ public class Processor6 {
                             RS[rsIndex].Qs = -1;
                         }
                     }
-                    // if branch instruction
-                    else if(issuing.opcode.equals(Opcode.BR) || issuing.opcode.equals(Opcode.BRZ) || issuing.opcode.equals(Opcode.BRN)) {
-                        Qi[32] = rsIndex; // set dependency to $pc
-                    }
                     // no dependency setting to special purpose registers
                     else if(issuing.Rd != 0 && issuing.Rd != 32) {
                         Qi[issuing.Rd] = rsIndex; // Set dependency to destination
                     }
                     RS[rsIndex].busy = true;
+                    RS[rsIndex].type = OpType.LSU;
                     issuing.issueComplete = cycle; // save cycle number of issue stage
+                    issuing.rsIndex = rsIndex;
+                    RS[rsIndex].ins = issuing;
+                    break;
+                case BR: // Unconditional branch that uses rf[Rs1] and Const
+                case BRZ: // Conditional branches that use rf[Rs1] and Const
+                case BRN:
+                    RS[rsIndex].op = issuing.opcode;
+                    if(Qi[issuing.Rs1] != -1) { // Rs1 is dependent to instructions before
+                        RS[rsIndex].Q1 = Qi[issuing.Rs1]; // store dependency
+                    }
+                    else { // no Rs1 dependency
+                        RS[rsIndex].V1 = rf[issuing.Rs1];
+                        RS[rsIndex].Q1 = -1;
+                    }
+                    // Const
+                    RS[rsIndex].V2 = issuing.Const;
+                    RS[rsIndex].Q2 = -1;
+                    //branch instruction
+                    Qi[32] = rsIndex; // set dependency to $pc
+                    RS[rsIndex].busy = true;
+                    RS[rsIndex].type = OpType.BRU;
+                    issuing.issueComplete = cycle; // save cycle number of issue stage
+                    issuing.rsIndex = rsIndex;
                     RS[rsIndex].ins = issuing;
                     break;
                 case NOT: // ALU OPs that only use rf[Rs1]
@@ -218,14 +294,32 @@ public class Processor6 {
                     RS[rsIndex].V2 = 0;
                     RS[rsIndex].Q2 = -1;
                     RS[rsIndex].busy = true;
+                    RS[rsIndex].type = OpType.ALU;
                     // no dependency setting to special purpose registers
                     if(issuing.Rd != 0 && issuing.Rd != 32) {
                         Qi[issuing.Rd] = rsIndex; // Set dependency to destination
                     }
                     issuing.issueComplete = cycle; // save cycle number of issue stage
+                    issuing.rsIndex = rsIndex;
                     RS[rsIndex].ins = issuing;
                     break;
                 case MOVC: // ALU OPs that only use Const
+                    RS[rsIndex].op = issuing.opcode;
+                    // Const
+                    RS[rsIndex].V1 = issuing.Const;
+                    RS[rsIndex].Q1 = -1;
+                    // No second operand
+                    RS[rsIndex].V2 = 0;
+                    RS[rsIndex].Q2 = -1;
+                    if(issuing.Rd != 0 && issuing.Rd != 32) {
+                        Qi[issuing.Rd] = rsIndex; // Set dependency to destination
+                    }
+                    RS[rsIndex].busy = true;
+                    RS[rsIndex].type = OpType.ALU;
+                    issuing.issueComplete = cycle; // save cycle number of issue stage
+                    issuing.rsIndex = rsIndex;
+                    RS[rsIndex].ins = issuing;
+                    break;
                 case JMP: // Unconditional branches that only use Const
                     RS[rsIndex].op = issuing.opcode;
                     // Const
@@ -234,15 +328,11 @@ public class Processor6 {
                     // No second operand
                     RS[rsIndex].V2 = 0;
                     RS[rsIndex].Q2 = -1;
-                    if(issuing.opcode.equals(Opcode.JMP)) { // don't make dependency from branch to destination
-                        Qi[32] = rsIndex; // Set dependency to $pc
-                    }
-                    // no dependency setting to special purpose registers
-                    else if(issuing.Rd != 0 && issuing.Rd != 32) {
-                        Qi[issuing.Rd] = rsIndex; // Set dependency to destination
-                    }
+                    Qi[32] = rsIndex; // Set dependency to $pc
                     RS[rsIndex].busy = true;
+                    RS[rsIndex].type = OpType.BRU;
                     issuing.issueComplete = cycle; // save cycle number of issue stage
+                    issuing.rsIndex = rsIndex;
                     RS[rsIndex].ins = issuing;
                     break;
                 default:
@@ -253,132 +343,128 @@ public class Processor6 {
         }
     }
 
-    private void Dispatch() { // assigning operands to operations then push to ready to execute
+    private void Dispatch() { // finding ready to execute rs
+        rs_aluReady = getReadyRSIndex(RS,OpType.ALU);
+        rs_lsuReady = getReadyRSIndex(RS, OpType.LSU);
+        rs_bruReady = getReadyRSIndex(RS, OpType.BRU);
+        rs_otherReady = getReadyRSIndex(RS, OpType.OTHER);
+        if(rs_aluReady > -1) {
+            RS[rs_aluReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
+        }
+        if(rs_lsuReady > -1) {
+            RS[rs_lsuReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
+        }
+        if(rs_bruReady > -1) {
+            RS[rs_bruReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
+        }
+        if(rs_otherReady > -1) {
+            RS[rs_otherReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
+        }
+        dispatchBlocked = (rs_aluReady == -1) && (rs_lsuReady == -1) && (rs_bruReady == -1) && (rs_otherReady == -1);
+    }
 
+    private void assignOperands(ReservationStation[] RS) {
+        for(ReservationStation rs : RS) {
+            if(rs.busy && rs.Q1 == -1 && rs.Q2 == -1 && rs.Qs == -1) { // all operand dependencies are resolved
+                // assign two operands
+                rs.ins.data1 = rs.V1;
+                rs.ins.data2 = rs.V2;
+            }
+        }
+    }
+
+    private int getReadyRSIndex(ReservationStation[] RS, OpType opType) {
+        for(int i=0; i < RS.length; i++) {
+            if(
+                    RS[i].busy &&
+                    !RS[i].executing &&
+                    RS[i].type.equals(opType) &&
+                    RS[i].Q1 == -1 &&
+                    RS[i].Q2 == -1 &&
+                    RS[i].Qs == -1
+            ) {
+               return i;
+            }
+        }
+        return -1;
     }
 
     private void Execute() {
         executeBlocked = executionResults.size() >= QUEUE_SIZE;
         euAllBusy = (alu0.busy && alu1.busy && lsu0.busy);
-        if(!executeBlocked && !euAllBusy && !reservationStations.isEmpty()) {
-            Instruction executing = reservationStations.peek();
-            switch (executing.opcode) {
-                case HALT:
+        if(!executeBlocked && !euAllBusy) {
+            Instruction executing;
+            if(rs_aluReady > -1) {
+                ReservationStation rs_execute = RS[rs_aluReady];
+                rs_execute.ins.data1 = rs_execute.V1;
+                rs_execute.ins.data2 = rs_execute.V2;
+                executing = rs_execute.ins;
+                if (!alu0.busy) {
+                    alu0.update(executing.opcode, executing.data1, executing.data2);
+                    alu0.executing = executing;
+                    RS[executing.rsIndex].executing = true;
+                } else if (!alu1.busy) {
+                    alu1.update(executing.opcode, executing.data1, executing.data2);
+                    alu1.executing = executing;
+                    RS[executing.rsIndex].executing = true;
+                }
+            }
+            if(rs_lsuReady > -1) {
+                ReservationStation rs_execute = RS[rs_lsuReady];
+                rs_execute.ins.data1 = rs_execute.V1;
+                rs_execute.ins.data2 = rs_execute.V2;
+                executing = rs_execute.ins;
+                if(!lsu0.busy) {
+                    lsu0.update(executing.opcode, executing.data1, executing.data2);
+                    lsu0.executing = executing;
+                    RS[executing.rsIndex].executing = true;
+                }
+            }
+            if(rs_bruReady > -1) {
+                ReservationStation rs_execute = RS[rs_bruReady];
+                rs_execute.ins.data1 = rs_execute.V1;
+                rs_execute.ins.data2 = rs_execute.V2;
+                executing = rs_execute.ins;
+                RS[executing.rsIndex].executing = true;
+                if (bru0.evaluateCondition(executing.opcode, executing.data1)) {
+                    rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.data2);
+                    // Flushing
+                    fetchedQueue.clear();
+                    decodedQueue.clear();
+                    for(int i=0; i < RS.length; i++) {
+                        RS[i] = new ReservationStation();
+                    }
+                } else {
+                    rf[32]++;
+                }
+                executing.executeComplete = cycle;
+                finishedInsts.add(executing);
+                executedInsts++;
+                Qi[32] = -1;
+                RS[rs_bruReady] = new ReservationStation();
+            }
+            if(rs_otherReady > -1) {
+                ReservationStation rs_execute = RS[rs_otherReady];
+                rs_execute.ins.data1 = rs_execute.V1;
+                rs_execute.ins.data2 = rs_execute.V2;
+                executing = rs_execute.ins;
+                if(executing.opcode.equals(Opcode.HALT)) {
                     if(!alu0.busy && !alu1.busy && !lsu0.busy && executionResults.isEmpty() && beforeWriteBack == null) {
-                        reservationStations.remove();
+                        RS[executing.rsIndex].executing = true;
                         finished = true;
                         rf[32]++;
                         executing.executeComplete = cycle;
                         finishedInsts.add(executing);
+                        RS[rs_otherReady] = new ReservationStation();
                     }
-                    break;
-                case NOOP:
-                    reservationStations.remove();
+                }
+                else {
+                    RS[executing.rsIndex].executing = true;
                     rf[32]++;
                     executing.executeComplete = cycle;
                     finishedInsts.add(executing);
-                    break;
-                case ADD: // ALU OPs that use rf[Rs1] and rf[Rs2]
-                case SUB:
-                case MUL:
-                case DIV:
-                case CMP:
-                case AND:
-                case OR:
-                case SHL:
-                case SHR:
-                    if (!alu0.busy) {
-                        alu0.update(executing.opcode, executing.data1, executing.data2);
-                        alu0.executing = executing;
-                        reservationStations.remove();
-                    } else if (!alu1.busy) {
-                        alu1.update(executing.opcode, executing.data1, executing.data2);
-                        alu1.executing = executing;
-                        reservationStations.remove();
-                    }
-                    break;
-                case ADDI: // ALU OPs that use rf[Rs1] and Const
-                case MULI:
-                case DIVI:
-                    if (!alu0.busy) {
-                        alu0.update(executing.opcode, executing.data1, executing.Const);
-                        alu0.executing = executing;
-                        reservationStations.remove();
-                    } else if (!alu1.busy) {
-                        alu1.update(executing.opcode, executing.data1, executing.Const);
-                        alu1.executing = executing;
-                        reservationStations.remove();
-                    }
-                    break;
-                case NOT: // ALU OPs that only use rf[Rs1]
-                case MOV:
-                    if (!alu0.busy) {
-                        alu0.update(executing.opcode, executing.data1, 0);
-                        alu0.executing = executing;
-                        reservationStations.remove();
-                    } else if (!alu1.busy) {
-                        alu1.update(executing.opcode, executing.data1, 0);
-                        alu1.executing = executing;
-                        reservationStations.remove();
-                    }
-                    break;
-                case MOVC: // ALU OPs that only use Const
-                    if (!alu0.busy) {
-                        alu0.update(executing.opcode, executing.Const, 0);
-                        alu0.executing = executing;
-                        reservationStations.remove();
-                    } else if (!alu1.busy) {
-                        alu1.update(executing.opcode, executing.Const, 0);
-                        alu1.executing = executing;
-                        reservationStations.remove();
-                    }
-                    break;
-                case LD:
-                case ST:
-                    if(!lsu0.busy) {
-                        lsu0.update(executing.opcode, executing.data1, executing.data2);
-                        lsu0.executing = executing;
-                        reservationStations.remove();
-                    }
-                    break;
-                case LDI:
-                case STI:
-                    if(!lsu0.busy) {
-                        lsu0.update(executing.opcode, executing.data1, executing.Const);
-                        lsu0.executing = executing;
-                        reservationStations.remove();
-                    }
-                    break;
-                case JMP: // Unconditional branch (Branches executed by BRU immediately)
-                case BR:
-                    reservationStations.remove();
-                    rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.Const);
-                    fetchedQueue.clear();
-                    decodedQueue.clear();
-                    reservationStations.clear();
-                    executing.executeComplete = cycle;
-                    finishedInsts.add(executing);
-                    executedInsts++;
-                    break;
-                case BRZ: // Conditional branch
-                case BRN:
-                    reservationStations.remove();
-                    if (bru0.evaluateCondition(executing.opcode, executing.data1)) {
-                        rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.Const);
-                        fetchedQueue.clear();
-                        decodedQueue.clear();
-                        reservationStations.clear();
-                    } else {
-                        rf[32]++;
-                    }
-                    executing.executeComplete = cycle;
-                    finishedInsts.add(executing);
-                    executedInsts++;
-                    break;
-                default:
-                    System.out.println("Invalid instruction exception");
-                    finished = true;
-                    break;
+                    RS[rs_otherReady] = new ReservationStation();
+                }
             }
         }
         // ALUs and LSU works at here
@@ -388,7 +474,8 @@ public class Processor6 {
         if(alu0_result != null && alu0_result.result != null) {
             alu0_result.executeComplete = cycle; // save cycle number of execute stage
             executionResults.add(alu0_result);
-            validBits[alu0_result.Rd] = true;
+            resultForwarding2(alu0_result);
+            //RS[alu0_result.rsIndex] = new ReservationStation();
             alu0.reset();
             rf[32]++;
             executedInsts++;
@@ -396,7 +483,8 @@ public class Processor6 {
         if(alu1_result != null && alu1_result.result != null) {
             alu1_result.executeComplete = cycle; // save cycle number of execute stage
             executionResults.add(alu1_result);
-            validBits[alu1_result.Rd] = true;
+            resultForwarding2(alu1_result);
+            //RS[alu1_result.rsIndex] = new ReservationStation();
             alu1.reset();
             rf[32]++;
             executedInsts++;
@@ -404,6 +492,7 @@ public class Processor6 {
         if(lsu0_result != null && lsu0_result.memAddress != null) {
             lsu0_result.executeComplete = cycle; // save cycle number of execute stage
             executionResults.add(lsu0_result);
+            RS[lsu0_result.rsIndex].A = lsu0_result.memAddress;
             lsu0.reset();
             rf[32]++;
             executedInsts++;
@@ -430,19 +519,22 @@ public class Processor6 {
                     case LD:
                     case LDI:
                         executed.result = mem[executed.memAddress];
+                        resultForwarding2(executed);
+                        //RS[executed.rsIndex] = new ReservationStation();
                         break;
                     case ST:
                     case STI:
-                        mem[executed.memAddress] = rf[executed.Rd];
+                        mem[executed.memAddress] = RS[executed.rsIndex].Vs;
+                        //RS[executed.rsIndex] = new ReservationStation();
                         break;
                 }
-                validBits[executed.Rd] = true;
                 executed.memoryComplete = cycle; // save cycle number of memory stage
                 beforeWriteBack = executed;
             }
             else if(executed.result != null) { // non-memory instructions, skip the mem process
                 executed.memoryComplete = cycle; // save cycle number of memory stage
                 beforeWriteBack = executed;
+                resultForwarding2(executed);
             }
             else {
                 System.out.println("Invalid executed result");
@@ -455,13 +547,34 @@ public class Processor6 {
         if(beforeWriteBack != null) {
             Instruction writeBack = beforeWriteBack;
             if(writeBack.Rd != 0 && writeBack.Rd != 32 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STI) {
+                resultForwarding2(writeBack);
+                Qi[writeBack.Rd] = -1;
                 rf[writeBack.Rd] = writeBack.result;
-                validBits[writeBack.Rd] = true;
             }
+            RS[writeBack.rsIndex] = new ReservationStation();
             writeBack.writeBackComplete = cycle; // save cycle number of write back stage
             finishedInsts.add(writeBack);
         }
         beforeWriteBack = null;
+    }
+
+    private void resultForwarding2(Instruction ins) {
+        for(int i=0; i < RS.length; i++) {
+            if(RS[i].busy) {
+                if(RS[i].Q1 == ins.rsIndex) {
+                    RS[i].V1 = ins.result;
+                    RS[i].Q1 = -1;
+                }
+                if(RS[i].Q2 == ins.rsIndex) {
+                    RS[i].V2 = ins.result;
+                    RS[i].Q2 = -1;
+                }
+                if(RS[i].Qs == ins.rsIndex) {
+                    RS[i].Vs = ins.result;
+                    RS[i].Qs = -1;
+                }
+            }
+        }
     }
 
     private Instruction resultForwarding(Instruction ins) {
@@ -486,9 +599,10 @@ public class Processor6 {
     }
 
     public void RunProcessor() {
-        Arrays.fill(validBits, true);
         Arrays.fill(Qi,-1);
-        Arrays.fill(RS,new ReservationStation());
+        for(int i=0; i < RS.length; i++) {
+            RS[i] = new ReservationStation();
+        }
         int cycleLimit = 10000;
         while(!finished && pc < instructions.length && cycle < cycleLimit) {
             WriteBack();
@@ -499,10 +613,10 @@ public class Processor6 {
             Decode();
             Fetch();
             cycle++;
-            if(fetchBlocked || decodeBlocked || issueBlocked || executeBlocked || euAllBusy) {
+            if(fetchBlocked || decodeBlocked || issueBlocked || dispatchBlocked || executeBlocked || euAllBusy) {
                 stalledCycle++;
             }
-//            System.out.println("PC: "+ pc + " rf[32]: " + rf[32]);
+            System.out.println("PC: "+ pc + " rf[32]: " + rf[32]);
         }
         TraceEncoder traceEncoder = new TraceEncoder(finishedInsts);
         ProbeEncoder probeEncoder = new ProbeEncoder(probes,cycle);
