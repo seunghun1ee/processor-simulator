@@ -57,9 +57,10 @@ public class Processor6 {
     private void Fetch() {
         fetchBlocked = fetchedQueue.size() >= QUEUE_SIZE;
         if(!fetchBlocked && pc < instructions.length) {
-            Instruction ins = instructions[pc];
-            if(ins == null) {
-                ins = new Instruction(); // NOOP
+            Instruction fetch = instructions[pc];
+            Instruction ins = new Instruction(); // NOOP
+            if(fetch != null) {
+                ins = new Instruction(fetch);
             }
             ins.id = insIdCount; // assign id
             ins.insAddress = pc; // assign ins address
@@ -329,10 +330,8 @@ public class Processor6 {
                     break;
             }
         }
-        if(decodedQueue.isEmpty()) {
-            probes.add(new Probe(cycle,8,-1));
-        }
-        else if(issueBlocked) {
+
+        if(issueBlocked && !decodedQueue.isEmpty()) {
             probes.add(new Probe(cycle,7,decodedQueue.peek().id));
         }
     }
@@ -356,20 +355,8 @@ public class Processor6 {
         }
         dispatchBlocked = (rs_aluReady == -1) && (rs_lsuReady == -1) && (rs_bruReady == -1) && (rs_otherReady == -1);
 
-        if(dispatchBlocked) {
-            probes.add(new Probe(cycle,6,-1));
-        }
     }
 
-    private void assignOperands(ReservationStation[] RS) {
-        for(ReservationStation rs : RS) {
-            if(rs.busy && rs.Q1 == -1 && rs.Q2 == -1 && rs.Qs == -1) { // all operand dependencies are resolved
-                // assign two operands
-                rs.ins.data1 = rs.V1;
-                rs.ins.data2 = rs.V2;
-            }
-        }
-    }
 
     private int getReadyRSIndex(ReservationStation[] RS, OpType opType) {
         for(int i=0; i < RS.length; i++) {
@@ -426,18 +413,14 @@ public class Processor6 {
                 rs_execute.ins.data2 = rs_execute.V2;
                 executing = rs_execute.ins;
                 executing.executeComplete = cycle;
-                executing.memoryComplete = cycle + 1;
-                executing.writeBackComplete = cycle + 2;
                 RS[executing.rsIndex].executing = true;
                 if (bru0.evaluateCondition(executing.opcode, executing.data1)) {
                     rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.data2);
                     // Flushing
                     fetchedQueue.clear();
                     decodedQueue.clear();
-//                    for(int i=0; i < RS.length; i++) {
-//                        RS[i] = new ReservationStation();
-//                    }
-                } else {
+                }
+                else {
                     rf[32]++;
                 }
                 finishedInsts.add(executing);
@@ -464,8 +447,6 @@ public class Processor6 {
                     RS[executing.rsIndex].executing = true;
                     rf[32]++;
                     executing.executeComplete = cycle;
-                    executing.memoryComplete = cycle + 1;
-                    executing.writeBackComplete = cycle + 2;
                     finishedInsts.add(executing);
                     RS[rs_otherReady] = new ReservationStation();
                 }
@@ -476,25 +457,20 @@ public class Processor6 {
         Instruction alu1_result = alu1.execute();
         Instruction lsu0_result = lsu0.execute();
         if(alu0_result != null && alu0_result.result != null) {
-            //alu0_result.executeComplete = cycle; // save cycle number of execute stage
             executionResults.add(alu0_result);
             resultForwarding2(alu0_result);
-            //RS[alu0_result.rsIndex] = new ReservationStation();
             alu0.reset();
             rf[32]++;
             executedInsts++;
         }
         if(alu1_result != null && alu1_result.result != null) {
-            //alu1_result.executeComplete = cycle; // save cycle number of execute stage
             executionResults.add(alu1_result);
             resultForwarding2(alu1_result);
-            //RS[alu1_result.rsIndex] = new ReservationStation();
             alu1.reset();
             rf[32]++;
             executedInsts++;
         }
         if(lsu0_result != null && lsu0_result.memAddress != null) {
-            //lsu0_result.executeComplete = cycle; // save cycle number of execute stage
             executionResults.add(lsu0_result);
             RS[lsu0_result.rsIndex].A = lsu0_result.memAddress;
             lsu0.reset();
@@ -524,12 +500,10 @@ public class Processor6 {
                     case LDI:
                         executed.result = mem[executed.memAddress];
                         resultForwarding2(executed);
-                        //RS[executed.rsIndex] = new ReservationStation();
                         break;
                     case ST:
                     case STI:
                         mem[executed.memAddress] = RS[executed.rsIndex].Vs;
-                        //RS[executed.rsIndex] = new ReservationStation();
                         break;
                 }
                 executed.memoryComplete = cycle; // save cycle number of memory stage
@@ -563,43 +537,22 @@ public class Processor6 {
     }
 
     private void resultForwarding2(Instruction ins) {
-        for(int i=0; i < RS.length; i++) {
-            if(RS[i].busy) {
-                if(RS[i].Q1 == ins.rsIndex) {
-                    RS[i].V1 = ins.result;
-                    RS[i].Q1 = -1;
+        for (ReservationStation rs : RS) {
+            if (rs.busy) {
+                if (rs.Q1 == ins.rsIndex) {
+                    rs.V1 = ins.result;
+                    rs.Q1 = -1;
                 }
-                if(RS[i].Q2 == ins.rsIndex) {
-                    RS[i].V2 = ins.result;
-                    RS[i].Q2 = -1;
+                if (rs.Q2 == ins.rsIndex) {
+                    rs.V2 = ins.result;
+                    rs.Q2 = -1;
                 }
-                if(RS[i].Qs == ins.rsIndex) {
-                    RS[i].Vs = ins.result;
-                    RS[i].Qs = -1;
+                if (rs.Qs == ins.rsIndex) {
+                    rs.Vs = ins.result;
+                    rs.Qs = -1;
                 }
             }
         }
-    }
-
-    private Instruction resultForwarding(Instruction ins) {
-        Instruction clone = new Instruction(ins);
-        if(beforeWriteBack != null) {
-            if(ins.Rs1.equals(beforeWriteBack.Rd) && beforeWriteBack.result != null) {
-                clone.data1 = beforeWriteBack.result;
-            }
-            if(ins.Rs2.equals(beforeWriteBack.Rd) && beforeWriteBack.result != null) {
-                clone.data2 = beforeWriteBack.result;
-            }
-        }
-        for(Instruction resultIns : executionResults) {
-            if(ins.Rs1.equals(resultIns.Rd) && resultIns.result != null) {
-                clone.data1 = resultIns.result;
-            }
-            if(ins.Rs2.equals(resultIns.Rd) && resultIns.result != null) {
-                clone.data2 = resultIns.result;
-            }
-        }
-        return clone;
     }
 
     public void RunProcessor() {
@@ -617,7 +570,7 @@ public class Processor6 {
             Decode();
             Fetch();
             cycle++;
-            if(fetchBlocked || decodeBlocked || issueBlocked || dispatchBlocked || executeBlocked || euAllBusy) {
+            if(fetchBlocked || decodeBlocked || issueBlocked || executeBlocked || euAllBusy) {
                 stalledCycle++;
             }
             System.out.println("PC: "+ pc + " rf[32]: " + rf[32]);
