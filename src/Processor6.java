@@ -419,6 +419,26 @@ public class Processor6 {
                     // Flushing
                     fetchedQueue.clear();
                     decodedQueue.clear();
+                    for(int i = 0; i < RS.length; i++) {
+                        // if the instruction is issued later than the branch execution
+                        if(!RS[i].executing && RS[i].ins.issueComplete == executing.issueComplete + 1) {
+                            Qi[RS[i].ins.Rd] = -1;
+                            RS[i] = new ReservationStation();
+                            // if flushed one was dispatched one, flush dispatch
+                            if(rs_aluReady == i) {
+                                rs_aluReady = -1;
+                            }
+                            else if(rs_lsuReady == i) {
+                                rs_lsuReady = -1;
+                            }
+                            else if(rs_bruReady == i) {
+                                rs_bruReady = -1;
+                            }
+                            else if(rs_otherReady == i) {
+                                rs_otherReady = -1;
+                            }
+                        }
+                    }
                 }
                 else {
                     rf[32]++;
@@ -526,7 +546,10 @@ public class Processor6 {
             Instruction writeBack = beforeWriteBack;
             if(writeBack.Rd != 0 && writeBack.Rd != 32 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STI) {
                 resultForwarding2(writeBack);
-                Qi[writeBack.Rd] = -1;
+                // if the latest destination dependency is this one
+                if(Qi[writeBack.Rd] == writeBack.rsIndex) {
+                    Qi[writeBack.Rd] = -1;
+                }
                 rf[writeBack.Rd] = writeBack.result;
             }
             RS[writeBack.rsIndex] = new ReservationStation();

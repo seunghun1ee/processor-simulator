@@ -114,12 +114,12 @@ public class Main {
         processor.RunProcessor();
         createDump(processor.mem, "mem_bench1.txt");
         createDump(processor.rf,"rf_bench1.txt");
-//
-//        System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
-//        Processor6 processor2 = new Processor6(mem2,instructions2);
-//        processor2.RunProcessor();
-//        createDump(processor2.mem, "mem_bench2.txt");
-//        createDump(processor2.rf,"rf_bench2.txt");
+
+        System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
+        Processor6 processor2 = new Processor6(mem2,instructions2);
+        processor2.RunProcessor();
+        createDump(processor2.mem, "mem_bench2.txt");
+        createDump(processor2.rf,"rf_bench2.txt");
 //
 //        System.out.println("Benchmark3 - Factorial(" + num + ")");
 //	    Processor6 processor3 = new Processor6(mem3,instructions3);
