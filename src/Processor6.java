@@ -441,7 +441,7 @@ public class Processor6 {
                     }
                 }
                 else {
-                    rf[32]++;
+                    rf[32] = executing.insAddress + 1;
                 }
                 finishedInsts.add(executing);
                 executedInsts++;
@@ -457,7 +457,7 @@ public class Processor6 {
                     if(rf[32] >= executing.insAddress && !alu0.busy && !alu1.busy && !lsu0.busy && executionResults.isEmpty() && beforeWriteBack == null) {
                         RS[executing.rsIndex].executing = true;
                         finished = true;
-                        rf[32]++;
+                        rf[32] = executing.insAddress + 1;
                         executing.executeComplete = cycle;
                         finishedInsts.add(executing);
                         RS[rs_otherReady] = new ReservationStation();
@@ -465,7 +465,7 @@ public class Processor6 {
                 }
                 else {
                     RS[executing.rsIndex].executing = true;
-                    rf[32]++;
+                    rf[32] = executing.insAddress + 1;
                     executing.executeComplete = cycle;
                     finishedInsts.add(executing);
                     RS[rs_otherReady] = new ReservationStation();
@@ -480,21 +480,21 @@ public class Processor6 {
             executionResults.add(alu0_result);
             resultForwarding2(alu0_result);
             alu0.reset();
-            rf[32]++;
+            rf[32] = alu0_result.insAddress + 1;
             executedInsts++;
         }
         if(alu1_result != null && alu1_result.result != null) {
             executionResults.add(alu1_result);
             resultForwarding2(alu1_result);
             alu1.reset();
-            rf[32]++;
+            rf[32] = alu1_result.insAddress + 1;
             executedInsts++;
         }
         if(lsu0_result != null && lsu0_result.memAddress != null) {
             executionResults.add(lsu0_result);
             RS[lsu0_result.rsIndex].A = lsu0_result.memAddress;
             lsu0.reset();
-            rf[32]++;
+            rf[32] = lsu0_result.insAddress + 1;
             executedInsts++;
         }
         if(executeBlocked) { // stall: buffer is full
