@@ -48,6 +48,9 @@ public class Processor3 {
         else if(pc < mem.length) {
             fetchBlocked = false;
             fetched = instructions[pc];
+            if(fetched != null) {
+                fetched.insAddress = pc;
+            }
             pc++;
         }
     }
@@ -137,11 +140,6 @@ public class Processor3 {
                         break;
                     case JMP:
                     case BR:
-                        input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
-                        input2 = executing.Const;
-                        rf[32] = pc = bru0.evaluateTarget(executing.opcode,rf[32],input1,input2);
-                        fetched = null;
-                        break;
                     case BRZ:
                     case BRN:
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
@@ -152,6 +150,10 @@ public class Processor3 {
                         }
                         else {
                             rf[32]++;
+                        }
+                        // flag is not zero: update return address to insAddress + 1
+                        if(executing.Rd != 0) {
+                            rf[31] = executing.insAddress + 1;
                         }
                         break;
                     default:

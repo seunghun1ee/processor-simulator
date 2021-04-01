@@ -418,6 +418,10 @@ public class Processor6 {
                 if (bru0.evaluateCondition(executing.opcode, executing.data1)) {
                     branchTaken = true;
                     executing.result = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.data2);
+                    // flag is not zero: update return address to insAddress + 1
+                    if(executing.Rd != 0) {
+                        rf[31] = executing.insAddress + 1;
+                    }
                     // Flushing
                     fetchedQueue.clear();
                     decodedQueue.clear();

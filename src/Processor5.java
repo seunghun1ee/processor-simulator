@@ -204,15 +204,6 @@ public class Processor5 {
                 // Unconditional branch (Branches executed by BRU immediately)
                 case JMP:
                 case BR:
-                    reservationStations.remove();
-                    rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.Const);
-                    fetchedQueue.clear();
-                    decodedQueue.clear();
-                    reservationStations.clear();
-                    executing.executeComplete = cycle;
-                    finishedInsts.add(executing);
-                    executedInsts++;
-                    break;
                 case BRZ: // Conditional branch
                 case BRN:
                     reservationStations.remove();
@@ -223,6 +214,10 @@ public class Processor5 {
                         reservationStations.clear();
                     } else {
                         rf[32]++;
+                    }
+                    // flag is not zero: update return address to insAddress + 1
+                    if(executing.Rd != 0) {
+                        rf[31] = executing.insAddress + 1;
                     }
                     executing.executeComplete = cycle;
                     finishedInsts.add(executing);
