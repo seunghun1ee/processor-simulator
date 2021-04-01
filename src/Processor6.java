@@ -377,6 +377,7 @@ public class Processor6 {
     private void Execute() {
         executeBlocked = executionResults.size() >= QUEUE_SIZE;
         euAllBusy = (alu0.busy && alu1.busy && lsu0.busy);
+        boolean branchTaken = false;
         if(!executeBlocked && !euAllBusy) {
             Instruction executing;
             if(rs_aluReady > -1) {
@@ -415,7 +416,8 @@ public class Processor6 {
                 executing.executeComplete = cycle;
                 RS[executing.rsIndex].executing = true;
                 if (bru0.evaluateCondition(executing.opcode, executing.data1)) {
-                    rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.data2);
+                    branchTaken = true;
+                    executing.result = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.data2);
                     // Flushing
                     fetchedQueue.clear();
                     decodedQueue.clear();
@@ -441,10 +443,12 @@ public class Processor6 {
                     }
                 }
                 else {
-                    rf[32] = executing.insAddress + 1;
+//                    rf[32] = executing.insAddress + 1;
+                    executing.result = rf[32] = Math.max(executing.insAddress + 1, rf[32]);
                 }
                 finishedInsts.add(executing);
                 executedInsts++;
+                resultForwarding2(executing);
                 Qi[32] = -1;
                 RS[rs_bruReady] = new ReservationStation();
             }
@@ -457,16 +461,23 @@ public class Processor6 {
                     if(rf[32] >= executing.insAddress && !alu0.busy && !alu1.busy && !lsu0.busy && executionResults.isEmpty() && beforeWriteBack == null) {
                         RS[executing.rsIndex].executing = true;
                         finished = true;
-                        rf[32] = executing.insAddress + 1;
+//                        rf[32] = executing.insAddress + 1;
+                        rf[32] = Math.max(executing.insAddress + 1, rf[32]);
                         executing.executeComplete = cycle;
+                        executing.memoryComplete = cycle + 1;
+                        executing.writeBackComplete = cycle + 2;
                         finishedInsts.add(executing);
                         RS[rs_otherReady] = new ReservationStation();
                     }
                 }
                 else {
                     RS[executing.rsIndex].executing = true;
-                    rf[32] = executing.insAddress + 1;
+
+//                    rf[32] = executing.insAddress + 1;
+                    rf[32] = Math.max(executing.insAddress + 1, rf[32]);
                     executing.executeComplete = cycle;
+                    executing.memoryComplete = cycle + 1;
+                    executing.writeBackComplete = cycle + 2;
                     finishedInsts.add(executing);
                     RS[rs_otherReady] = new ReservationStation();
                 }
@@ -480,22 +491,28 @@ public class Processor6 {
             executionResults.add(alu0_result);
             resultForwarding2(alu0_result);
             alu0.reset();
-            rf[32] = alu0_result.insAddress + 1;
+//            rf[32] = alu0_result.insAddress + 1;
+            rf[32] = Math.max(alu0_result.insAddress + 1, rf[32]);
             executedInsts++;
         }
         if(alu1_result != null && alu1_result.result != null) {
             executionResults.add(alu1_result);
             resultForwarding2(alu1_result);
             alu1.reset();
-            rf[32] = alu1_result.insAddress + 1;
+//            rf[32] = alu1_result.insAddress + 1;
+            rf[32] = Math.max(alu1_result.insAddress + 1, rf[32]);
             executedInsts++;
         }
         if(lsu0_result != null && lsu0_result.memAddress != null) {
             executionResults.add(lsu0_result);
             RS[lsu0_result.rsIndex].A = lsu0_result.memAddress;
             lsu0.reset();
-            rf[32] = lsu0_result.insAddress + 1;
+//            rf[32] = lsu0_result.insAddress + 1;
+            rf[32] = Math.max(lsu0_result.insAddress + 1, rf[32]);
             executedInsts++;
+        }
+        if(branchTaken) {
+            rf[32] = pc;
         }
         if(executeBlocked) { // stall: buffer is full
             Instruction ins = reservationStations.peek();
@@ -598,6 +615,7 @@ public class Processor6 {
             }
             System.out.println("PC: "+ pc + " rf[32]: " + rf[32]);
         }
+        finishedInsts.sort(Comparator.comparingInt((Instruction i) -> i.id));
         TraceEncoder traceEncoder = new TraceEncoder(finishedInsts);
         ProbeEncoder probeEncoder = new ProbeEncoder(probes,cycle);
         try {
