@@ -151,10 +151,6 @@ public class Processor3 {
                         else {
                             rf[32]++;
                         }
-                        // flag is not zero: update return address to insAddress + 1
-                        if(executing.Rd != 0) {
-                            rf[31] = executing.insAddress + 1;
-                        }
                         break;
                     default:
                         System.out.println("Invalid instruction exception");

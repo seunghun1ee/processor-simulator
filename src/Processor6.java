@@ -354,7 +354,6 @@ public class Processor6 {
             RS[rs_otherReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
         }
         dispatchBlocked = (rs_aluReady == -1) && (rs_lsuReady == -1) && (rs_bruReady == -1) && (rs_otherReady == -1);
-
     }
 
 
@@ -380,34 +379,6 @@ public class Processor6 {
         boolean branchTaken = false;
         if(!executeBlocked && !euAllBusy) {
             Instruction executing;
-            if(rs_aluReady > -1) {
-                ReservationStation rs_execute = RS[rs_aluReady];
-                rs_execute.ins.data1 = rs_execute.V1;
-                rs_execute.ins.data2 = rs_execute.V2;
-                executing = rs_execute.ins;
-                executing.executeComplete = cycle;
-                if (!alu0.busy) {
-                    alu0.update(executing.opcode, executing.data1, executing.data2);
-                    alu0.executing = executing;
-                    RS[executing.rsIndex].executing = true;
-                } else if (!alu1.busy) {
-                    alu1.update(executing.opcode, executing.data1, executing.data2);
-                    alu1.executing = executing;
-                    RS[executing.rsIndex].executing = true;
-                }
-            }
-            if(rs_lsuReady > -1) {
-                ReservationStation rs_execute = RS[rs_lsuReady];
-                rs_execute.ins.data1 = rs_execute.V1;
-                rs_execute.ins.data2 = rs_execute.V2;
-                executing = rs_execute.ins;
-                executing.executeComplete = cycle;
-                if(!lsu0.busy) {
-                    lsu0.update(executing.opcode, executing.data1, executing.data2);
-                    lsu0.executing = executing;
-                    RS[executing.rsIndex].executing = true;
-                }
-            }
             if(rs_bruReady > -1) {
                 ReservationStation rs_execute = RS[rs_bruReady];
                 rs_execute.ins.data1 = rs_execute.V1;
@@ -417,17 +388,13 @@ public class Processor6 {
                 RS[executing.rsIndex].executing = true;
                 if (bru0.evaluateCondition(executing.opcode, executing.data1)) {
                     branchTaken = true;
-                    executing.result = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.data2);
-                    // flag is not zero: update return address to insAddress + 1
-                    if(executing.Rd != 0) {
-                        rf[31] = executing.insAddress + 1;
-                    }
+                    executing.result = pc = bru0.evaluateTarget(executing.opcode, executing.insAddress, executing.data1, executing.data2);
                     // Flushing
                     fetchedQueue.clear();
                     decodedQueue.clear();
                     for(int i = 0; i < RS.length; i++) {
                         // if the instruction is issued later than the branch execution
-                        if(!RS[i].executing && RS[i].ins.issueComplete == executing.issueComplete + 1) {
+                        if(!RS[i].executing && RS[i].ins.id > executing.id) {
                             Qi[RS[i].ins.Rd] = -1;
                             RS[i] = new ReservationStation();
                             // if flushed one was dispatched one, flush dispatch
@@ -446,27 +413,49 @@ public class Processor6 {
                         }
                     }
                 }
-                else {
-//                    rf[32] = executing.insAddress + 1;
-                    executing.result = rf[32] = Math.max(executing.insAddress + 1, rf[32]);
-                }
                 finishedInsts.add(executing);
                 executedInsts++;
                 resultForwarding2(executing);
                 Qi[32] = -1;
                 RS[rs_bruReady] = new ReservationStation();
             }
-            if(rs_otherReady > -1) {
+            if(rs_aluReady > -1 && !branchTaken) {
+                ReservationStation rs_execute = RS[rs_aluReady];
+                rs_execute.ins.data1 = rs_execute.V1;
+                rs_execute.ins.data2 = rs_execute.V2;
+                executing = rs_execute.ins;
+                executing.executeComplete = cycle;
+                if (!alu0.busy) {
+                    alu0.update(executing.opcode, executing.data1, executing.data2);
+                    alu0.executing = executing;
+                    RS[executing.rsIndex].executing = true;
+                } else if (!alu1.busy) {
+                    alu1.update(executing.opcode, executing.data1, executing.data2);
+                    alu1.executing = executing;
+                    RS[executing.rsIndex].executing = true;
+                }
+            }
+            if(rs_lsuReady > -1 && !branchTaken) {
+                ReservationStation rs_execute = RS[rs_lsuReady];
+                rs_execute.ins.data1 = rs_execute.V1;
+                rs_execute.ins.data2 = rs_execute.V2;
+                executing = rs_execute.ins;
+                executing.executeComplete = cycle;
+                if(!lsu0.busy) {
+                    lsu0.update(executing.opcode, executing.data1, executing.data2);
+                    lsu0.executing = executing;
+                    RS[executing.rsIndex].executing = true;
+                }
+            }
+            if(rs_otherReady > -1 && !branchTaken) {
                 ReservationStation rs_execute = RS[rs_otherReady];
                 rs_execute.ins.data1 = rs_execute.V1;
                 rs_execute.ins.data2 = rs_execute.V2;
                 executing = rs_execute.ins;
                 if(executing.opcode.equals(Opcode.HALT)) {
-                    if(rf[32] >= executing.insAddress && !alu0.busy && !alu1.busy && !lsu0.busy && executionResults.isEmpty() && beforeWriteBack == null) {
+                    if(!alu0.busy && !alu1.busy && !lsu0.busy && executionResults.isEmpty() && beforeWriteBack == null) {
                         RS[executing.rsIndex].executing = true;
                         finished = true;
-//                        rf[32] = executing.insAddress + 1;
-                        rf[32] = Math.max(executing.insAddress + 1, rf[32]);
                         executing.executeComplete = cycle;
                         executing.memoryComplete = cycle + 1;
                         executing.writeBackComplete = cycle + 2;
@@ -476,9 +465,6 @@ public class Processor6 {
                 }
                 else {
                     RS[executing.rsIndex].executing = true;
-
-//                    rf[32] = executing.insAddress + 1;
-                    rf[32] = Math.max(executing.insAddress + 1, rf[32]);
                     executing.executeComplete = cycle;
                     executing.memoryComplete = cycle + 1;
                     executing.writeBackComplete = cycle + 2;
@@ -495,28 +481,19 @@ public class Processor6 {
             executionResults.add(alu0_result);
             resultForwarding2(alu0_result);
             alu0.reset();
-//            rf[32] = alu0_result.insAddress + 1;
-            rf[32] = Math.max(alu0_result.insAddress + 1, rf[32]);
             executedInsts++;
         }
         if(alu1_result != null && alu1_result.result != null) {
             executionResults.add(alu1_result);
             resultForwarding2(alu1_result);
             alu1.reset();
-//            rf[32] = alu1_result.insAddress + 1;
-            rf[32] = Math.max(alu1_result.insAddress + 1, rf[32]);
             executedInsts++;
         }
         if(lsu0_result != null && lsu0_result.memAddress != null) {
             executionResults.add(lsu0_result);
             RS[lsu0_result.rsIndex].A = lsu0_result.memAddress;
             lsu0.reset();
-//            rf[32] = lsu0_result.insAddress + 1;
-            rf[32] = Math.max(lsu0_result.insAddress + 1, rf[32]);
             executedInsts++;
-        }
-        if(branchTaken) {
-            rf[32] = pc;
         }
         if(executeBlocked) { // stall: buffer is full
             Instruction ins = reservationStations.peek();

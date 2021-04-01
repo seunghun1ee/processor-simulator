@@ -75,27 +75,33 @@ public class Main {
         instructions3[0] = new Instruction(Opcode.MOVC,29,0,0,sp); // $29 is $sp
         instructions3[1] = new Instruction(Opcode.LDI,1,0,0,loc); // load argument
         instructions3[2] = new Instruction(Opcode.MOV,4,1,0,0); // copy argument to $a0 ($4)
-        instructions3[3] = new Instruction(Opcode.BR,1,0,0,100); // call fac and update $ra to 4
-        instructions3[4] = new Instruction(Opcode.STI,2,0,0,loc+1); // store returned result at mem[loc + 1]
-        instructions3[5] = new Instruction(Opcode.HALT,0,0,0,0); // halt
+        instructions3[3] = new Instruction(Opcode.MOVC,14,0,0,7); // $t6(14) = main return address
+        instructions3[4] = new Instruction(Opcode.STI,14,29,0,0); // store main ra to sp + 0
+        instructions3[5] = new Instruction(Opcode.STI,4,29,0,1); // store arg to sp + 1
+        instructions3[6] = new Instruction(Opcode.BR,0,0,0,100); // call fac
+        instructions3[7] = new Instruction(Opcode.STI,2,0,0,loc+1); // store returned result at mem[loc + 1]
+        instructions3[8] = new Instruction(Opcode.HALT,0,0,0,0); // halt
         //fac
-        instructions3[100] = new Instruction(Opcode.CMP,15,4,0,0); // $t7 = cmp($a0,$zero)
-        instructions3[101] = new Instruction(Opcode.BRZ,0,15,0,103); // $t7 == 0 then base case
-        instructions3[102] = new Instruction(Opcode.BR,0,0,0,200); // call recursive case
-        instructions3[103] = new Instruction(Opcode.MOVC,2,0,0,1); // load 1 to return value $v0
-        instructions3[104] = new Instruction(Opcode.BR,0,31,0,0); // return to $ra
-        //recursion
-        instructions3[200] = new Instruction(Opcode.ADDI,29,29,0,-2); // $sp -= 2 to store two elems
-        instructions3[201] = new Instruction(Opcode.STI,31,29,0,0); // store return address
-        instructions3[202] = new Instruction(Opcode.STI,4,29,0,1); // store $a0 at $sp + 1
-        instructions3[203] = new Instruction(Opcode.ADDI, 4,4,0,-1); // num -= 1
-        instructions3[204] = new Instruction(Opcode.BR,1,0,0,100); // call fac, update $ra to 205
+        instructions3[100] = new Instruction(Opcode.LDI,13,29,0,1); // $13 = mem[sp + 1] (arg)
+        instructions3[101] = new Instruction(Opcode.CMP,15,13,0,0); // $t7(15) = cmp($13,$zero)
+        instructions3[102] = new Instruction(Opcode.BRZ,0,15,0,130); // branch to base if zero
+        instructions3[103] = new Instruction(Opcode.ADDI,13,13,0,-1); // decrement arg
+        instructions3[104] = new Instruction(Opcode.ADDI,29,29,0,2); // sp += 2
+        instructions3[105] = new Instruction(Opcode.MOVC, 14,0,0,120); // $t6(14) = pop ra
+        instructions3[106] = new Instruction(Opcode.STI,14,29,0,0); // mem[sp + 0] = pop ra
+        instructions3[107] = new Instruction(Opcode.STI,13,29,0,1); // mem[sp + 1] = arg
+        instructions3[108] = new Instruction(Opcode.BR,0,0,0,100); // recursively call fac
         //pop
-        instructions3[205] = new Instruction(Opcode.LDI,8,29,0,1); // load $t0 = num from sp + 1
-        instructions3[206] = new Instruction(Opcode.MUL,2,2,8,0); // $v0 *= $t0
-        instructions3[207] = new Instruction(Opcode.LDI,31,29,0,0); // load return address from sp + 0
-        instructions3[208] = new Instruction(Opcode.ADDI,29,29,0,2); // $sp += 2
-        instructions3[209] = new Instruction(Opcode.BR,0,31,0,0); // return to $ra
+        instructions3[120] = new Instruction(Opcode.LDI,9,29,0,1); // $9 = mem[sp + 1] (arg)
+        instructions3[121] = new Instruction(Opcode.LDI,8,29,0,0); // $8 = mem[sp + 0] (ra)
+        instructions3[122] = new Instruction(Opcode.MUL,2,2,9,0); // $2 *= arg
+        instructions3[123] = new Instruction(Opcode.ADDI,29,29,0,-2); // sp -= 2
+        instructions3[124] = new Instruction(Opcode.BR,0,8,0,0); // return to ra
+        //base case
+        instructions3[130] = new Instruction(Opcode.MOVC,2,0,0,1); // result register $2 = 1
+        instructions3[131] = new Instruction(Opcode.STI,2,29,0,1); // replace zero with 1
+        instructions3[132] = new Instruction(Opcode.BR,0,0,0,120); // go to pop
+
 
         Instruction[] instructions4 = new Instruction[512];
         int[] mem4 = new int[1024];
@@ -107,20 +113,20 @@ public class Main {
         instructions4[5] = new Instruction(Opcode.HALT,0,0,0,0);
 
 
-//        System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
-//        Processor3 processor = new Processor3(mem,instructions);
-//        processor.RunProcessor();
-//        createDump(processor.mem, "mem_bench1.txt");
-//        createDump(processor.rf,"rf_bench1.txt");
-//
-//        System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
-//        Processor3 processor2 = new Processor3(mem2,instructions2);
-//        processor2.RunProcessor();
-//        createDump(processor2.mem, "mem_bench2.txt");
-//        createDump(processor2.rf,"rf_bench2.txt");
+        System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
+        Processor6 processor = new Processor6(mem,instructions);
+        processor.RunProcessor();
+        createDump(processor.mem, "mem_bench1.txt");
+        createDump(processor.rf,"rf_bench1.txt");
+
+        System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
+        Processor6 processor2 = new Processor6(mem2,instructions2);
+        processor2.RunProcessor();
+        createDump(processor2.mem, "mem_bench2.txt");
+        createDump(processor2.rf,"rf_bench2.txt");
 
         System.out.println("Benchmark3 - Factorial(" + num + ")");
-	    Processor3 processor3 = new Processor3(mem3,instructions3);
+	    Processor6 processor3 = new Processor6(mem3,instructions3);
 	    processor3.RunProcessor();
 	    createDump(processor3.mem, "mem_bench3.txt");
 	    createDump(processor3.rf,"rf_bench3.txt");

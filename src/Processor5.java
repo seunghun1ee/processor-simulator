@@ -215,10 +215,6 @@ public class Processor5 {
                     } else {
                         rf[32]++;
                     }
-                    // flag is not zero: update return address to insAddress + 1
-                    if(executing.Rd != 0) {
-                        rf[31] = executing.insAddress + 1;
-                    }
                     executing.executeComplete = cycle;
                     finishedInsts.add(executing);
                     executedInsts++;
