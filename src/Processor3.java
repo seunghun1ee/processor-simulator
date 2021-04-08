@@ -77,7 +77,6 @@ public class Processor3 {
                 int input2 = 0;
                 switch (executing.opcode) {
                     case NOOP:
-                        rf[32]++;
                         break;
                     case HALT:
                         finished = true;
@@ -95,7 +94,6 @@ public class Processor3 {
                         input2 = resultForwarding(executing.Rs2,resultData,resultAddress);
                         executedData = alu0.evaluate(executing.opcode, input1, input2);
                         executedAddress = executing.Rd;
-                        rf[32]++;
                         break;
                     case ADDI: // ALU OPs that use rf[Rs1] and Const
                     case MULI:
@@ -104,20 +102,17 @@ public class Processor3 {
                         input2 = executing.Const;
                         executedData = alu0.evaluate(executing.opcode, input1, input2);
                         executedAddress = executing.Rd;
-                        rf[32]++;
                         break;
                     case NOT: // ALU OPs that only use rf[Rs1]
                     case MOV:
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
                         executedData = alu0.evaluate(executing.opcode, input1, input2);
                         executedAddress = executing.Rd;
-                        rf[32]++;
                         break;
                     case MOVC: // ALU OPs that only use Const
                         input1 = executing.Const;
                         executedData = alu0.evaluate(executing.opcode, input1, input2);
                         executedAddress = executing.Rd;
-                        rf[32]++;
                         break;
                     case LD: // rf[Rs1] + rf[Rs2]
                     case ST:
@@ -126,7 +121,6 @@ public class Processor3 {
                         memoryOpcode = executing.opcode;
                         memoryRd = executing.Rd;
                         memoryAddress = lsu0.evaluate(executing.opcode,input1,input2);
-                        rf[32]++;
                         break;
                     case LDI: // rf[Rs1] + Const
                     case STI:
@@ -135,7 +129,6 @@ public class Processor3 {
                         memoryOpcode = executing.opcode;
                         memoryRd = executing.Rd;
                         memoryAddress = lsu0.evaluate(executing.opcode,input1,input2);
-                        rf[32]++;
                         break;
                     case JMP:
                     case BR:
@@ -144,11 +137,8 @@ public class Processor3 {
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
                         input2 = executing.Const;
                         if(bru0.evaluateCondition(executing.opcode,input1)) {
-                            rf[32] = pc = bru0.evaluateTarget(executing.opcode,rf[32],input1,input2);
+                            pc = bru0.evaluateTarget(executing.opcode,executing.insAddress,input1,input2);
                             fetched = null;
-                        }
-                        else {
-                            rf[32]++;
                         }
                         break;
                     default:
@@ -195,7 +185,7 @@ public class Processor3 {
 
     private void WriteBack() {
         if(resultData != null && resultAddress != null) {
-            if(resultAddress != 0 && resultAddress != 32) {
+            if(resultAddress != 0) {
                 rf[resultAddress] = resultData;
             }
             resultAddress = null;
@@ -243,7 +233,7 @@ public class Processor3 {
             if(fetchBlocked || decodeBlocked || (executeBlocked && executeCycle > 1)) {
                 stalledCycle++;
             }
-//            System.out.println("PC: "+ pc + " rf[32]: " + rf[32]);
+//            System.out.println("PC: "+ pc);
         }
         WriteBack(); // Writing back last data
         cycle++;

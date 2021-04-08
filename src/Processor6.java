@@ -143,7 +143,7 @@ public class Processor6 {
                     }
                     
                     // no dependency setting to special purpose registers
-                    if(issuing.Rd != 0 && issuing.Rd != 32) {
+                    if(issuing.Rd != 0) {
                         Qi[issuing.Rd] = rsIndex; // Set dependency to destination
                     }
                     RS[rsIndex].busy = true;
@@ -181,7 +181,7 @@ public class Processor6 {
                         }
                     }
                     // no dependency setting to special purpose registers
-                    else if(issuing.Rd != 0 && issuing.Rd != 32) {
+                    else if(issuing.Rd != 0) {
                         Qi[issuing.Rd] = rsIndex; // Set dependency to destination
                     }
                     RS[rsIndex].busy = true;
@@ -205,7 +205,7 @@ public class Processor6 {
                     RS[rsIndex].V2 = issuing.Const;
                     RS[rsIndex].Q2 = -1;
                     // no dependency setting to special purpose registers
-                    if(issuing.Rd != 0 && issuing.Rd != 32) {
+                    if(issuing.Rd != 0) {
                         Qi[issuing.Rd] = rsIndex; // Set dependency to destination
                     }
                     RS[rsIndex].busy = true;
@@ -237,7 +237,7 @@ public class Processor6 {
                         }
                     }
                     // no dependency setting to special purpose registers
-                    else if(issuing.Rd != 0 && issuing.Rd != 32) {
+                    else if(issuing.Rd != 0) {
                         Qi[issuing.Rd] = rsIndex; // Set dependency to destination
                     }
                     RS[rsIndex].busy = true;
@@ -261,7 +261,7 @@ public class Processor6 {
                     RS[rsIndex].V2 = issuing.Const;
                     RS[rsIndex].Q2 = -1;
                     //branch instruction
-                    Qi[32] = rsIndex; // set dependency to $pc
+
                     RS[rsIndex].busy = true;
                     RS[rsIndex].type = OpType.BRU;
                     issuing.issueComplete = cycle; // save cycle number of issue stage
@@ -284,7 +284,7 @@ public class Processor6 {
                     RS[rsIndex].busy = true;
                     RS[rsIndex].type = OpType.ALU;
                     // no dependency setting to special purpose registers
-                    if(issuing.Rd != 0 && issuing.Rd != 32) {
+                    if(issuing.Rd != 0) {
                         Qi[issuing.Rd] = rsIndex; // Set dependency to destination
                     }
                     issuing.issueComplete = cycle; // save cycle number of issue stage
@@ -299,7 +299,7 @@ public class Processor6 {
                     // No second operand
                     RS[rsIndex].V2 = 0;
                     RS[rsIndex].Q2 = -1;
-                    if(issuing.Rd != 0 && issuing.Rd != 32) {
+                    if(issuing.Rd != 0) {
                         Qi[issuing.Rd] = rsIndex; // Set dependency to destination
                     }
                     RS[rsIndex].busy = true;
@@ -316,7 +316,7 @@ public class Processor6 {
                     // No second operand
                     RS[rsIndex].V2 = 0;
                     RS[rsIndex].Q2 = -1;
-                    Qi[32] = rsIndex; // Set dependency to $pc
+
                     RS[rsIndex].busy = true;
                     RS[rsIndex].type = OpType.BRU;
                     issuing.issueComplete = cycle; // save cycle number of issue stage
@@ -415,7 +415,7 @@ public class Processor6 {
                 finishedInsts.add(executing);
                 executedInsts++;
                 resultForwarding2(executing);
-                Qi[32] = -1;
+
                 RS[rs_bruReady] = new ReservationStation();
             }
             if(rs_aluReady > -1 && !branchTaken) {
@@ -541,7 +541,7 @@ public class Processor6 {
     private void WriteBack() {
         if(beforeWriteBack != null) {
             Instruction writeBack = beforeWriteBack;
-            if(writeBack.Rd != 0 && writeBack.Rd != 32 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STI) {
+            if(writeBack.Rd != 0 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STI) {
                 resultForwarding2(writeBack);
                 // if the latest destination dependency is this one
                 if(Qi[writeBack.Rd] == writeBack.rsIndex) {
@@ -593,7 +593,7 @@ public class Processor6 {
             if(fetchBlocked || decodeBlocked || issueBlocked || executeBlocked || euAllBusy) {
                 stalledCycle++;
             }
-//            System.out.println("PC: "+ pc + " rf[32]: " + rf[32]);
+//            System.out.println("PC: "+ pc);
         }
         finishedInsts.sort(Comparator.comparingInt((Instruction i) -> i.id));
         TraceEncoder traceEncoder = new TraceEncoder(finishedInsts);

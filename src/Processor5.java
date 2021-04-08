@@ -92,7 +92,7 @@ public class Processor5 {
                 issuing.data1 = rf[issuing.Rs1];
                 issuing.data2 = rf[issuing.Rs2];
                 issuing = resultForwarding(issuing);
-                if(issuing.Rd != 0 && issuing.Rd != 32) {
+                if(issuing.Rd != 0) {
                     validBits[issuing.Rd] = false;
                 }
                 issuing.issueComplete = cycle; // save cycle number of issue stage
@@ -118,14 +118,12 @@ public class Processor5 {
                     if(!alu0.busy && !alu1.busy && !lsu0.busy && executionResults.isEmpty() && beforeWriteBack == null) {
                         reservationStations.remove();
                         finished = true;
-                        rf[32]++;
                         executing.executeComplete = cycle;
                         finishedInsts.add(executing);
                     }
                     break;
                 case NOOP:
                     reservationStations.remove();
-                    rf[32]++;
                     executing.executeComplete = cycle;
                     finishedInsts.add(executing);
                     break;
@@ -207,12 +205,10 @@ public class Processor5 {
                 case BRN:
                     reservationStations.remove();
                     if (bru0.evaluateCondition(executing.opcode, executing.data1)) {
-                        rf[32] = pc = bru0.evaluateTarget(executing.opcode, rf[32], executing.data1, executing.Const);
+                        pc = bru0.evaluateTarget(executing.opcode, executing.insAddress, executing.data1, executing.Const);
                         fetchedQueue.clear();
                         decodedQueue.clear();
                         reservationStations.clear();
-                    } else {
-                        rf[32]++;
                     }
                     executing.executeComplete = cycle;
                     finishedInsts.add(executing);
@@ -233,7 +229,6 @@ public class Processor5 {
             executionResults.add(alu0_result);
             validBits[alu0_result.Rd] = true;
             alu0.reset();
-            rf[32]++;
             executedInsts++;
         }
         if(alu1_result != null && alu1_result.result != null) {
@@ -241,14 +236,12 @@ public class Processor5 {
             executionResults.add(alu1_result);
             validBits[alu1_result.Rd] = true;
             alu1.reset();
-            rf[32]++;
             executedInsts++;
         }
         if(lsu0_result != null && lsu0_result.memAddress != null) {
             lsu0_result.executeComplete = cycle; // save cycle number of execute stage
             executionResults.add(lsu0_result);
             lsu0.reset();
-            rf[32]++;
             executedInsts++;
         }
         if(executeBlocked) { // stall: buffer is full
@@ -297,7 +290,7 @@ public class Processor5 {
     private void WriteBack() {
         if(beforeWriteBack != null) {
             Instruction writeBack = beforeWriteBack;
-            if(writeBack.Rd != 0 && writeBack.Rd != 32 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STI) {
+            if(writeBack.Rd != 0 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STI) {
                 rf[writeBack.Rd] = writeBack.result;
                 validBits[writeBack.Rd] = true;
             }
@@ -342,7 +335,7 @@ public class Processor5 {
             if(fetchBlocked || decodeBlocked || issueBlocked || executeBlocked || euAllBusy) {
                 stalledCycle++;
             }
-//            System.out.println("PC: "+ pc + " rf[32]: " + rf[32]);
+//            System.out.println("PC: "+ pc);
         }
         TraceEncoder traceEncoder = new TraceEncoder(finishedInsts);
         ProbeEncoder probeEncoder = new ProbeEncoder(probes,cycle);
