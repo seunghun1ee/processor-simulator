@@ -6,9 +6,8 @@ public class Processor3 {
     int executeCycle = 0; // cycles that was spent at execution phase
     int stalledCycle = 0; // cycles that was spent while doing nothing
     int[] mem; // memory from user
-    int[] rf = new int[65]; //Register file (physical)
+    int[] rf = new int[64]; //Register file (physical)
     // register 0 always have value zero ($zero, input is ignored)
-    // $32 is Program counter for users ($pc)
     Instruction[] instructions; // instructions from user
     boolean finished = false;
     // 3 pipeline registers
@@ -248,7 +247,7 @@ public class Processor3 {
         }
         WriteBack(); // Writing back last data
         cycle++;
-        System.out.println("Scalar pipelined (5-stage) processor Terminated");
+        System.out.println("Scalar 5-stage pipeline processor Terminated");
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");
         System.out.println(stalledCycle + " stalled cycles");

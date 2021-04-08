@@ -14,10 +14,9 @@ public class Processor6 {
     int stalledCycle = 0;
     int insIdCount = 1; // for assigning id to instructions
     int[] mem; // memory from user
-    int[] rf = new int[65]; //Register file (physical)
+    int[] rf = new int[64]; //Register file (physical)
     int[] Qi = new int[rf.length]; // Tomasulo: number of rs that the operation result will be stored to the register
     // register 0 always have value zero ($zero, input is ignored)
-    // $32 is Program counter for users ($pc)
     Instruction[] instructions; // instructions from user
     boolean finished = false;
     int QUEUE_SIZE = 4;
@@ -612,7 +611,7 @@ public class Processor6 {
         if(cycle >= cycleLimit) {
             System.out.println("Time out");
         }
-        System.out.println("Scalar pipelined (7-stage) processor Terminated");
+        System.out.println("Scalar Out of Order 7-stage pipeline processor Terminated");
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");
         System.out.println(stalledCycle + " stalled cycles");

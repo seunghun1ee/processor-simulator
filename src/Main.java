@@ -102,7 +102,7 @@ public class Main {
         instructions3[131] = new Instruction(Opcode.STI,2,29,0,1); // replace zero with 1
         instructions3[132] = new Instruction(Opcode.BR,0,0,0,120); // go to pop
 
-
+        //Many dependencies
         Instruction[] instructions4 = new Instruction[512];
         int[] mem4 = new int[1024];
         mem4[5] = 1000;
