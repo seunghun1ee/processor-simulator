@@ -8,6 +8,7 @@ public class ReservationStation {
     public int A = 0; // effective value of target address
     public int Qs = -1; // index of dependent reservation station (store)
     public int Vs = 0; // effective value to store
+    public int destination = -1; // index of ROB for the instruction
     public Instruction ins = new Instruction();
     public boolean executing = false;
     public OpType type = OpType.UNDEFINED;
