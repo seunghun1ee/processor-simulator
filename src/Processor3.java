@@ -48,6 +48,9 @@ public class Processor3 {
         else if(pc < mem.length) {
             fetchBlocked = false;
             fetched = instructions[pc];
+            if(fetched != null) {
+                fetched.insAddress = pc;
+            }
             pc++;
         }
     }
@@ -126,16 +129,8 @@ public class Processor3 {
                         memoryAddress = lsu0.evaluate(executing.opcode,input1,input2);
                         rf[32]++;
                         break;
-                    case LDI: // Const
+                    case LDI: // rf[Rs1] + Const
                     case STI:
-                        input1 = executing.Const;
-                        memoryOpcode = executing.opcode;
-                        memoryRd = executing.Rd;
-                        memoryAddress = lsu0.evaluate(executing.opcode,input1,input2);
-                        rf[32]++;
-                        break;
-                    case LDO: // rf[Rs1] + Const
-                    case STO:
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
                         input2 = executing.Const;
                         memoryOpcode = executing.opcode;
@@ -143,20 +138,14 @@ public class Processor3 {
                         memoryAddress = lsu0.evaluate(executing.opcode,input1,input2);
                         rf[32]++;
                         break;
-                    case BR: // Branch ops
                     case JMP:
-                    case JR:
+                    case BR:
+                    case BRZ:
+                    case BRN:
                         input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
-                        input2 = resultForwarding(executing.Rs2,resultData,resultAddress);
-                        rf[32] = pc = bru0.evaluateTarget(executing.opcode,rf[32],input1,input2,executing.Const);
-                        fetched = null;
-                        break;
-                    case BEQ:
-                    case BLT:
-                        input1 = resultForwarding(executing.Rs1,resultData,resultAddress);
-                        input2 = resultForwarding(executing.Rs2,resultData,resultAddress);
-                        if(bru0.evaluateCondition(executing.opcode,input1,input2)) {
-                            rf[32] = pc = bru0.evaluateTarget(executing.opcode,rf[32],input1,input2,executing.Const);
+                        input2 = executing.Const;
+                        if(bru0.evaluateCondition(executing.opcode,input1)) {
+                            rf[32] = pc = bru0.evaluateTarget(executing.opcode,rf[32],input1,input2);
                             fetched = null;
                         }
                         else {
@@ -180,7 +169,6 @@ public class Processor3 {
             switch (memoryOpcode) {
                 case LD:
                 case LDI:
-                case LDO:
                     resultData = mem[memoryAddress];
                     resultAddress = memoryRd;
                     memoryOpcode = null;
@@ -189,7 +177,6 @@ public class Processor3 {
                     break;
                 case ST:
                 case STI:
-                case STO:
                     mem[memoryAddress] = rf[memoryRd];
                     memoryOpcode = null;
                     memoryRd = null;
@@ -223,10 +210,8 @@ public class Processor3 {
             case MUL:
             case MULI:
             case LD:
-            case LDO:
             case LDI:
             case ST:
-            case STO:
             case STI:
                 cycle = 2;
                 break;
@@ -259,6 +244,7 @@ public class Processor3 {
             if(fetchBlocked || decodeBlocked || (executeBlocked && executeCycle > 1)) {
                 stalledCycle++;
             }
+//            System.out.println("PC: "+ pc + " rf[32]: " + rf[32]);
         }
         WriteBack(); // Writing back last data
         cycle++;
