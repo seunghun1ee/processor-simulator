@@ -105,12 +105,33 @@ public class Main {
 
         Instruction[] instructions4 = new Instruction[512];
         int[] mem4 = new int[1024];
-        instructions4[0] = new Instruction(Opcode.MOVC,1,0,0,10);
-        instructions4[1] = new Instruction(Opcode.MOVC,2,0,0,2);
-        instructions4[2] = new Instruction(Opcode.DIV,3,1,2,0);
-        instructions4[3] = new Instruction(Opcode.MUL,4,1,2,0);
-        instructions4[4] = new Instruction(Opcode.ADD,5,1,2,0);
-        instructions4[5] = new Instruction(Opcode.HALT,0,0,0,0);
+        mem4[5] = 1000;
+        mem4[10] = 123;
+        mem4[11] = mem4[10] * 8;
+        instructions4[0] = new Instruction(Opcode.MOVC,1,0,0,10); // $1 = 10
+        instructions4[1] = new Instruction(Opcode.MOVC,2,0,0,2); // $2 = 2
+        instructions4[2] = new Instruction(Opcode.DIV,3,1,2,0); // $3 = $1 / $2 = 5 (6 cycles)
+        instructions4[3] = new Instruction(Opcode.LD,10,3,0,0); // $10 = mem[ 5 + 0 ] (2 cycles, dependent:2)
+        instructions4[4] = new Instruction(Opcode.MUL,4,1,2,0); // $4 = $1 * $2 = 20 (2 cycles)
+        instructions4[5] = new Instruction(Opcode.SUB,6,3,1,0); // $6 = $3 - $1 = -5 (div dependent:2)
+        instructions4[6] = new Instruction(Opcode.ADD,5,1,2,0); // $5 = $1 + $2 = 12
+        instructions4[7] = new Instruction(Opcode.SHL,11,1,2,0); // $11 = $1 << $2 = 40
+        instructions4[8] = new Instruction(Opcode.STI,6,3,0,1); // mem[ 5 + 1 ] = $6 (2 cycles, dependent:2,5)
+        instructions4[9] = new Instruction(Opcode.ADDI,7,2,0,4); // $7 = $2 + 4 = 6
+        instructions4[10] = new Instruction(Opcode.LDI,8,0,0,10); // $8 = mem[10] (2 cycles)
+        instructions4[11] = new Instruction(Opcode.LDI,9,0,0,11); // $9 = mem[11] (2 cycles)
+        instructions4[12] = new Instruction(Opcode.DIV, 12,9,8,0); // $12 = $9 / $8 = 8 (6 cycles, dependent:10,11)
+        instructions4[13] = new Instruction(Opcode.DIVI,13,12,0,2); // $13 = $12 / 2 = 4 (6 cycles, dependent:12)
+        instructions4[14] = new Instruction(Opcode.NOT,14,0,0,0); // $14 = ¬ $0 = -1
+        instructions4[15] = new Instruction(Opcode.ADDI,1,1,0,20); // $1 = $1 + 20 = 30
+        instructions4[16] = new Instruction(Opcode.MUL,4,4,4,0); // $4 = $4 * $4 = 400 (2 cycles)
+        instructions4[17] = new Instruction(Opcode.ADD,2,2,1,0); // $2 = $2 + $1 = 32
+        instructions4[18] = new Instruction(Opcode.AND,11,14,1,0); // $11 = $14 & $1 = 30
+        instructions4[19] = new Instruction(Opcode.BR,0,0,0,50); // PC <- 50
+        instructions4[20] = new Instruction(Opcode.HALT,0,0,0,0); // HALT
+        instructions4[50] = new Instruction(Opcode.ADD,15,1,2,0); // $15 = $1 + $2 = 62
+        instructions4[51] = new Instruction(Opcode.STI,15,3,0,2); // mem[5 + 2] = $15
+        instructions4[52] = new Instruction(Opcode.BR,0,0,0,20); // jump back to halt
 
 
         System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
@@ -131,10 +152,11 @@ public class Main {
 	    createDump(processor3.mem, "mem_bench3.txt");
 	    createDump(processor3.rf,"rf_bench3.txt");
 
-//	    Processor5 processor4 = new Processor5(mem4,instructions4);
-//	    processor4.RunProcessor();
-//	    createDump(processor4.mem, "mem_bench4.txt");
-//	    createDump(processor4.rf,"rf_bench4.txt");
+	    System.out.println("Benchmark4 - many dependencies");
+	    Processor6 processor4 = new Processor6(mem4,instructions4);
+	    processor4.RunProcessor();
+	    createDump(processor4.mem, "mem_bench4.txt");
+	    createDump(processor4.rf,"rf_bench4.txt");
     }
 
     private static void createDump(int[] array, String filePath) throws IOException {

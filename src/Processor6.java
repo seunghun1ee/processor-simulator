@@ -594,7 +594,7 @@ public class Processor6 {
             if(fetchBlocked || decodeBlocked || issueBlocked || executeBlocked || euAllBusy) {
                 stalledCycle++;
             }
-            System.out.println("PC: "+ pc + " rf[32]: " + rf[32]);
+//            System.out.println("PC: "+ pc + " rf[32]: " + rf[32]);
         }
         finishedInsts.sort(Comparator.comparingInt((Instruction i) -> i.id));
         TraceEncoder traceEncoder = new TraceEncoder(finishedInsts);
