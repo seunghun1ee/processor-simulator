@@ -135,28 +135,29 @@ public class Main {
 
 
         System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
-        Processor6 processor = new Processor6(mem,instructions);
+        Processor7 processor = new Processor7(mem,instructions);
         processor.RunProcessor();
         createDump(processor.mem, "mem_bench1.txt");
         createDump(processor.rf,"rf_bench1.txt");
 
         System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
-        Processor6 processor2 = new Processor6(mem2,instructions2);
+        Processor7 processor2 = new Processor7(mem2,instructions2);
         processor2.RunProcessor();
         createDump(processor2.mem, "mem_bench2.txt");
         createDump(processor2.rf,"rf_bench2.txt");
 
         System.out.println("Benchmark3 - Factorial(" + num + ")");
-	    Processor6 processor3 = new Processor6(mem3,instructions3);
+	    Processor7 processor3 = new Processor7(mem3,instructions3);
 	    processor3.RunProcessor();
 	    createDump(processor3.mem, "mem_bench3.txt");
 	    createDump(processor3.rf,"rf_bench3.txt");
 
 	    System.out.println("Benchmark4 - many dependencies");
-	    Processor6 processor4 = new Processor6(mem4,instructions4);
+	    Processor7 processor4 = new Processor7(mem4,instructions4);
 	    processor4.RunProcessor();
 	    createDump(processor4.mem, "mem_bench4.txt");
 	    createDump(processor4.rf,"rf_bench4.txt");
+
     }
 
     private static void createDump(int[] array, String filePath) throws IOException {
