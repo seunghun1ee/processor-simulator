@@ -59,4 +59,12 @@ public class Instruction {
         this.writeBackComplete = ins.writeBackComplete;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Instruction that = (Instruction) o;
+        return id == that.id;
+    }
+
 }

@@ -17,14 +17,15 @@ public class Processor7 {
     int[] rf = new int[64]; //Register file (physical)
     int[] Qi = new int[rf.length]; // Tomasulo: number of rs that the operation result will be stored to the register
     // register 0 always have value zero ($zero, input is ignored)
+    RegisterStatus[] regStats = new RegisterStatus[rf.length];
     Instruction[] instructions; // instructions from user
     boolean finished = false;
     int QUEUE_SIZE = 4;
-    int RS_SIZE = 4;
+    int ISSUE_SIZE = 16;
     Queue<Instruction> fetchedQueue = new LinkedList<>();
     Queue<Instruction> decodedQueue = new LinkedList<>();
-    Queue<Instruction> reservationStations = new LinkedList<>(); // old
-    ReservationStation[] RS = new ReservationStation[RS_SIZE * 4]; // unified reservation station
+    ReservationStation[] RS = new ReservationStation[ISSUE_SIZE]; // unified reservation station
+    LinkedList<ReorderBuffer> ROB = new LinkedList<>();
     Queue<Instruction> executionResults = new LinkedList<>();
 
     int rs_aluReady = -1;
@@ -93,14 +94,17 @@ public class Processor7 {
 
     private void Issue() { // issuing decoded instruction to reservation stations
         int rsIndex = -1;
-        issueBlocked = true;
+        boolean rsBlocked = true;
         for(int i = 0; i < RS.length; i++) {
             if(!RS[i].busy) { // there is available rs
-                issueBlocked = false; // issue is not blocked
+                rsBlocked = false; // RS available
                 rsIndex = i; // get available rs index
                 break;
             }
         }
+        boolean robBlocked = ROB.size() >= ISSUE_SIZE;
+        issueBlocked = !rsBlocked && !robBlocked;
+
         if(!issueBlocked && !decodedQueue.isEmpty()) {
             Instruction issuing = decodedQueue.remove();
             switch (issuing.opcode) {
@@ -126,31 +130,36 @@ public class Processor7 {
                 case SHL:
                 case SHR:
                     RS[rsIndex].op = issuing.opcode;
-                    if(Qi[issuing.Rs1] != -1) { // Rs1 is dependent to instructions before
-                        RS[rsIndex].Q1 = Qi[issuing.Rs1]; // store dependency
+                    if(regStats[issuing.Rs1].busy) {
+                        Instruction dependent = regStats[issuing.Rs1].dependentIns;
+                        int robIndex = ROB.indexOf(dependent);
                     }
-                    else { // no Rs1 dependency
-                        RS[rsIndex].V1 = rf[issuing.Rs1];
-                        RS[rsIndex].Q1 = -1;
-                    }
-
-                    if(Qi[issuing.Rs2] != -1) { // Rs2 is dependent to instruction before
-                        RS[rsIndex].Q2 = Qi[issuing.Rs2]; // store dependency
-                    }
-                    else { // no Rs2 dependency
-                        RS[rsIndex].V2 = rf[issuing.Rs2];
-                        RS[rsIndex].Q2 = -1;
-                    }
-
-                    // no dependency setting to special purpose registers
-                    if(issuing.Rd != 0) {
-                        Qi[issuing.Rd] = rsIndex; // Set dependency to destination
-                    }
-                    RS[rsIndex].busy = true;
-                    RS[rsIndex].type = OpType.ALU;
-                    issuing.issueComplete = cycle; // save cycle number of issue stage
-                    issuing.rsIndex = rsIndex;
-                    RS[rsIndex].ins = issuing;
+//                    RS[rsIndex].op = issuing.opcode;
+//                    if(Qi[issuing.Rs1] != -1) { // Rs1 is dependent to instructions before
+//                        RS[rsIndex].Q1 = Qi[issuing.Rs1]; // store dependency
+//                    }
+//                    else { // no Rs1 dependency
+//                        RS[rsIndex].V1 = rf[issuing.Rs1];
+//                        RS[rsIndex].Q1 = -1;
+//                    }
+//
+//                    if(Qi[issuing.Rs2] != -1) { // Rs2 is dependent to instruction before
+//                        RS[rsIndex].Q2 = Qi[issuing.Rs2]; // store dependency
+//                    }
+//                    else { // no Rs2 dependency
+//                        RS[rsIndex].V2 = rf[issuing.Rs2];
+//                        RS[rsIndex].Q2 = -1;
+//                    }
+//
+//                    // no dependency setting to special purpose registers
+//                    if(issuing.Rd != 0) {
+//                        Qi[issuing.Rd] = rsIndex; // Set dependency to destination
+//                    }
+//                    RS[rsIndex].busy = true;
+//                    RS[rsIndex].type = OpType.ALU;
+//                    issuing.issueComplete = cycle; // save cycle number of issue stage
+//                    issuing.rsIndex = rsIndex;
+//                    RS[rsIndex].ins = issuing;
                     break;
                 case LD: // Load OP that uses rf[Rs1] and rf[Rs2]
                 case ST: // Store OP that uses rf[Rs1] and rf[Rs2]
@@ -494,18 +503,12 @@ public class Processor7 {
             lsu0.reset();
             executedInsts++;
         }
-        if(executeBlocked) { // stall: buffer is full
-            Instruction ins = reservationStations.peek();
-            if(ins != null) {
-                probes.add(new Probe(cycle,11,ins.id));
-            }
-        }
-        if(euAllBusy) { // stall: all EUs are busy
-            Instruction ins = reservationStations.peek();
-            if(ins != null) {
-                probes.add(new Probe(cycle,7,ins.id));
-            }
-        }
+//        if(executeBlocked) { // stall: buffer is full
+//
+//        }
+//        if(euAllBusy) { // stall: all EUs are busy
+//
+//        }
     }
 
     private void Memory() {
@@ -579,6 +582,9 @@ public class Processor7 {
         Arrays.fill(Qi,-1);
         for(int i=0; i < RS.length; i++) {
             RS[i] = new ReservationStation();
+        }
+        for(int i=0; i < regStats.length; i++) {
+            regStats[i] = new RegisterStatus();
         }
         int cycleLimit = 10000;
         while(!finished && pc < instructions.length && cycle < cycleLimit) {

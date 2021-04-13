@@ -9,4 +9,8 @@ public class ReorderBuffer {
     public ReorderBuffer() {
 
     }
+
+    public ReorderBuffer(int value) {
+        this.value = value;
+    }
 }
