@@ -1,5 +1,5 @@
 public class RegisterStatus {
-    Instruction dependentIns;
+    int robIndex = -1;
     boolean busy = false;
 
     public RegisterStatus() {

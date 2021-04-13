@@ -1,7 +1,7 @@
 public class CircularBuffer<T> {
 
     public int capacity;
-    private T[] buffer;
+    public T[] buffer;
     private int size = 0;
     private int head = 0;
     private int tail = 0;
@@ -25,12 +25,13 @@ public class CircularBuffer<T> {
         return size == 0;
     }
 
-    public boolean push(T element) {
+    public int push(T element) {
         // full
         if(size == capacity) {
-            return false;
+            return -1;
         }
-        buffer[tail] = element;
+        int index = tail;
+        buffer[index] = element;
         // when tail reach the end
         if(tail == capacity - 1) {
             tail = 0;
@@ -39,15 +40,11 @@ public class CircularBuffer<T> {
             tail++;
         }
         size++;
-        return true;
+        return index;
     }
 
     public T peak() {
         return buffer[head];
-    }
-
-    public T peak(int index) {
-        return buffer[index];
     }
 
     public T pop() {
