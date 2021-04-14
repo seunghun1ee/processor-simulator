@@ -15,7 +15,6 @@ public class Processor7 {
     int insIdCount = 1; // for assigning id to instructions
     int[] mem; // memory from user
     int[] rf = new int[64]; //Register file (physical)
-    int[] Qi = new int[rf.length]; // Tomasulo: number of rs that the operation result will be stored to the register
     // register 0 always have value zero ($zero, input is ignored)
     RegisterStatus[] regStats = new RegisterStatus[rf.length];
     Instruction[] instructions; // instructions from user
@@ -25,7 +24,7 @@ public class Processor7 {
     Queue<Instruction> fetchedQueue = new LinkedList<>();
     Queue<Instruction> decodedQueue = new LinkedList<>();
     ReservationStation[] RS = new ReservationStation[ISSUE_SIZE]; // unified reservation station
-    CircularBuffer<ReorderBuffer> ROB = new CircularBuffer<>(ISSUE_SIZE); // Reorder buffer
+    CircularBufferROB ROB = new CircularBufferROB(ISSUE_SIZE); // Reorder buffer
     Queue<Instruction> executionResults = new LinkedList<>();
 
     int rs_aluReady = -1;
@@ -309,12 +308,7 @@ public class Processor7 {
                     && RS[i].Q2 == -1
             ) {
                 int j = RS[i].destination; // j is ROB index of the ins
-                if(RS[i].addressReady) { // stage 1 done
-                    if(checkRobForLoadStage2(j,ROB.buffer[j].address)) {
-                        return i;
-                    }
-                }
-                else if(checkRobForLoadStage1(j)) {
+                if(checkRobForLoadStage1(j)) {
                     return i;
                 }
             }
@@ -333,23 +327,6 @@ public class Processor7 {
                 j--;
             }
             if(ROB.buffer[j].ins.opType.equals(OpType.STORE)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean checkRobForLoadStage2(int currentRobIndex, int address) {
-        int j = currentRobIndex;
-        while (j != ROB.head) {
-            System.out.println("load2 while loop " + j);
-            if(j == 0) {
-                j = ROB.capacity -1;
-            }
-            else {
-                j--;
-            }
-            if(ROB.buffer[j].ins.opType.equals(OpType.STORE) && ROB.buffer[j].address == address) {
                 return false;
             }
         }
@@ -394,6 +371,8 @@ public class Processor7 {
         executeBlocked = executionResults.size() >= QUEUE_SIZE;
         euAllBusy = (alu0.busy && alu1.busy && lsu0.busy);
         boolean branchTaken = false;
+        boolean loadAddressReady = false;
+        boolean storeAddressReady = false;
         if(!executeBlocked && !euAllBusy) {
             Instruction executing;
             if(rs_bruReady > -1) {
@@ -412,7 +391,8 @@ public class Processor7 {
                     for(int i = 0; i < RS.length; i++) {
                         // if the instruction is issued later than the branch execution
                         if(!RS[i].executing && RS[i].ins.id > executing.id) {
-                            Qi[RS[i].ins.Rd] = -1;
+                            regStats[RS[i].ins.Rd].busy = false;
+                            regStats[RS[i].ins.Rd].robIndex = -1;
                             RS[i] = new ReservationStation();
                             // if flushed one was dispatched one, flush dispatch
                             if(rs_aluReady == i) {
@@ -452,17 +432,36 @@ public class Processor7 {
                     RS[executing.rsIndex].executing = true;
                 }
             }
-            if(rs_lsuReady > -1 && !branchTaken) {
-                ReservationStation rs_execute = RS[rs_lsuReady];
-                rs_execute.ins.data1 = rs_execute.V1;
-                rs_execute.ins.data2 = rs_execute.V2;
-                executing = rs_execute.ins;
-                executing.executeComplete = cycle;
-                if(!lsu0.busy) {
-                    lsu0.update(executing.opcode, executing.data1, executing.data2);
-                    lsu0.executing = executing;
-                    RS[executing.rsIndex].executing = true;
-                }
+//            if(rs_lsuReady > -1 && !branchTaken) {
+//                ReservationStation rs_execute = RS[rs_lsuReady];
+//                rs_execute.ins.data1 = rs_execute.V1;
+//                rs_execute.ins.data2 = rs_execute.V2;
+//                executing = rs_execute.ins;
+//                executing.executeComplete = cycle;
+//                if(!lsu0.busy) {
+//                    lsu0.update(executing.opcode, executing.data1, executing.data2);
+//                    lsu0.executing = executing;
+//                    RS[executing.rsIndex].executing = true;
+//                }
+//            }
+            // load stage 1
+            if(rs_loadReady > -1 && !RS[rs_loadReady].addressReady && !branchTaken) {
+                RS[rs_loadReady].executing = true;
+                RS[rs_loadReady].ins.executeComplete = cycle;
+                int memAddress = agu.evaluate(Opcode.ADD,RS[rs_loadReady].V1,RS[rs_loadReady].A);
+                RS[rs_loadReady].A = memAddress;
+                RS[rs_loadReady].ins.memAddress = memAddress;
+                RS[rs_loadReady].addressReady = true;
+                loadAddressReady = true;
+            }
+            if(rs_storeReady > -1 && !branchTaken) {
+                int robIndex = RS[rs_storeReady].destination;
+                RS[rs_storeReady].executing = true;
+                RS[rs_storeReady].ins.executeComplete = cycle;
+                int memAddress = agu.evaluate(Opcode.ADD,RS[rs_storeReady].V1,RS[rs_storeReady].A);
+                RS[rs_storeReady].ins.memAddress = memAddress;
+                ROB.buffer[robIndex].address = memAddress;
+                storeAddressReady = true;
             }
             if(rs_otherReady > -1 && !branchTaken) {
                 ReservationStation rs_execute = RS[rs_otherReady];
@@ -493,7 +492,7 @@ public class Processor7 {
         // ALUs and LSU works at here
         Instruction alu0_result = alu0.execute();
         Instruction alu1_result = alu1.execute();
-        Instruction lsu0_result = lsu0.execute();
+//        Instruction lsu0_result = lsu0.execute();
         if(alu0_result != null && alu0_result.result != null) {
             executionResults.add(alu0_result);
             resultForwarding2(alu0_result);
@@ -506,12 +505,20 @@ public class Processor7 {
             alu1.reset();
             executedInsts++;
         }
-        if(lsu0_result != null && lsu0_result.memAddress != null) {
-            executionResults.add(lsu0_result);
-            RS[lsu0_result.rsIndex].A = lsu0_result.memAddress;
-            lsu0.reset();
+        if(loadAddressReady) {
+            executionResults.add(RS[rs_loadReady].ins);
             executedInsts++;
         }
+        if(storeAddressReady) {
+            executionResults.add(RS[rs_storeReady].ins);
+            executedInsts++;
+        }
+//        if(lsu0_result != null && lsu0_result.memAddress != null) {
+//            executionResults.add(lsu0_result);
+//            RS[lsu0_result.rsIndex].A = lsu0_result.memAddress;
+//            lsu0.reset();
+//            executedInsts++;
+//        }
 //        if(executeBlocked) { // stall: buffer is full
 //
 //        }
@@ -523,49 +530,83 @@ public class Processor7 {
     private void Memory() {
         if(!executionResults.isEmpty()) {
             Instruction executed = executionResults.remove();
-            if(executed.memAddress != null) {
-                switch (executed.opcode) {
-                    case LD:
-                    case LDI:
-                        executed.result = mem[executed.memAddress];
-                        resultForwarding2(executed);
-                        break;
-                    case ST:
-                    case STI:
-                        mem[executed.memAddress] = RS[executed.rsIndex].Vs;
-                        break;
-                }
-                executed.memoryComplete = cycle; // save cycle number of memory stage
-                beforeWriteBack = executed;
+            switch (executed.opcode) {
+                case LD:
+                case LDI:
+                    executed.result = mem[executed.memAddress];
+                    resultForwarding2(executed);
+                    break;
+                default: // non memory instructions, only do result forwarding
+                    resultForwarding2(executed);
+                    break;
             }
-            else if(executed.result != null) { // non-memory instructions, skip the mem process
-                executed.memoryComplete = cycle; // save cycle number of memory stage
-                beforeWriteBack = executed;
-                resultForwarding2(executed);
-            }
-            else {
-                System.out.println("Invalid executed result");
-                finished = true;
-            }
+            executed.memoryComplete = cycle; // save cycle number of memory stage
+            beforeWriteBack = executed;
+//            if(executed.memAddress != null) {
+//                switch (executed.opcode) {
+//                    case LD:
+//                    case LDI:
+//                        executed.result = mem[executed.memAddress];
+//                        resultForwarding2(executed);
+//                        break;
+//                    case ST:
+//                    case STI:
+//                        int rsIndex = executed.rsIndex;
+//                        ROB.buffer[ROB.head].value = RS[rsIndex].Vs;
+////                        mem[executed.memAddress] = RS[executed.rsIndex].Vs;
+//                        break;
+//                }
+//                executed.memoryComplete = cycle; // save cycle number of memory stage
+//                beforeWriteBack = executed;
+//            }
+//            else if(executed.result != null) { // non-memory instructions, skip the mem process
+//                executed.memoryComplete = cycle; // save cycle number of memory stage
+//                beforeWriteBack = executed;
+//                resultForwarding2(executed);
+//            }
+//            else {
+//                System.out.println("Invalid executed result");
+//                finished = true;
+//            }
         }
     }
 
     private void WriteBack() {
         if(beforeWriteBack != null) {
             Instruction writeBack = beforeWriteBack;
-            if(writeBack.Rd != 0 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STI) {
-                resultForwarding2(writeBack);
-                // if the latest destination dependency is this one
-                if(Qi[writeBack.Rd] == writeBack.rsIndex) {
-                    Qi[writeBack.Rd] = -1;
+            writeBack.writeBackComplete = cycle;
+            if(writeBack.Rd != 0) {
+                int rsIndex = writeBack.rsIndex;
+                if(writeBack.opType.equals(OpType.STORE)) { // store instructions
+                    ROB.buffer[ROB.head].value = RS[rsIndex].Vs;
                 }
-                rf[writeBack.Rd] = writeBack.result;
+                else {
+                    int robIndex = RS[rsIndex].destination;
+                    RS[rsIndex] = new ReservationStation(); // clear RS entry
+                    resultForwarding2(writeBack);
+                    ROB.buffer[robIndex].value = writeBack.result;
+                    ROB.buffer[robIndex].ready = true;
+                }
             }
-            RS[writeBack.rsIndex] = new ReservationStation();
-            writeBack.writeBackComplete = cycle; // save cycle number of write back stage
             finishedInsts.add(writeBack);
+            beforeWriteBack = null;
+//            Instruction writeBack = beforeWriteBack;
+//            if(writeBack.Rd != 0 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STI) {
+//                resultForwarding2(writeBack);
+//                // if the latest destination dependency is this one
+//                if(Qi[writeBack.Rd] == writeBack.rsIndex) {
+//                    Qi[writeBack.Rd] = -1;
+//                }
+//                rf[writeBack.Rd] = writeBack.result;
+//            }
+//            RS[writeBack.rsIndex] = new ReservationStation();
+//            writeBack.writeBackComplete = cycle; // save cycle number of write back stage
+//            finishedInsts.add(writeBack);
         }
-        beforeWriteBack = null;
+    }
+
+    private void Commit() {
+
     }
 
     private void resultForwarding2(Instruction ins) {
@@ -588,7 +629,6 @@ public class Processor7 {
     }
 
     public void RunProcessor() {
-        Arrays.fill(Qi,-1);
         for(int i=0; i < RS.length; i++) {
             RS[i] = new ReservationStation();
         }
@@ -597,6 +637,7 @@ public class Processor7 {
         }
         int cycleLimit = 10000;
         while(!finished && pc < instructions.length && cycle < cycleLimit) {
+            Commit();
             WriteBack();
             Memory();
             Execute();
@@ -626,7 +667,7 @@ public class Processor7 {
         if(cycle >= cycleLimit) {
             System.out.println("Time out");
         }
-        System.out.println("Scalar Out of Order 7-stage pipeline processor Terminated");
+        System.out.println("Scalar Out of Order 8-stage pipeline processor Terminated");
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");
         System.out.println(stalledCycle + " stalled cycles");
