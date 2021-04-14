@@ -47,6 +47,7 @@ public class Processor7 {
     // Execution units
     ALU alu0 = new ALU();
     ALU alu1 = new ALU();
+    ALU agu = new ALU();
     LSU lsu0 = new LSU();
     BRU bru0 = new BRU();
 
@@ -104,9 +105,11 @@ public class Processor7 {
                     break;
                 case LD:
                 case LDI:
+                    decoded.opType = OpType.LOAD;
+                    break;
                 case ST:
                 case STI:
-                    decoded.opType = OpType.LSU;
+                    decoded.opType = OpType.STORE;
                     break;
                 case BR:
                 case JMP:
@@ -142,407 +145,122 @@ public class Processor7 {
                 break;
             }
         }
-        boolean robBlocked = ROB.size() >= ISSUE_SIZE;
+        boolean robBlocked = ROB.size() >= ROB.capacity; // ROB full
         issueBlocked = !rsBlocked && !robBlocked;
-
         if(!issueBlocked && !decodedQueue.isEmpty()) {
             Instruction issuing = decodedQueue.remove();
             ReorderBuffer allocatedROB = new ReorderBuffer();
             int robIndex;
-            switch (issuing.opcode) {
-                case NOOP:
-                case HALT:
-                    issuing.issueComplete = cycle; // save cycle number of issue stage
-                    issuing.rsIndex = rsIndex;
-                    RS[rsIndex].op = issuing.opcode;
+            // for all ins
+            issuing.issueComplete = cycle;
+            issuing.rsIndex = rsIndex;
+            if(issuing.Rs1 != 0 && regStats[issuing.Rs1].busy) { // there is in-flight ins that writes Rs1
+                int Rs1robIndex = regStats[issuing.Rs1].robIndex;
+                if(ROB.buffer[Rs1robIndex].ready) { // dependent instruction is completed and ready
+                    //dependency resolved from ROB
+                    RS[rsIndex].V1 = ROB.buffer[Rs1robIndex].value;
                     RS[rsIndex].Q1 = -1;
+                }
+                else {
+                    // wait for result from ROB
+                    RS[rsIndex].Q1 = Rs1robIndex;
+                }
+            }
+            else { // no Rs1 dependency
+                RS[rsIndex].V1 = rf[issuing.Rs1]; // 0 if Rs1 = 0
+                RS[rsIndex].Q1 = -1;
+            }
+            if(issuing.Rs2 != 0 && regStats[issuing.Rs2].busy) { // there is in-flight ins that writes Rs2
+                int Rs2robIndex = regStats[issuing.Rs2].robIndex;
+                if(ROB.buffer[Rs2robIndex].ready) { // dependent instruction is completed and ready
+                    //dependency resolved from ROB
+                    RS[rsIndex].V2 = ROB.buffer[Rs2robIndex].value;
                     RS[rsIndex].Q2 = -1;
-                    RS[rsIndex].Qs = -1;
-                    RS[rsIndex].ins = issuing;
+                }
+                else {
+                    // wait for result from ROB
+                    RS[rsIndex].Q2 = Rs2robIndex;
+                }
+            }
+            else { // no Rs2 dependency
+                RS[rsIndex].V2 = rf[issuing.Rs2]; // 0 if Rs2 = 0
+                RS[rsIndex].Q2 = -1;
+            }
+            // set Reorder Buffer
+            allocatedROB.ins = issuing;
+            allocatedROB.destination = issuing.Rd;
+            allocatedROB.ready = false;
+            robIndex = ROB.push(allocatedROB);
+            // set Reservation Station
+            RS[rsIndex].op = issuing.opcode;
+            RS[rsIndex].ins = issuing;
+            RS[rsIndex].busy = true;
+            RS[rsIndex].destination = robIndex;
 
-                    // set new entry for ROB
-                    allocatedROB.ready = false;
-                    allocatedROB.ins = issuing;
-                    allocatedROB.destination = issuing.Rd;
-                    robIndex = ROB.push(allocatedROB); // push to ROB
-                    // set new entry for RS
-                    RS[rsIndex].busy = true;
-                    RS[rsIndex].destination = robIndex;
-                    RS[rsIndex].ins = issuing;
-                    RS[rsIndex].type = OpType.OTHER;
-                    // set register status
-                    if(issuing.Rd != 0) { // no dependency setting to special purpose registers
-                        regStats[issuing.Rd].busy = true;
-                        regStats[issuing.Rd].robIndex = robIndex;
+            switch (issuing.opType) {
+                case ALU:
+                    // for ins that only use Const
+                    if(RS[rsIndex].Q1 == -1 && issuing.opcode.equals(Opcode.MOVC)) {
+                        RS[rsIndex].V1 += issuing.Const;
                     }
-                    break;
-                case ADD: // ALU OPs that use rf[Rs1] and rf[Rs2]
-                case SUB:
-                case MUL:
-                case DIV:
-                case CMP:
-                case AND:
-                case OR:
-                case SHL:
-                case SHR:
-                    issuing.issueComplete = cycle;
-                    issuing.rsIndex = rsIndex;
-                    RS[rsIndex].op = issuing.opcode;
-                    if(regStats[issuing.Rs1].busy) { // there is in-flight ins that writes Rs1
-                        int Rs1robIndex = regStats[issuing.Rs1].robIndex;
-                        if(ROB.buffer[Rs1robIndex].ready) { // dependent instruction is completed and ready
-                            //dependency resolved from ROB
-                            RS[rsIndex].V1 = ROB.buffer[Rs1robIndex].value;
-                            RS[rsIndex].Q1 = -1;
-                        }
-                        else {
-                            // wait for result from ROB
-                            RS[rsIndex].Q1 = Rs1robIndex;
-                        }
-                    }
-                    else { // no Rs1 dependency
-                        RS[rsIndex].V1 = rf[issuing.Rs1];
-                        RS[rsIndex].Q1 = -1;
-                    }
-                    if(regStats[issuing.Rs2].busy) { // there is in-flight ins that writes Rs2
-                        int Rs2robIndex = regStats[issuing.Rs2].robIndex;
-                        if(ROB.buffer[Rs2robIndex].ready) { // dependent instruction is completed and ready
-                            //dependency resolved from ROB
-                            RS[rsIndex].V2 = ROB.buffer[Rs2robIndex].value;
-                            RS[rsIndex].Q2 = -1;
-                        }
-                        else {
-                            // wait for result from ROB
-                            RS[rsIndex].Q2 = Rs2robIndex;
-                        }
-                    }
-                    else { // no Rs2 dependency
-                        RS[rsIndex].V2 = rf[issuing.Rs2];
-                        RS[rsIndex].Q2 = -1;
-                    }
-                    // set new entry for ROB
-                    allocatedROB.ready = false;
-                    allocatedROB.ins = issuing;
-                    allocatedROB.destination = issuing.Rd;
-                    robIndex = ROB.push(allocatedROB); // push to ROB
-                    // set new entry for RS
-                    RS[rsIndex].busy = true;
-                    RS[rsIndex].destination = robIndex;
-                    RS[rsIndex].ins = issuing;
-                    RS[rsIndex].type = OpType.ALU;
-                    // set register status
-                    if(issuing.Rd != 0) { // no dependency setting to special purpose registers
-                        regStats[issuing.Rd].busy = true;
-                        regStats[issuing.Rd].robIndex = robIndex;
-                    }
-                    break;
-                case LD: // Load OP that uses rf[Rs1] and rf[Rs2]
-                case ST: // Store OP that uses rf[Rs1] and rf[Rs2]
-                    issuing.issueComplete = cycle;
-                    issuing.rsIndex = rsIndex;
-                    RS[rsIndex].op = issuing.opcode;
-                    if(regStats[issuing.Rs1].busy) { // there is in-flight ins that writes Rs1
-                        int Rs1robIndex = regStats[issuing.Rs1].robIndex;
-                        if(ROB.buffer[Rs1robIndex].ready) { // dependent instruction is completed and ready
-                            //dependency resolved from ROB
-                            RS[rsIndex].V1 = ROB.buffer[Rs1robIndex].value;
-                            RS[rsIndex].Q1 = -1;
-                        }
-                        else {
-                            // wait for result from ROB
-                            RS[rsIndex].Q1 = Rs1robIndex;
-                        }
-                    }
-                    else { // no Rs1 dependency
-                        RS[rsIndex].V1 = rf[issuing.Rs1];
-                        RS[rsIndex].Q1 = -1;
-                    }
-                    if(regStats[issuing.Rs2].busy) { // there is in-flight ins that writes Rs2
-                        int Rs2robIndex = regStats[issuing.Rs2].robIndex;
-                        if(ROB.buffer[Rs2robIndex].ready) { // dependent instruction is completed and ready
-                            //dependency resolved from ROB
-                            RS[rsIndex].V2 = ROB.buffer[Rs2robIndex].value;
-                            RS[rsIndex].Q2 = -1;
-                        }
-                        else {
-                            // wait for result from ROB
-                            RS[rsIndex].Q2 = Rs2robIndex;
-                        }
-                    }
-                    else { // no Rs2 dependency
-                        RS[rsIndex].V2 = rf[issuing.Rs2];
-                        RS[rsIndex].Q2 = -1;
-                    }
-                    if(issuing.opcode.equals(Opcode.ST)) { // if store
-                        if(regStats[issuing.Rd].busy) { // there is in-flight ins that writes Rs2
-                            int storeRobIndex = regStats[issuing.Rd].robIndex;
-                            if(ROB.buffer[storeRobIndex].ready) { // dependent instruction is completed and ready
-                                //dependency resolved from ROB
-                                RS[rsIndex].Vs = ROB.buffer[storeRobIndex].value;
-                                RS[rsIndex].Qs = -1;
-                            }
-                            else {
-                                // wait for result from ROB
-                                RS[rsIndex].Qs = storeRobIndex;
-                            }
-                        }
-                    }
-                    // set new entry for ROB
-                    allocatedROB.ready = false;
-                    allocatedROB.ins = issuing;
-                    allocatedROB.destination = issuing.Rd;
-                    robIndex = ROB.push(allocatedROB); // push to ROB
-                    // set new entry for RS
-                    RS[rsIndex].busy = true;
-                    RS[rsIndex].destination = robIndex;
-                    RS[rsIndex].ins = issuing;
-                    RS[rsIndex].type = OpType.LSU;
-                    // set register status
-                    if(issuing.Rd != 0) { // no dependency setting to special purpose registers
-                        regStats[issuing.Rd].busy = true;
-                        regStats[issuing.Rd].robIndex = robIndex;
-                    }
-                    break;
-                case ADDI: // ALU OPs that use rf[Rs1] and Const
-                case MULI:
-                case DIVI:
-                    issuing.issueComplete = cycle;
-                    issuing.rsIndex = rsIndex;
-                    RS[rsIndex].op = issuing.opcode;
-                    if(regStats[issuing.Rs1].busy) { // there is in-flight ins that writes Rs1
-                        int Rs1robIndex = regStats[issuing.Rs1].robIndex;
-                        if(ROB.buffer[Rs1robIndex].ready) { // dependent instruction is completed and ready
-                            //dependency resolved from ROB
-                            RS[rsIndex].V1 = ROB.buffer[Rs1robIndex].value;
-                            RS[rsIndex].Q1 = -1;
-                        }
-                        else {
-                            // wait for result from ROB
-                            RS[rsIndex].Q1 = Rs1robIndex;
-                        }
-                    }
-                    else { // no Rs1 dependency
-                        RS[rsIndex].V1 = rf[issuing.Rs1];
-                        RS[rsIndex].Q1 = -1;
-                    }
-                    // Const
-                    RS[rsIndex].V2 = issuing.Const;
-                    RS[rsIndex].Q2 = -1;
+                    // when second operand is ready
+                    else if(RS[rsIndex].Q2 == -1) {
 
-                    // set new entry for ROB
-                    allocatedROB.ready = false;
-                    allocatedROB.ins = issuing;
-                    allocatedROB.destination = issuing.Rd;
-                    robIndex = ROB.push(allocatedROB); // push to ROB
-                    // set new entry for RS
-                    RS[rsIndex].busy = true;
-                    RS[rsIndex].destination = robIndex;
-                    RS[rsIndex].ins = issuing;
-                    RS[rsIndex].type = OpType.ALU;
-                    // set register status
-                    if(issuing.Rd != 0) { // no dependency setting to special purpose registers
-                        regStats[issuing.Rd].busy = true;
+                        RS[rsIndex].V2 += issuing.Const; // for imm instructions
+                    }
+                    // set regStats
+                    if(issuing.Rd != 0) {
                         regStats[issuing.Rd].robIndex = robIndex;
+                        regStats[issuing.Rd].busy = true;
                     }
                     break;
-                case LDI: // Load OP that uses rf[Rs1] and Const
-                case STI: // Store OP that uses rf[Rs1] and Const
-                    issuing.issueComplete = cycle;
-                    issuing.rsIndex = rsIndex;
-                    RS[rsIndex].op = issuing.opcode;
-                    if(regStats[issuing.Rs1].busy) { // there is in-flight ins that writes Rs1
-                        int Rs1robIndex = regStats[issuing.Rs1].robIndex;
-                        if(ROB.buffer[Rs1robIndex].ready) { // dependent instruction is completed and ready
+                case LOAD:
+                    RS[rsIndex].A = issuing.Const; // for LDI
+                    // set regStats
+                    if(issuing.Rd != 0) {
+                        regStats[issuing.Rd].robIndex = robIndex;
+                        regStats[issuing.Rd].busy = true;
+                    }
+                    break;
+                case STORE:
+                    if(issuing.Rd != 0 && regStats[issuing.Rd].busy) { // there is in-flight ins that writes at Rd
+                        int storeRobIndex = regStats[issuing.Rd].robIndex;
+                        if(ROB.buffer[storeRobIndex].ready) { // dependent instruction is completed and ready
                             //dependency resolved from ROB
-                            RS[rsIndex].V1 = ROB.buffer[Rs1robIndex].value;
-                            RS[rsIndex].Q1 = -1;
+                            RS[rsIndex].Vs = ROB.buffer[storeRobIndex].value;
+                            RS[rsIndex].Qs = -1;
                         }
                         else {
                             // wait for result from ROB
-                            RS[rsIndex].Q1 = Rs1robIndex;
+                            RS[rsIndex].Qs = storeRobIndex;
                         }
                     }
-                    else { // no Rs1 dependency
-                        RS[rsIndex].V1 = rf[issuing.Rs1];
-                        RS[rsIndex].Q1 = -1;
+                    else { // no Rd dependency
+                        RS[rsIndex].Vs = rf[issuing.Rd]; // 0 if Rd = 0
+                        RS[rsIndex].Qs = -1;
                     }
-                    // Const
-                    RS[rsIndex].V2 = issuing.Const;
-                    RS[rsIndex].Q2 = -1;
-                    if(issuing.opcode.equals(Opcode.STI)) { // if store
-                        if(regStats[issuing.Rd].busy) { // there is in-flight ins that writes Rs2
-                            int storeRobIndex = regStats[issuing.Rd].robIndex;
-                            if(ROB.buffer[storeRobIndex].ready) { // dependent instruction is completed and ready
-                                //dependency resolved from ROB
-                                RS[rsIndex].Vs = ROB.buffer[storeRobIndex].value;
-                                RS[rsIndex].Qs = -1;
-                            }
-                            else {
-                                // wait for result from ROB
-                                RS[rsIndex].Qs = storeRobIndex;
-                            }
-                        }
-                    }
-                    // set new entry for ROB
-                    allocatedROB.ready = false;
-                    allocatedROB.ins = issuing;
-                    allocatedROB.destination = issuing.Rd;
-                    robIndex = ROB.push(allocatedROB); // push to ROB
-                    // set new entry for RS
-                    RS[rsIndex].busy = true;
-                    RS[rsIndex].destination = robIndex;
-                    RS[rsIndex].ins = issuing;
-                    RS[rsIndex].type = OpType.LSU;
-                    // set register status
-                    if(issuing.Rd != 0) { // no dependency setting to special purpose registers
-                        regStats[issuing.Rd].busy = true;
-                        regStats[issuing.Rd].robIndex = robIndex;
-                    }
+                    RS[rsIndex].A = issuing.Const; // for STI
+                    // no regStats set for stores
                     break;
-                case BR: // Unconditional branch that uses rf[Rs1] and Const
-                case BRZ: // Conditional branches that use rf[Rs1] and Const
-                case BRN:
-                    issuing.issueComplete = cycle;
-                    issuing.rsIndex = rsIndex;
-                    RS[rsIndex].op = issuing.opcode;
-                    if(regStats[issuing.Rs1].busy) { // there is in-flight ins that writes Rs1
-                        int Rs1robIndex = regStats[issuing.Rs1].robIndex;
-                        if(ROB.buffer[Rs1robIndex].ready) { // dependent instruction is completed and ready
-                            //dependency resolved from ROB
-                            RS[rsIndex].V1 = ROB.buffer[Rs1robIndex].value;
-                            RS[rsIndex].Q1 = -1;
-                        }
-                        else {
-                            // wait for result from ROB
-                            RS[rsIndex].Q1 = Rs1robIndex;
-                        }
+                case BRU:
+                    // for ins that only use Const
+                    if(RS[rsIndex].Q1 == -1 && issuing.opcode.equals(Opcode.JMP)) {
+                        RS[rsIndex].V1 += issuing.Const;
                     }
-                    else { // no Rs1 dependency
-                        RS[rsIndex].V1 = rf[issuing.Rs1];
-                        RS[rsIndex].Q1 = -1;
+                    // when second operand is ready
+                    else if(RS[rsIndex].Q2 == -1) {
+                        RS[rsIndex].V2 += issuing.Const; // for imm instructions
                     }
-                    // Const
-                    RS[rsIndex].V2 = issuing.Const;
-                    RS[rsIndex].Q2 = -1;
-
-                    // set new entry for ROB
-                    allocatedROB.ready = false;
-                    allocatedROB.ins = issuing;
-                    allocatedROB.destination = issuing.Rd;
-                    robIndex = ROB.push(allocatedROB); // push to ROB
-                    // set new entry for RS
-                    RS[rsIndex].busy = true;
-                    RS[rsIndex].destination = robIndex;
-                    RS[rsIndex].ins = issuing;
-                    RS[rsIndex].type = OpType.BRU;
-                    // set register status
-                    if(issuing.Rd != 0) { // no dependency setting to special purpose registers
-                        regStats[issuing.Rd].busy = true;
-                        regStats[issuing.Rd].robIndex = robIndex;
-                    }
+                    // no regStats set for branch operations
                     break;
-                case NOT: // ALU OPs that only use rf[Rs1]
-                case MOV:
-                    issuing.issueComplete = cycle;
-                    issuing.rsIndex = rsIndex;
-                    RS[rsIndex].op = issuing.opcode;
-                    if(regStats[issuing.Rs1].busy) { // there is in-flight ins that writes Rs1
-                        int Rs1robIndex = regStats[issuing.Rs1].robIndex;
-                        if(ROB.buffer[Rs1robIndex].ready) { // dependent instruction is completed and ready
-                            //dependency resolved from ROB
-                            RS[rsIndex].V1 = ROB.buffer[Rs1robIndex].value;
-                            RS[rsIndex].Q1 = -1;
-                        }
-                        else {
-                            // wait for result from ROB
-                            RS[rsIndex].Q1 = Rs1robIndex;
-                        }
-                    }
-                    else { // no Rs1 dependency
-                        RS[rsIndex].V1 = rf[issuing.Rs1];
-                        RS[rsIndex].Q1 = -1;
-                    }
-                    // No second operand
-                    RS[rsIndex].V2 = 0;
-                    RS[rsIndex].Q2 = -1;
-
-                    // set new entry for ROB
-                    allocatedROB.ready = false;
-                    allocatedROB.ins = issuing;
-                    allocatedROB.destination = issuing.Rd;
-                    robIndex = ROB.push(allocatedROB); // push to ROB
-                    // set new entry for RS
-                    RS[rsIndex].busy = true;
-                    RS[rsIndex].destination = robIndex;
-                    RS[rsIndex].ins = issuing;
-                    RS[rsIndex].type = OpType.ALU;
-                    // set register status
-                    if(issuing.Rd != 0) { // no dependency setting to special purpose registers
-                        regStats[issuing.Rd].busy = true;
-                        regStats[issuing.Rd].robIndex = robIndex;
-                    }
-                    break;
-                case MOVC: // ALU OPs that only use Const
-                    issuing.issueComplete = cycle;
-                    issuing.rsIndex = rsIndex;
-                    RS[rsIndex].op = issuing.opcode;
-                    // Const
-                    RS[rsIndex].V1 = issuing.Const;
-                    RS[rsIndex].Q1 = -1;
-                    // No second operand
-                    RS[rsIndex].V2 = 0;
-                    RS[rsIndex].Q2 = -1;
-
-                    // set new entry for ROB
-                    allocatedROB.ready = false;
-                    allocatedROB.ins = issuing;
-                    allocatedROB.destination = issuing.Rd;
-                    robIndex = ROB.push(allocatedROB); // push to ROB
-                    // set new entry for RS
-                    RS[rsIndex].busy = true;
-                    RS[rsIndex].destination = robIndex;
-                    RS[rsIndex].ins = issuing;
-                    RS[rsIndex].type = OpType.ALU;
-                    // set register status
-                    if(issuing.Rd != 0) { // no dependency setting to special purpose registers
-                        regStats[issuing.Rd].busy = true;
-                        regStats[issuing.Rd].robIndex = robIndex;
-                    }
-                    break;
-                case JMP: // Unconditional branches that only use Const
-                    issuing.issueComplete = cycle;
-                    issuing.rsIndex = rsIndex;
-                    RS[rsIndex].op = issuing.opcode;
-                    // Const
-                    RS[rsIndex].V1 = issuing.Const;
-                    RS[rsIndex].Q1 = -1;
-                    // No second operand
-                    RS[rsIndex].V2 = 0;
-                    RS[rsIndex].Q2 = -1;
-
-                    // set new entry for ROB
-                    allocatedROB.ready = false;
-                    allocatedROB.ins = issuing;
-                    allocatedROB.destination = issuing.Rd;
-                    robIndex = ROB.push(allocatedROB); // push to ROB
-                    // set new entry for RS
-                    RS[rsIndex].busy = true;
-                    RS[rsIndex].destination = robIndex;
-                    RS[rsIndex].ins = issuing;
-                    RS[rsIndex].type = OpType.BRU;
-                    // set register status
-                    if(issuing.Rd != 0) { // no dependency setting to special purpose registers
-                        regStats[issuing.Rd].busy = true;
-                        regStats[issuing.Rd].robIndex = robIndex;
-                    }
+                case OTHER:
                     break;
                 default:
-                    System.out.println("Invalid instruction");
+                    System.out.println("invalid instruction detected at issue stage");
                     finished = true;
                     break;
             }
         }
-
         if(issueBlocked && !decodedQueue.isEmpty()) {
             probes.add(new Probe(cycle,7,decodedQueue.peek().id));
         }
