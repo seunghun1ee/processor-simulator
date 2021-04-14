@@ -1,9 +1,11 @@
 public class Instruction {
+    int id = 0;
     Opcode opcode = Opcode.NOOP;
     Integer Rd = 0; //Destination register
     Integer Rs1 = 0; //Source register 1
     Integer Rs2 = 0; //Source register 2
     Integer Const = 0; //Constant for immediate operations
+    OpType opType;
 
     int rsIndex = -1;
     // data from source registers
@@ -15,7 +17,6 @@ public class Instruction {
     Integer memAddress = null; // if this instruction is memory related
 
     // info for debugging
-    int id = 0;
     int insAddress = 0;
     int fetchComplete = 0;
     int decodeComplete = 0;
@@ -38,17 +39,18 @@ public class Instruction {
     }
 
     public Instruction(Instruction ins) {
+        this.id = ins.id;
         this.opcode = ins.opcode;
         this.Rd = ins.Rd;
         this.Rs1 = ins.Rs1;
         this.Rs2 = ins.Rs2;
         this.Const = ins.Const;
+        this.opType = ins.opType;
         this.rsIndex = ins.rsIndex;
         this.data1 = ins.data1;
         this.data2 = ins.data2;
         this.result = ins.result;
         this.memAddress = ins.memAddress;
-        this.id = ins.id;
         this.insAddress = ins.insAddress;
         this.fetchComplete = ins.fetchComplete;
         this.decodeComplete = ins.decodeComplete;

@@ -3,8 +3,8 @@ public class CircularBuffer<T> {
     public int capacity;
     public T[] buffer;
     private int size = 0;
-    private int head = 0;
-    private int tail = 0;
+    public int head = 0;
+    public int tail = 0;
 
     public CircularBuffer(int capacity) {
         this.capacity = capacity;

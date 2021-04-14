@@ -80,6 +80,46 @@ public class Processor7 {
         decodeBlocked = decodedQueue.size() >= QUEUE_SIZE;
         if(!decodeBlocked && !fetchedQueue.isEmpty()) {
             Instruction decoded = fetchedQueue.remove();
+            switch (decoded.opcode) {
+                case NOOP:
+                case HALT:
+                    decoded.opType = OpType.OTHER;
+                    break;
+                case ADD:
+                case ADDI:
+                case SUB:
+                case MUL:
+                case MULI:
+                case DIV:
+                case DIVI:
+                case SHL:
+                case SHR:
+                case NOT:
+                case AND:
+                case OR:
+                case MOV:
+                case MOVC:
+                case CMP:
+                    decoded.opType = OpType.ALU;
+                    break;
+                case LD:
+                case LDI:
+                case ST:
+                case STI:
+                    decoded.opType = OpType.LSU;
+                    break;
+                case BR:
+                case JMP:
+                case BRZ:
+                case BRN:
+                    decoded.opType = OpType.BRU;
+                    break;
+                default:
+                    System.out.println("invalid opcode detected while decoding");
+                    finished = true;
+                    break;
+            }
+
             decoded.decodeComplete = cycle; // save cycle number of decode stage
             decodedQueue.add(decoded);
         }
@@ -528,6 +568,35 @@ public class Processor7 {
         dispatchBlocked = (rs_aluReady == -1) && (rs_lsuReady == -1) && (rs_bruReady == -1) && (rs_otherReady == -1);
     }
 
+    private int getLSUReadyIndex() {
+        for(int i=0; i < RS.length; i++) {
+            if(
+                    RS[i].busy &&
+                            !RS[i].executing &&
+                            RS[i].type.equals(OpType.LSU) &&
+                            RS[i].Q1 == -1 &&
+                            RS[i].Q2 == -1 &&
+                            RS[i].Qs == -1
+            ) {
+                if(RS[i].op.equals(Opcode.LD) || RS[i].op.equals(Opcode.LDI)) {
+                    // check the addresses of stores ahead
+                    int j = RS[i].destination;
+                    while(j != ROB.head) {
+                        if(ROB.buffer[j].ins.opcode.equals(Opcode.ST) || ROB.buffer[j].ins.opcode.equals(Opcode.STI)) {
+
+                        }
+                    }
+                }
+                else {
+                    // is this store at the head of th ROB?
+                    if(RS[i].destination == ROB.head) {
+                        return i;
+                    }
+                }
+            }
+        }
+        return -1;
+    }
 
     private int getReadyRSIndex(ReservationStation[] RS, OpType opType) {
         for(int i=0; i < RS.length; i++) {
