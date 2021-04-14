@@ -196,7 +196,7 @@ public class Processor7 {
             RS[rsIndex].op = issuing.opcode;
             RS[rsIndex].ins = issuing;
             RS[rsIndex].busy = true;
-            RS[rsIndex].destination = robIndex;
+            RS[rsIndex].robIndex = robIndex;
             RS[rsIndex].type = issuing.opType;
 
             switch (issuing.opType) {
@@ -307,7 +307,7 @@ public class Processor7 {
                     && RS[i].Q1 == -1
                     && RS[i].Q2 == -1
             ) {
-                int j = RS[i].destination; // j is ROB index of the ins
+                int j = RS[i].robIndex; // j is ROB index of the ins
                 if(checkRobForLoadStage1(j)) {
                     return i;
                 }
@@ -326,7 +326,7 @@ public class Processor7 {
             else {
                 j--;
             }
-            if(ROB.buffer[j].ins.opType.equals(OpType.STORE)) {
+            if(ROB.buffer[j] != null && ROB.buffer[j].ins.opType.equals(OpType.STORE)) {
                 return false;
             }
         }
@@ -335,7 +335,7 @@ public class Processor7 {
 
     private int getReadyStoreIndex() {
         for(int i = 0; i < RS.length; i++) {
-            int robIndex = RS[i].destination;
+            int robIndex = RS[i].robIndex;
             if(
                     RS[i].busy
                     && !RS[i].executing
@@ -455,7 +455,7 @@ public class Processor7 {
                 loadAddressReady = true;
             }
             if(rs_storeReady > -1 && !branchTaken) {
-                int robIndex = RS[rs_storeReady].destination;
+                int robIndex = RS[rs_storeReady].robIndex;
                 RS[rs_storeReady].executing = true;
                 RS[rs_storeReady].ins.executeComplete = cycle;
                 int memAddress = agu.evaluate(Opcode.ADD,RS[rs_storeReady].V1,RS[rs_storeReady].A);
@@ -581,14 +581,13 @@ public class Processor7 {
                     ROB.buffer[ROB.head].value = RS[rsIndex].Vs;
                 }
                 else {
-                    int robIndex = RS[rsIndex].destination;
+                    int robIndex = RS[rsIndex].robIndex;
                     RS[rsIndex] = new ReservationStation(); // clear RS entry
                     resultForwarding2(writeBack);
                     ROB.buffer[robIndex].value = writeBack.result;
                     ROB.buffer[robIndex].ready = true;
                 }
             }
-            finishedInsts.add(writeBack);
             beforeWriteBack = null;
 //            Instruction writeBack = beforeWriteBack;
 //            if(writeBack.Rd != 0 && writeBack.opcode != Opcode.ST && writeBack.opcode != Opcode.STI) {
@@ -606,7 +605,23 @@ public class Processor7 {
     }
 
     private void Commit() {
-
+        if(!ROB.isEmpty()) {
+            int h = ROB.head;
+            ReorderBuffer robHead = ROB.peak();
+            if(robHead.ready) {
+                if(robHead.ins.opType.equals(OpType.STORE)) {
+                    mem[robHead.address] = robHead.value;
+                }
+                else { // pur result back to register
+                    int Rd = robHead.destination;
+                    rf[Rd] = robHead.value;
+                    if(regStats[Rd].busy && regStats[Rd].robIndex == h) {
+                        regStats[Rd] = new RegisterStatus(); // free up register status entry
+                    }
+                }
+                ROB.pop(); // free up ROB entry
+            }
+        }
     }
 
     private void resultForwarding2(Instruction ins) {
@@ -649,7 +664,7 @@ public class Processor7 {
             if(fetchBlocked || decodeBlocked || issueBlocked || executeBlocked || euAllBusy) {
                 stalledCycle++;
             }
-//            System.out.println("PC: "+ pc);
+            System.out.println("PC: "+ pc);
         }
         finishedInsts.sort(Comparator.comparingInt((Instruction i) -> i.id));
         TraceEncoder traceEncoder = new TraceEncoder(finishedInsts);

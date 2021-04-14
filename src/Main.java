@@ -127,11 +127,11 @@ public class Main {
         instructions4[16] = new Instruction(Opcode.MUL,4,4,4,0); // $4 = $4 * $4 = 400 (2 cycles)
         instructions4[17] = new Instruction(Opcode.ADD,2,2,1,0); // $2 = $2 + $1 = 32
         instructions4[18] = new Instruction(Opcode.AND,11,14,1,0); // $11 = $14 & $1 = 30
-        instructions4[19] = new Instruction(Opcode.BR,0,0,0,50); // PC <- 50
+//        instructions4[19] = new Instruction(Opcode.BR,0,0,0,50); // PC <- 50
         instructions4[20] = new Instruction(Opcode.HALT,0,0,0,0); // HALT
-        instructions4[50] = new Instruction(Opcode.ADD,15,1,2,0); // $15 = $1 + $2 = 62
-        instructions4[51] = new Instruction(Opcode.STI,15,3,0,2); // mem[5 + 2] = $15
-        instructions4[52] = new Instruction(Opcode.BR,0,0,0,20); // jump back to halt
+//        instructions4[50] = new Instruction(Opcode.ADD,15,1,2,0); // $15 = $1 + $2 = 62
+//        instructions4[51] = new Instruction(Opcode.STI,15,3,0,2); // mem[5 + 2] = $15
+//        instructions4[52] = new Instruction(Opcode.BR,0,0,0,20); // jump back to halt
 
 
 //        System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
