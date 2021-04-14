@@ -11,6 +11,7 @@ public class ReservationStation {
     public int destination = -1; // index of ROB for the instruction
     public Instruction ins = new Instruction();
     public boolean executing = false;
+    public boolean addressReady = false;
     public OpType type = OpType.UNDEFINED;
 
     public ReservationStation() {

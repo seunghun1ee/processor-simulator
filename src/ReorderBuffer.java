@@ -6,6 +6,7 @@ public class ReorderBuffer {
     public int state;
     public int destination;
     public int value;
+    public int address;
 
     public ReorderBuffer() {
 

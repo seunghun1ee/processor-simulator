@@ -30,6 +30,8 @@ public class Processor7 {
 
     int rs_aluReady = -1;
     int rs_lsuReady = -1;
+    int rs_loadReady = -1;
+    int rs_storeReady = -1;
     int rs_bruReady = -1;
     int rs_otherReady = -1;
 
@@ -146,7 +148,7 @@ public class Processor7 {
             }
         }
         boolean robBlocked = ROB.size() >= ROB.capacity; // ROB full
-        issueBlocked = !rsBlocked && !robBlocked;
+        issueBlocked = rsBlocked || robBlocked;
         if(!issueBlocked && !decodedQueue.isEmpty()) {
             Instruction issuing = decodedQueue.remove();
             ReorderBuffer allocatedROB = new ReorderBuffer();
@@ -196,6 +198,7 @@ public class Processor7 {
             RS[rsIndex].ins = issuing;
             RS[rsIndex].busy = true;
             RS[rsIndex].destination = robIndex;
+            RS[rsIndex].type = issuing.opType;
 
             switch (issuing.opType) {
                 case ALU:
@@ -267,15 +270,25 @@ public class Processor7 {
     }
 
     private void Dispatch() { // finding ready to execute rs
-        rs_aluReady = getReadyRSIndex(RS,OpType.ALU);
-        rs_lsuReady = getReadyRSIndex(RS, OpType.LSU);
-        rs_bruReady = getReadyRSIndex(RS, OpType.BRU);
-        rs_otherReady = getReadyRSIndex(RS, OpType.OTHER);
+        rs_aluReady = getReadyRSIndex(OpType.ALU);
+        rs_lsuReady = getReadyRSIndex(OpType.LSU);
+
+        rs_loadReady = getReadyLoadIndex();
+        rs_storeReady = getReadyStoreIndex();
+
+        rs_bruReady = getReadyRSIndex(OpType.BRU);
+        rs_otherReady = getReadyRSIndex(OpType.OTHER);
         if(rs_aluReady > -1) {
             RS[rs_aluReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
         }
         if(rs_lsuReady > -1) {
             RS[rs_lsuReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
+        }
+        if(rs_loadReady > -1) {
+            RS[rs_loadReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
+        }
+        if(rs_storeReady > -1) {
+            RS[rs_storeReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
         }
         if(rs_bruReady > -1) {
             RS[rs_bruReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
@@ -283,40 +296,85 @@ public class Processor7 {
         if(rs_otherReady > -1) {
             RS[rs_otherReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
         }
-        dispatchBlocked = (rs_aluReady == -1) && (rs_lsuReady == -1) && (rs_bruReady == -1) && (rs_otherReady == -1);
+        dispatchBlocked = (rs_aluReady == -1) && (rs_lsuReady == -1) && (rs_loadReady == -1) && (rs_storeReady == -1) && (rs_bruReady == -1) && (rs_otherReady == -1);
     }
 
-    private int getLSUReadyIndex() {
-        for(int i=0; i < RS.length; i++) {
+    private int getReadyLoadIndex() {
+        for(int i = 0; i < RS.length; i++) {
             if(
-                    RS[i].busy &&
-                            !RS[i].executing &&
-                            RS[i].type.equals(OpType.LSU) &&
-                            RS[i].Q1 == -1 &&
-                            RS[i].Q2 == -1 &&
-                            RS[i].Qs == -1
+                    RS[i].busy
+                    && !RS[i].executing
+                    && RS[i].type.equals(OpType.LOAD)
+                    && RS[i].Q1 == -1
+                    && RS[i].Q2 == -1
             ) {
-                if(RS[i].op.equals(Opcode.LD) || RS[i].op.equals(Opcode.LDI)) {
-                    // check the addresses of stores ahead
-                    int j = RS[i].destination;
-                    while(j != ROB.head) {
-                        if(ROB.buffer[j].ins.opcode.equals(Opcode.ST) || ROB.buffer[j].ins.opcode.equals(Opcode.STI)) {
-
-                        }
-                    }
-                }
-                else {
-                    // is this store at the head of th ROB?
-                    if(RS[i].destination == ROB.head) {
+                int j = RS[i].destination; // j is ROB index of the ins
+                if(RS[i].addressReady) { // stage 1 done
+                    if(checkRobForLoadStage2(j,ROB.buffer[j].address)) {
                         return i;
                     }
+                }
+                else if(checkRobForLoadStage1(j)) {
+                    return i;
                 }
             }
         }
         return -1;
     }
 
-    private int getReadyRSIndex(ReservationStation[] RS, OpType opType) {
+    private boolean checkRobForLoadStage1(int currentRobIndex) {
+        int j = currentRobIndex;
+        while (j != ROB.head) {
+            System.out.println("load1 while loop " + j);
+            if(j == 0) {
+                j = ROB.capacity -1;
+            }
+            else {
+                j--;
+            }
+            if(ROB.buffer[j].ins.opType.equals(OpType.STORE)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean checkRobForLoadStage2(int currentRobIndex, int address) {
+        int j = currentRobIndex;
+        while (j != ROB.head) {
+            System.out.println("load2 while loop " + j);
+            if(j == 0) {
+                j = ROB.capacity -1;
+            }
+            else {
+                j--;
+            }
+            if(ROB.buffer[j].ins.opType.equals(OpType.STORE) && ROB.buffer[j].address == address) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private int getReadyStoreIndex() {
+        for(int i = 0; i < RS.length; i++) {
+            int robIndex = RS[i].destination;
+            if(
+                    RS[i].busy
+                    && !RS[i].executing
+                    && RS[i].type.equals(OpType.STORE)
+                    && RS[i].Q1 == -1
+                    && RS[i].Q2 == -1
+                    && RS[i].Qs == -1
+                    && robIndex == ROB.head
+            ) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private int getReadyRSIndex(OpType opType) {
         for(int i=0; i < RS.length; i++) {
             if(
                     RS[i].busy &&
