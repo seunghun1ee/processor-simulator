@@ -553,16 +553,16 @@ public class Processor7 {
             writeBack.writeBackComplete = cycle;
             if(writeBack.Rd != 0) {
                 int rsIndex = writeBack.rsIndex;
+                int robIndex = RS[rsIndex].robIndex;
                 if(writeBack.opType.equals(OpType.STORE)) { // store instructions
                     ROB.buffer[ROB.head].value = RS[rsIndex].Vs;
                 }
                 else {
-                    int robIndex = RS[rsIndex].robIndex;
-                    RS[rsIndex] = new ReservationStation(); // clear RS entry
-                    resultForwarding2(writeBack);
                     ROB.buffer[robIndex].value = writeBack.result;
-                    ROB.buffer[robIndex].ready = true;
                 }
+                RS[rsIndex] = new ReservationStation(); // clear RS entry
+                resultForwarding2(writeBack);
+                ROB.buffer[robIndex].ready = true;
             }
             finishedInsts.add(writeBack);
         }
