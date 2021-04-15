@@ -18,7 +18,7 @@ public class Processor8 {
     int[] rf = new int[64]; //Register file (physical)
     RegisterStatus[] regStats = new RegisterStatus[rf.length];
     Instruction[] instructions; // instructions from user
-
+    boolean beforeFinish = false;
     boolean finished = false;
     int QUEUE_SIZE = 4;
     int ISSUE_SIZE = 16;
@@ -75,13 +75,12 @@ public class Processor8 {
 
     private void Fetch() {
         fetchBlocked = fetchedQueue.size() >= QUEUE_SIZE;
-        if(!fetchBlocked && pc < instructions.length) {
+        if(!fetchBlocked && pc < instructions.length && !beforeFinish) {
             Instruction fetch = instructions[pc];
-            if(fetch == null) {
-                return;
+            Instruction ins = new Instruction(); // NOOP
+            if(fetch != null) {
+                ins = new Instruction(fetch);
             }
-            Instruction ins; // = new Instruction(); // NOOP
-            ins = new Instruction(fetch);
             ins.id = insIdCount; // assign id
             ins.insAddress = pc; // assign ins address
             ins.fetchComplete = cycle; // save cycle number of fetch stage
@@ -326,6 +325,9 @@ public class Processor8 {
             Instruction dispatched = RS[rs_otherReady].ins;
             int i = finishedInsts.indexOf(dispatched);
             finishedInsts.set(i,dispatched);
+            if(RS[rs_otherReady].op.equals(Opcode.HALT)) {
+                beforeFinish = true;
+            }
         }
         dispatchBlocked = (rs_aluReady == -1) && (rs_loadReady == -1) && (rs_storeReady == -1) && (rs_bruReady == -1) && (rs_otherReady == -1);
     }
@@ -508,6 +510,7 @@ public class Processor8 {
                 executing.executeComplete = cycle;
                 int i = finishedInsts.indexOf(executing);
                 finishedInsts.set(i,executing);
+                executedInsts++;
                 executionResults.add(executing);
                 // do nothing here
             }
@@ -573,9 +576,9 @@ public class Processor8 {
                 else {
                     ROB.buffer[robIndex].value = writeBack.result;
                 }
-                RS[rsIndex] = new ReservationStation(); // clear RS entry
-                resultForwardingFromRS(writeBack);
                 ROB.buffer[robIndex].ready = true;
+                resultForwardingFromRS(writeBack);
+                RS[rsIndex] = new ReservationStation(); // clear RS entry
             }
             if(writeBack.opType.equals(OpType.OTHER)) {
                 ROB.buffer[robIndex].ready = true;
