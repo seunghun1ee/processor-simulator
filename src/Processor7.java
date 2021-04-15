@@ -67,10 +67,11 @@ public class Processor7 {
             ins.id = insIdCount; // assign id
             ins.insAddress = pc; // assign ins address
             ins.fetchComplete = cycle; // save cycle number of fetch stage
-
             fetchedQueue.add(ins);
             pc++;
             insIdCount++; // prepare next id
+
+            finishedInsts.add(ins);
         }
 
         if(fetchBlocked) { // stall can't fetch because the buffer is full
@@ -126,6 +127,9 @@ public class Processor7 {
 
             decoded.decodeComplete = cycle; // save cycle number of decode stage
             decodedQueue.add(decoded);
+
+            int i = finishedInsts.indexOf(decoded);
+            finishedInsts.set(i,decoded);
         }
 
         if(decodeBlocked) { // stall: can't decode because the buffer is full
@@ -262,6 +266,9 @@ public class Processor7 {
                     finished = true;
                     break;
             }
+
+            int i = finishedInsts.indexOf(issuing);
+            finishedInsts.set(i,issuing);
         }
         if(issueBlocked && !decodedQueue.isEmpty()) {
             probes.add(new Probe(cycle,7,decodedQueue.peek().id));
@@ -278,18 +285,33 @@ public class Processor7 {
         rs_otherReady = getReadyRSIndex(OpType.OTHER);
         if(rs_aluReady > -1) {
             RS[rs_aluReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
+            Instruction dispatched = RS[rs_aluReady].ins;
+            int i = finishedInsts.indexOf(dispatched);
+            finishedInsts.set(i,dispatched);
         }
         if(rs_loadReady > -1) {
             RS[rs_loadReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
+            Instruction dispatched = RS[rs_loadReady].ins;
+            int i = finishedInsts.indexOf(dispatched);
+            finishedInsts.set(i,dispatched);
         }
         if(rs_storeReady > -1) {
             RS[rs_storeReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
+            Instruction dispatched = RS[rs_storeReady].ins;
+            int i = finishedInsts.indexOf(dispatched);
+            finishedInsts.set(i,dispatched);
         }
         if(rs_bruReady > -1) {
             RS[rs_bruReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
+            Instruction dispatched = RS[rs_bruReady].ins;
+            int i = finishedInsts.indexOf(dispatched);
+            finishedInsts.set(i,dispatched);
         }
         if(rs_otherReady > -1) {
             RS[rs_otherReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
+            Instruction dispatched = RS[rs_otherReady].ins;
+            int i = finishedInsts.indexOf(dispatched);
+            finishedInsts.set(i,dispatched);
         }
         dispatchBlocked = (rs_aluReady == -1) && (rs_loadReady == -1) && (rs_storeReady == -1) && (rs_bruReady == -1) && (rs_otherReady == -1);
     }
@@ -423,7 +445,9 @@ public class Processor7 {
                         }
                     }
                 }
-                finishedInsts.add(executing);
+//                finishedInsts.add(executing);
+                int i = finishedInsts.indexOf(executing);
+                finishedInsts.set(i,executing);
                 executedInsts++;
                 resultForwarding2(executing);
 
@@ -444,6 +468,8 @@ public class Processor7 {
                     alu1.executing = executing;
                     RS[executing.rsIndex].executing = true;
                 }
+                int i = finishedInsts.indexOf(executing);
+                finishedInsts.set(i,executing);
             }
 
             // load stage 1
@@ -455,6 +481,8 @@ public class Processor7 {
                 RS[rs_loadReady].ins.memAddress = memAddress;
                 RS[rs_loadReady].addressReady = true;
                 loadAddressReady = true;
+                int i = finishedInsts.indexOf(RS[rs_loadReady].ins);
+                finishedInsts.set(i,RS[rs_loadReady].ins);
             }
             if(rs_storeReady > -1 && !branchTaken) {
                 int robIndex = RS[rs_storeReady].robIndex;
@@ -464,6 +492,8 @@ public class Processor7 {
                 RS[rs_storeReady].ins.memAddress = memAddress;
                 ROB.buffer[robIndex].address = memAddress;
                 storeAddressReady = true;
+                int i = finishedInsts.indexOf(RS[rs_storeReady].ins);
+                finishedInsts.set(i,RS[rs_storeReady].ins);
             }
             if(rs_otherReady > -1 && !branchTaken) {
                 ReservationStation rs_execute = RS[rs_otherReady];
@@ -477,8 +507,11 @@ public class Processor7 {
                         executing.executeComplete = cycle;
                         executing.memoryComplete = cycle + 1;
                         executing.writeBackComplete = cycle + 2;
-                        finishedInsts.add(executing);
+//                        finishedInsts.add(executing);
                         RS[rs_otherReady] = new ReservationStation();
+
+                        int i = finishedInsts.indexOf(executing);
+                        finishedInsts.set(i,executing);
                     }
                 }
                 else {
@@ -486,8 +519,11 @@ public class Processor7 {
                     executing.executeComplete = cycle;
                     executing.memoryComplete = cycle + 1;
                     executing.writeBackComplete = cycle + 2;
-                    finishedInsts.add(executing);
+//                    finishedInsts.add(executing);
                     RS[rs_otherReady] = new ReservationStation();
+
+                    int i = finishedInsts.indexOf(executing);
+                    finishedInsts.set(i,executing);
                 }
             }
         }
@@ -543,6 +579,8 @@ public class Processor7 {
                     break;
             }
             executed.memoryComplete = cycle; // save cycle number of memory stage
+            int i = finishedInsts.indexOf(executed);
+            finishedInsts.set(i,executed);
             beforeWriteBack.add(executed);
         }
     }
@@ -564,7 +602,9 @@ public class Processor7 {
                 resultForwarding2(writeBack);
                 ROB.buffer[robIndex].ready = true;
             }
-            finishedInsts.add(writeBack);
+//            finishedInsts.add(writeBack);
+            int i = finishedInsts.indexOf(writeBack);
+            finishedInsts.set(i,writeBack);
         }
     }
 
