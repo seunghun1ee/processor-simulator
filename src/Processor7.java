@@ -282,7 +282,7 @@ public class Processor7 {
         rs_storeReady = getReadyStoreIndex();
 
         rs_bruReady = getReadyRSIndex(OpType.BRU);
-        rs_otherReady = getReadyRSIndex(OpType.OTHER);
+        rs_otherReady = getReadyOtherIndex();
         if(rs_aluReady > -1) {
             RS[rs_aluReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
             Instruction dispatched = RS[rs_aluReady].ins;
@@ -368,6 +368,32 @@ public class Processor7 {
                     && RS[i].Qs == -1
                     && robIndex == ROB.head
             ) {
+                // if this was fetched earlier than current priority
+                if(RS[i].ins.id < priority) {
+                    // this is new ready RS
+                    priority = RS[i].ins.id;
+                    readyIndex = i;
+                }
+            }
+        }
+        return readyIndex;
+    }
+
+    private int getReadyOtherIndex() {
+        int priority = Integer.MAX_VALUE;
+        int readyIndex = -1;
+        for(int i=0; i < RS.length; i++) {
+            if(
+                    RS[i].busy
+                    && !RS[i].executing
+                    && RS[i].type.equals(OpType.OTHER)
+                    && RS[i].Q1 == -1
+                    && RS[i].Q2 == -1
+                    && RS[i].Qs == -1
+            ) {
+                if(RS[i].ins.opcode.equals(Opcode.HALT) && !ROB.peak().ins.equals(RS[i].ins)) {
+                    continue; // when it's HALT but if it's not the head of ROB, don't dispatch it
+                }
                 // if this was fetched earlier than current priority
                 if(RS[i].ins.id < priority) {
                     // this is new ready RS
@@ -508,7 +534,12 @@ public class Processor7 {
                         executing.memoryComplete = cycle + 1;
                         executing.writeBackComplete = cycle + 2;
 //                        finishedInsts.add(executing);
-                        RS[rs_otherReady] = new ReservationStation();
+
+
+
+                        int robIndex = RS[rs_otherReady].robIndex;
+                        RS[rs_otherReady] = new ReservationStation(); // clear RS entry
+                        ROB.buffer[robIndex].ready = true;
 
                         int i = finishedInsts.indexOf(executing);
                         finishedInsts.set(i,executing);
@@ -520,7 +551,9 @@ public class Processor7 {
                     executing.memoryComplete = cycle + 1;
                     executing.writeBackComplete = cycle + 2;
 //                    finishedInsts.add(executing);
-                    RS[rs_otherReady] = new ReservationStation();
+                    int robIndex = RS[rs_otherReady].robIndex;
+                    RS[rs_otherReady] = new ReservationStation(); // clear RS entry
+                    ROB.buffer[robIndex].ready = true;
 
                     int i = finishedInsts.indexOf(executing);
                     finishedInsts.set(i,executing);
