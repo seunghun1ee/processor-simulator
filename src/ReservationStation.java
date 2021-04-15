@@ -1,7 +1,7 @@
 public class ReservationStation {
     public boolean busy = false;
     public Opcode op = Opcode.NOOP; // Operation of the instruction
-    public int Q1 = -1; // index of dependent reservation station
+    public int Q1 = -1; // index of dependent ReorderBuffer
     public int Q2 = -1;
     public int V1 = 0; // effective value of operands
     public int V2 = 0;

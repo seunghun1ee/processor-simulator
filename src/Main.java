@@ -153,7 +153,7 @@ public class Main {
 //	    createDump(processor3.rf,"rf_bench3.txt");
 
 	    System.out.println("Benchmark4 - many dependencies");
-	    Processor7 processor4 = new Processor7(mem4,instructions4);
+	    Processor8 processor4 = new Processor8(mem4,instructions4);
 	    processor4.RunProcessor();
 	    createDump(processor4.mem, "mem_bench4.txt");
 	    createDump(processor4.rf,"rf_bench4.txt");
