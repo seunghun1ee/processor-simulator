@@ -26,7 +26,7 @@ public class Processor8 {
     Queue<Instruction> decodedQueue = new LinkedList<>();
     ReservationStation[] RS = new ReservationStation[ISSUE_SIZE]; // unified reservation station
     CircularBufferROB ROB = new CircularBufferROB(ISSUE_SIZE); // Reorder buffer
-    Queue<Instruction> executionResults = new LinkedList<>();
+    Queue<Instruction> loadBuffer = new LinkedList<>();
     // final result registers before write back
     Queue<Instruction> beforeWriteBack = new LinkedList<>();
 
@@ -56,9 +56,12 @@ public class Processor8 {
     boolean nothingToMemory = false;
     // write back states
     boolean nothingToWriteBack = false;
+    boolean writeBackBufferFull = false;
     // commit states
     boolean robEmpty = false;
     boolean commitUnavailable = false;
+
+    boolean loadBufferFull = false;
 
     int predictionLayerLimit = 1;
     int speculativeExecution = 0;
@@ -332,8 +335,8 @@ public class Processor8 {
 
     private void Dispatch() {
         rs_aluReady = getReadyRSIndex(OpType.ALU);
-        rs_loadReady = getReadyLoadIndex();
-        rs_storeReady = getReadyStoreIndex();
+        rs_loadReady = getReadyRSIndex(OpType.LOAD);
+        rs_storeReady = getReadyRSIndex(OpType.STORE);
         rs_bruReady = getReadyRSIndex(OpType.BRU);
         rs_otherReady = getReadyOtherIndex();
         if(rs_aluReady > -1) {
@@ -394,28 +397,7 @@ public class Processor8 {
         return readyIndex;
     }
 
-    private int getReadyLoadIndex() {
-        int priority = Integer.MAX_VALUE;
-        int readyIndex = -1;
-        for(int i = 0; i < RS.length; i++) {
-            if(
-                    RS[i].busy
-                            && !RS[i].executing
-                            && RS[i].type.equals(OpType.LOAD)
-                            && RS[i].Q1 == -1
-                            && RS[i].Q2 == -1
-            ) {
-                int j = RS[i].robIndex; // j is ROB index of the ins
-                if(checkRobForLoadStage1(j) && RS[i].ins.id < priority) {
-                    priority = RS[i].ins.id;
-                    readyIndex = i;
-                }
-            }
-        }
-        return readyIndex;
-    }
-
-    private boolean checkRobForLoadStage1(int currentRobIndex) {
+    private boolean checkRobForLoadStage2(int currentRobIndex, int loadAddress) {
         int j = currentRobIndex;
         while (j != ROB.head) {
             if(j == 0) {
@@ -424,36 +406,11 @@ public class Processor8 {
             else {
                 j--;
             }
-            if(ROB.buffer[j] != null && ROB.buffer[j].ins.opType.equals(OpType.STORE)) {
+            if(ROB.buffer[j] != null && ROB.buffer[j].busy && ROB.buffer[j].ins.opType.equals(OpType.STORE) && ROB.buffer[j].address == loadAddress) {
                 return false;
             }
         }
         return true;
-    }
-
-    private int getReadyStoreIndex() {
-        int priority = Integer.MAX_VALUE;
-        int readyIndex = -1;
-        for(int i = 0; i < RS.length; i++) {
-            int robIndex = RS[i].robIndex;
-            if(
-                    RS[i].busy
-                            && !RS[i].executing
-                            && RS[i].type.equals(OpType.STORE)
-                            && RS[i].Q1 == -1
-                            && RS[i].Q2 == -1
-                            && RS[i].Qs == -1
-                            && robIndex == ROB.head
-            ) {
-                // if this was fetched earlier than current priority
-                if(RS[i].ins.id < priority) {
-                    // this is new ready RS
-                    priority = RS[i].ins.id;
-                    readyIndex = i;
-                }
-            }
-        }
-        return readyIndex;
     }
 
     private int getReadyOtherIndex() {
@@ -468,7 +425,7 @@ public class Processor8 {
                             && RS[i].Q2 == -1
                             && RS[i].Qs == -1
             ) {
-                if(RS[i].ins.opcode.equals(Opcode.HALT) && !ROB.peak().ins.equals(RS[i].ins)) {
+                if(RS[i].ins.opcode.equals(Opcode.HALT) && !ROB.peek().ins.equals(RS[i].ins)) {
                     continue; // when it's HALT but if it's not the head of ROB, don't dispatch it
                 }
                 // if this was fetched earlier than current priority
@@ -483,10 +440,11 @@ public class Processor8 {
     }
 
     private void Execute() {
-        executeBlocked = executionResults.size() >= QUEUE_SIZE;
+        loadBufferFull = loadBuffer.size() >= QUEUE_SIZE;
+        writeBackBufferFull = beforeWriteBack.size() >= QUEUE_SIZE;
+        executeBlocked = (writeBackBufferFull && (rs_aluReady > -1 || rs_storeReady > -1 || rs_otherReady > -1)) || (loadBufferFull && rs_loadReady > -1);
         nothingToExecute = rs_aluReady == -1 && rs_loadReady == -1 && rs_storeReady == -1 && rs_bruReady == -1 && rs_otherReady == -1;
         euAllBusy = (alu0.busy && alu1.busy);
-
         boolean loadAddressReady = false;
         boolean storeAddressReady = false;
         if(!executeBlocked && !nothingToExecute) {
@@ -505,7 +463,6 @@ public class Processor8 {
                     probes.add(new Probe(cycle,14,verifying.id));
                 }
                 ROB.buffer[RS[verifying.rsIndex].robIndex].ready = true;
-//                RS[rs_bruReady].ins = verifying;
                 RS[rs_bruReady] = new ReservationStation();
                 int i = finishedInsts.indexOf(verifying);
                 finishedInsts.set(i,verifying);
@@ -527,7 +484,7 @@ public class Processor8 {
                 int i = finishedInsts.indexOf(executing);
                 finishedInsts.set(i,executing);
             }
-            if(rs_loadReady > -1) {
+            if(rs_loadReady > -1 && !loadBufferFull) {
                 Instruction executing = RS[rs_loadReady].ins;
                 RS[rs_loadReady].executing = true;
                 executing.memAddress = agu.evaluate(Opcode.ADD,executing.data1,executing.data2);
@@ -556,52 +513,54 @@ public class Processor8 {
                 int i = finishedInsts.indexOf(executing);
                 finishedInsts.set(i,executing);
                 executedInsts++;
-                executionResults.add(executing);
+                beforeWriteBack.add(executing);
                 // do nothing here
             }
         }
         Instruction alu0_result = alu0.execute();
         Instruction alu1_result = alu1.execute();
         if(alu0_result != null && alu0_result.result != null) {
-            executionResults.add(alu0_result);
+            beforeWriteBack.add(alu0_result);
             resultForwardingFromRS(alu0_result);
             alu0.reset();
             executedInsts++;
         }
         if(alu1_result != null && alu1_result.result != null) {
-            executionResults.add(alu1_result);
+            beforeWriteBack.add(alu1_result);
             resultForwardingFromRS(alu1_result);
             alu1.reset();
             executedInsts++;
         }
         if(loadAddressReady) {
-            executionResults.add(RS[rs_loadReady].ins);
+            loadBuffer.add(RS[rs_loadReady].ins);
             executedInsts++;
         }
         if(storeAddressReady) {
-            executionResults.add(RS[rs_storeReady].ins);
+            beforeWriteBack.add(RS[rs_storeReady].ins);
             executedInsts++;
         }
 
     }
 
     private void Memory() {
-        while(!executionResults.isEmpty()) {
-            Instruction executed = executionResults.remove();
-            switch (executed.opcode) {
-                case LD:
-                case LDI:
-                    executed.result = mem[executed.memAddress];
-                    resultForwardingFromRS(executed);
-                    break;
-                default: // non memory instructions, only do result forwarding
-                    resultForwardingFromRS(executed);
-                    break;
+        while(!loadBuffer.isEmpty()) {
+            Instruction loading = loadBuffer.peek();
+            if(!loading.opType.equals(OpType.LOAD)) {
+                System.out.println("illegal instruction detected at memory stage");
+                finished = true;
+                return;
             }
-            executed.memoryComplete = cycle; // save cycle number of memory stage
-            int i = finishedInsts.indexOf(executed);
-            finishedInsts.set(i,executed);
-            beforeWriteBack.add(executed);
+            if(!checkRobForLoadStage2(RS[loading.rsIndex].robIndex, loading.memAddress)) {
+                return;
+            }
+            loading.result = mem[loading.memAddress];
+            resultForwardingFromRS(loading);
+            loadBuffer.remove();
+
+            loading.memoryComplete = cycle; // save cycle number of memory stage
+            int i = finishedInsts.indexOf(loading);
+            finishedInsts.set(i,loading);
+            beforeWriteBack.add(loading);
         }
     }
 
@@ -671,7 +630,7 @@ public class Processor8 {
     private void Commit() {
         while(!ROB.isEmpty()) {
             int h = ROB.head;
-            ReorderBuffer robHead = ROB.peak();
+            ReorderBuffer robHead = ROB.peek();
             if(!robHead.ready) { // head is not ready to commit
                 break; // abort committing
             }
@@ -692,11 +651,10 @@ public class Processor8 {
                     rs_storeReady = -1;
                     rs_bruReady = -1;
                     rs_otherReady = -1;
-//                RS[robHead.ins.rsIndex] = new ReservationStation();
                     // flush queues
                     fetchedQueue.clear();
                     decodedQueue.clear();
-                    executionResults.clear();
+                    loadBuffer.clear();
                     beforeWriteBack.clear();
                     // change to correct pc
                     pc = robHead.ins.insAddress + 1;
@@ -747,20 +705,13 @@ public class Processor8 {
             Fetch();
             cycle++;
             if(!beforeFinish) {
-                if(fetchBlocked || decodeBlocked || issueBlocked || dispatchBlocked || executeBlocked || euAllBusy) {
+                if(fetchBlocked || decodeBlocked || issueBlocked || dispatchBlocked || executeBlocked || euAllBusy || loadBufferFull) {
                     stalledCycle++;
                 }
                 else if(nothingToDecode || nothingToIssue || nothingToDispatch || nothingToExecute || nothingToMemory || nothingToWriteBack) {
                     waitingCycle++;
                 }
             }
-            int rs_size = 0;
-            for(ReservationStation rs : RS) {
-                if(rs.busy) {
-                    rs_size++;
-                }
-            }
-//            System.out.println("PC: " + pc + " RS size: " + rs_size + " ROB size: " + ROB.size());
 //            if(issueBlocked) {
 //                System.out.printf("Issue blocked at PC: %d\nRS entries\n",pc);
 //                for(ReservationStation rs : RS) {
@@ -770,7 +721,7 @@ public class Processor8 {
 //                }
 //                System.out.println();
 //            }
-            System.out.println("PC: " + pc + " prediction layer: " + speculativeExecution);
+//            System.out.println("PC: " + pc + " prediction layer: " + speculativeExecution);
         }
         finishedInsts.sort(Comparator.comparingInt((Instruction i) -> i.id));
         TraceEncoder traceEncoder = new TraceEncoder(finishedInsts);
