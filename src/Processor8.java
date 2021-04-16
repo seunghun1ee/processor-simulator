@@ -100,6 +100,7 @@ public class Processor8 {
         decodeBlocked = decodedQueue.size() >= QUEUE_SIZE;
         nothingToDecode = fetchedQueue.isEmpty();
         if(!decodeBlocked && !nothingToDecode) {
+            boolean branchTaken = false;
             Instruction decoded = fetchedQueue.remove();
             switch (decoded.opcode) {
                 case NOOP:
@@ -131,9 +132,9 @@ public class Processor8 {
                 case STI:
                     decoded.opType = OpType.STORE;
                     break;
-                case BR:
+                case BR: // unconditional branches
                 case JMP:
-                case BRZ:
+                case BRZ: // conditional branches
                 case BRN:
                     decoded.opType = OpType.BRU;
                     break;
@@ -142,12 +143,21 @@ public class Processor8 {
                     finished = true;
                     break;
             }
+            if(decoded.Rs1 == 0 && decoded.opcode.equals(Opcode.BR)) {
+                pc =  decoded.Const;
+                branchTaken = true;
+            }
+            if(decoded.opcode.equals(Opcode.JMP)) {
+                pc += decoded.Const;
+                branchTaken = true;
+            }
 
             decoded.decodeComplete = cycle; // save cycle number of decode stage
-            decodedQueue.add(decoded);
-
             int i = finishedInsts.indexOf(decoded);
             finishedInsts.set(i,decoded);
+            if(!branchTaken) {
+                decodedQueue.add(decoded);
+            }
         }
 
         if(decodeBlocked) { // stall: can't decode because the buffer is full
@@ -670,11 +680,13 @@ public class Processor8 {
             Decode();
             Fetch();
             cycle++;
-            if(fetchBlocked || decodeBlocked || issueBlocked || dispatchBlocked || executeBlocked || euAllBusy) {
-                stalledCycle++;
-            }
-            else if(nothingToDecode || nothingToIssue || nothingToDispatch || nothingToExecute || nothingToMemory || nothingToWriteBack) {
-                waitingCycle++;
+            if(!beforeFinish) {
+                if(fetchBlocked || decodeBlocked || issueBlocked || dispatchBlocked || executeBlocked || euAllBusy) {
+                    stalledCycle++;
+                }
+                else if(nothingToDecode || nothingToIssue || nothingToDispatch || nothingToExecute || nothingToMemory || nothingToWriteBack) {
+                    waitingCycle++;
+                }
             }
             System.out.println("PC: " + pc);
         }

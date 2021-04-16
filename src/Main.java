@@ -127,12 +127,26 @@ public class Main {
         instructions4[16] = new Instruction(Opcode.MUL,4,4,4,0); // $4 = $4 * $4 = 400 (2 cycles)
         instructions4[17] = new Instruction(Opcode.ADD,2,2,1,0); // $2 = $2 + $1 = 32
         instructions4[18] = new Instruction(Opcode.AND,11,14,1,0); // $11 = $14 & $1 = 30
-//        instructions4[19] = new Instruction(Opcode.BR,0,0,0,50); // PC <- 50
-        instructions4[19] = new Instruction(Opcode.NOOP,0,0,0,0); // placeholder
+        instructions4[19] = new Instruction(Opcode.BR,0,0,0,50); // PC <- 50
         instructions4[20] = new Instruction(Opcode.HALT,0,0,0,0); // HALT
-//        instructions4[50] = new Instruction(Opcode.ADD,15,1,2,0); // $15 = $1 + $2 = 62
-//        instructions4[51] = new Instruction(Opcode.STI,15,3,0,2); // mem[5 + 2] = $15
-//        instructions4[52] = new Instruction(Opcode.BR,0,0,0,20); // jump back to halt
+        instructions4[50] = new Instruction(Opcode.ADD,15,1,2,0); // $15 = $1 + $2 = 62
+        instructions4[51] = new Instruction(Opcode.STI,15,3,0,2); // mem[5 + 2] = $15
+        instructions4[52] = new Instruction(Opcode.BR,0,0,0,20); // jump back to halt
+
+        //Branch hell
+//        Instruction[] instructions5 = new Instruction[512];
+//        int[] mem5 = new int[1024];
+//        mem5[2] = 120;
+//        mem5[3] = 3;
+//        mem5[4] = 9;
+//        instructions5[0] = new Instruction(Opcode.LDI,1,0,0,2); // $1 = mem[2] = 120
+//        instructions5[1] = new Instruction(Opcode.LDI,2,0,0,3); // $2 = mem[3] = 3
+//        instructions5[2] = new Instruction(Opcode.DIV,3,1,2,0); // $3 = 120 / 3 = 40
+//        instructions5[3] = new Instruction(Opcode.ADDI,4,2,0,1); // $4 = $2 + 1 = 4
+//        instructions5[4] = new Instruction(Opcode.JMP,0,0,0,11); // pc = pc + 11 = 15
+//        instructions5[5] = new Instruction(Opcode.HALT,0,0,0,0); // HALT
+//
+//        instructions5[15] = new Instruction()
 
 
 //        System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
