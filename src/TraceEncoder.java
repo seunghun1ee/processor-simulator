@@ -15,7 +15,7 @@ public class TraceEncoder {
         FileWriter fileWriter = new FileWriter(filePath);
         PrintWriter printWriter = new PrintWriter(fileWriter);
         for(Instruction ins : instructions) {
-            printWriter.printf("%d:%d:%d:%d:%d:%d:%d:0x%08x:%d:%d:%s %d, %d, %d, %d\n",
+            printWriter.printf("%d:%d:%d:%d:%d:%d:%d:%d:0x%08x:%d:%d:%s %d, %d, %d, %d\n",
                     ins.fetchComplete,
                     ins.decodeComplete,
                     ins.issueComplete,
@@ -23,6 +23,7 @@ public class TraceEncoder {
                     ins.executeComplete,
                     ins.memoryComplete,
                     ins.writeBackComplete,
+                    ins.commitComplete,
                     ins.insAddress,
                     0,
                     ins.id,
