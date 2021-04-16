@@ -1,9 +1,9 @@
 import java.io.IOException;
-        import java.util.*;
+import java.util.*;
 
-public class Processor7 {
+public class Processor8 {
 
-    public Processor7(int[] mem, Instruction[] instructions) {
+    public Processor8(int[] mem, Instruction[] instructions) {
         this.mem = mem;
         this.instructions = instructions;
     }
@@ -12,12 +12,13 @@ public class Processor7 {
     int pc = 0; // Program counter
     int executedInsts = 0; // Number of instructions executed
     int stalledCycle = 0;
+    int waitingCycle = 0;
     int insIdCount = 1; // for assigning id to instructions
     int[] mem; // memory from user
     int[] rf = new int[64]; //Register file (physical)
-    // register 0 always have value zero ($zero, input is ignored)
     RegisterStatus[] regStats = new RegisterStatus[rf.length];
     Instruction[] instructions; // instructions from user
+    boolean beforeFinish = false;
     boolean finished = false;
     int QUEUE_SIZE = 4;
     int ISSUE_SIZE = 16;
@@ -26,30 +27,46 @@ public class Processor7 {
     ReservationStation[] RS = new ReservationStation[ISSUE_SIZE]; // unified reservation station
     CircularBufferROB ROB = new CircularBufferROB(ISSUE_SIZE); // Reorder buffer
     Queue<Instruction> executionResults = new LinkedList<>();
+    // final result registers before write back
+    Queue<Instruction> beforeWriteBack = new LinkedList<>();
 
     int rs_aluReady = -1;
-    int rs_lsuReady = -1;
     int rs_loadReady = -1;
     int rs_storeReady = -1;
     int rs_bruReady = -1;
     int rs_otherReady = -1;
 
-    // final result registers before write back
-    Queue<Instruction> beforeWriteBack = new LinkedList<>();
-
     // state of pipeline stages
+    // fetch states
     boolean fetchBlocked = false;
+    // decode states
+    boolean nothingToDecode = false;
     boolean decodeBlocked = false;
+    // issue states
+    boolean nothingToIssue = false;
     boolean issueBlocked = false;
+    // dispatch states
+    boolean nothingToDispatch = false;
     boolean dispatchBlocked = false;
+    // execute states
+    boolean nothingToExecute = false;
     boolean executeBlocked = false;
     boolean euAllBusy = false;
+    // memory states
+    boolean nothingToMemory = false;
+    // write back states
+    boolean nothingToWriteBack = false;
+    // commit states
+    boolean robEmpty = false;
+    boolean commitUnavailable = false;
 
-    // Execution units
+    // execution units
+    // Arithmetic Logic Unit
     ALU alu0 = new ALU();
     ALU alu1 = new ALU();
+    // Address Generation Unit
     ALU agu = new ALU();
-    LSU lsu0 = new LSU();
+    // Branch Unit
     BRU bru0 = new BRU();
 
     //For visualisation
@@ -58,7 +75,7 @@ public class Processor7 {
 
     private void Fetch() {
         fetchBlocked = fetchedQueue.size() >= QUEUE_SIZE;
-        if(!fetchBlocked && pc < instructions.length) {
+        if(!fetchBlocked && pc < instructions.length && !beforeFinish) {
             Instruction fetch = instructions[pc];
             Instruction ins = new Instruction(); // NOOP
             if(fetch != null) {
@@ -81,7 +98,8 @@ public class Processor7 {
 
     private void Decode() {
         decodeBlocked = decodedQueue.size() >= QUEUE_SIZE;
-        if(!decodeBlocked && !fetchedQueue.isEmpty()) {
+        nothingToDecode = fetchedQueue.isEmpty();
+        if(!decodeBlocked && !nothingToDecode) {
             Instruction decoded = fetchedQueue.remove();
             switch (decoded.opcode) {
                 case NOOP:
@@ -138,6 +156,9 @@ public class Processor7 {
                 probes.add(new Probe(cycle,1,ins.id));
             }
         }
+//        if(nothingToDecode) {
+//            probes.add(new Probe(cycle, ,0));
+//        }
     }
 
     private void Issue() { // issuing decoded instruction to reservation stations
@@ -152,10 +173,11 @@ public class Processor7 {
         }
         boolean robBlocked = ROB.size() >= ROB.capacity; // ROB full
         issueBlocked = rsBlocked || robBlocked;
-        if(!issueBlocked && !decodedQueue.isEmpty()) {
+        nothingToDecode = decodedQueue.isEmpty();
+
+        if(!issueBlocked && !nothingToDecode) {
             Instruction issuing = decodedQueue.remove();
             ReorderBuffer allocatedROB = new ReorderBuffer();
-            int robIndex;
             // for all ins
             issuing.issueComplete = cycle;
             issuing.rsIndex = rsIndex;
@@ -195,7 +217,7 @@ public class Processor7 {
             allocatedROB.ins = issuing;
             allocatedROB.destination = issuing.Rd;
             allocatedROB.ready = false;
-            robIndex = ROB.push(allocatedROB);
+            int robIndex = ROB.push(allocatedROB);
             // set Reservation Station
             RS[rsIndex].op = issuing.opcode;
             RS[rsIndex].ins = issuing;
@@ -221,7 +243,9 @@ public class Processor7 {
                     }
                     break;
                 case LOAD:
-                    RS[rsIndex].A = issuing.Const; // for LDI
+                    if(RS[rsIndex].ins.opcode.equals(Opcode.LDI)) {
+                        RS[rsIndex].V2 = issuing.Const; // for LDI
+                    }
                     // set regStats
                     if(issuing.Rd != 0) {
                         regStats[issuing.Rd].robIndex = robIndex;
@@ -245,7 +269,9 @@ public class Processor7 {
                         RS[rsIndex].Vs = rf[issuing.Rd]; // 0 if Rd = 0
                         RS[rsIndex].Qs = -1;
                     }
-                    RS[rsIndex].A = issuing.Const; // for STI
+                    if(RS[rsIndex].ins.opcode.equals(Opcode.STI)) {
+                        RS[rsIndex].V2 = issuing.Const; // for STI
+                    }
                     // no regStats set for stores
                     break;
                 case BRU:
@@ -275,45 +301,68 @@ public class Processor7 {
         }
     }
 
-    private void Dispatch() { // finding ready to execute rs
+    private void Dispatch() {
         rs_aluReady = getReadyRSIndex(OpType.ALU);
-
         rs_loadReady = getReadyLoadIndex();
         rs_storeReady = getReadyStoreIndex();
-
         rs_bruReady = getReadyRSIndex(OpType.BRU);
         rs_otherReady = getReadyOtherIndex();
         if(rs_aluReady > -1) {
-            RS[rs_aluReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
-            Instruction dispatched = RS[rs_aluReady].ins;
-            int i = finishedInsts.indexOf(dispatched);
-            finishedInsts.set(i,dispatched);
+            dispatchOperands(rs_aluReady);
         }
         if(rs_loadReady > -1) {
-            RS[rs_loadReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
-            Instruction dispatched = RS[rs_loadReady].ins;
-            int i = finishedInsts.indexOf(dispatched);
-            finishedInsts.set(i,dispatched);
+            dispatchOperands(rs_loadReady);
         }
         if(rs_storeReady > -1) {
-            RS[rs_storeReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
-            Instruction dispatched = RS[rs_storeReady].ins;
-            int i = finishedInsts.indexOf(dispatched);
-            finishedInsts.set(i,dispatched);
+            dispatchOperands(rs_storeReady);
         }
         if(rs_bruReady > -1) {
-            RS[rs_bruReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
-            Instruction dispatched = RS[rs_bruReady].ins;
-            int i = finishedInsts.indexOf(dispatched);
-            finishedInsts.set(i,dispatched);
+            dispatchOperands(rs_bruReady);
         }
         if(rs_otherReady > -1) {
+            // no operand dispatch
             RS[rs_otherReady].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
             Instruction dispatched = RS[rs_otherReady].ins;
             int i = finishedInsts.indexOf(dispatched);
             finishedInsts.set(i,dispatched);
+            if(RS[rs_otherReady].op.equals(Opcode.HALT)) {
+                beforeFinish = true;
+            }
         }
         dispatchBlocked = (rs_aluReady == -1) && (rs_loadReady == -1) && (rs_storeReady == -1) && (rs_bruReady == -1) && (rs_otherReady == -1);
+    }
+
+    private void dispatchOperands(int rs_index) {
+        //dispatch operands
+        RS[rs_index].ins.data1 = RS[rs_index].V1;
+        RS[rs_index].ins.data2 = RS[rs_index].V2;
+        RS[rs_index].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
+        Instruction dispatched = RS[rs_index].ins;
+        int i = finishedInsts.indexOf(dispatched);
+        finishedInsts.set(i,dispatched);
+    }
+
+    private int getReadyRSIndex(OpType opType) {
+        int priority = Integer.MAX_VALUE;
+        int readyIndex = -1;
+        for(int i=0; i < RS.length; i++) {
+            if(
+                    RS[i].busy &&
+                            !RS[i].executing &&
+                            RS[i].type.equals(opType) &&
+                            RS[i].Q1 == -1 &&
+                            RS[i].Q2 == -1 &&
+                            RS[i].Qs == -1
+            ) {
+                // if this was fetched earlier than current priority
+                if(RS[i].ins.id < priority) {
+                    // this is new ready RS
+                    priority = RS[i].ins.id;
+                    readyIndex = i;
+                }
+            }
+        }
+        return readyIndex;
     }
 
     private int getReadyLoadIndex() {
@@ -322,10 +371,10 @@ public class Processor7 {
         for(int i = 0; i < RS.length; i++) {
             if(
                     RS[i].busy
-                    && !RS[i].executing
-                    && RS[i].type.equals(OpType.LOAD)
-                    && RS[i].Q1 == -1
-                    && RS[i].Q2 == -1
+                            && !RS[i].executing
+                            && RS[i].type.equals(OpType.LOAD)
+                            && RS[i].Q1 == -1
+                            && RS[i].Q2 == -1
             ) {
                 int j = RS[i].robIndex; // j is ROB index of the ins
                 if(checkRobForLoadStage1(j) && RS[i].ins.id < priority) {
@@ -361,12 +410,12 @@ public class Processor7 {
             int robIndex = RS[i].robIndex;
             if(
                     RS[i].busy
-                    && !RS[i].executing
-                    && RS[i].type.equals(OpType.STORE)
-                    && RS[i].Q1 == -1
-                    && RS[i].Q2 == -1
-                    && RS[i].Qs == -1
-                    && robIndex == ROB.head
+                            && !RS[i].executing
+                            && RS[i].type.equals(OpType.STORE)
+                            && RS[i].Q1 == -1
+                            && RS[i].Q2 == -1
+                            && RS[i].Qs == -1
+                            && robIndex == ROB.head
             ) {
                 // if this was fetched earlier than current priority
                 if(RS[i].ins.id < priority) {
@@ -385,11 +434,11 @@ public class Processor7 {
         for(int i=0; i < RS.length; i++) {
             if(
                     RS[i].busy
-                    && !RS[i].executing
-                    && RS[i].type.equals(OpType.OTHER)
-                    && RS[i].Q1 == -1
-                    && RS[i].Q2 == -1
-                    && RS[i].Qs == -1
+                            && !RS[i].executing
+                            && RS[i].type.equals(OpType.OTHER)
+                            && RS[i].Q1 == -1
+                            && RS[i].Q2 == -1
+                            && RS[i].Qs == -1
             ) {
                 if(RS[i].ins.opcode.equals(Opcode.HALT) && !ROB.peak().ins.equals(RS[i].ins)) {
                     continue; // when it's HALT but if it's not the head of ROB, don't dispatch it
@@ -405,186 +454,84 @@ public class Processor7 {
         return readyIndex;
     }
 
-    private int getReadyRSIndex(OpType opType) {
-        int priority = Integer.MAX_VALUE;
-        int readyIndex = -1;
-        for(int i=0; i < RS.length; i++) {
-            if(
-                    RS[i].busy &&
-                            !RS[i].executing &&
-                            RS[i].type.equals(opType) &&
-                            RS[i].Q1 == -1 &&
-                            RS[i].Q2 == -1 &&
-                            RS[i].Qs == -1
-            ) {
-                // if this was fetched earlier than current priority
-                if(RS[i].ins.id < priority) {
-                    // this is new ready RS
-                    priority = RS[i].ins.id;
-                    readyIndex = i;
-                }
-            }
-        }
-        return readyIndex;
-    }
-
     private void Execute() {
         executeBlocked = executionResults.size() >= QUEUE_SIZE;
-        euAllBusy = (alu0.busy && alu1.busy && lsu0.busy);
-        boolean branchTaken = false;
+        nothingToExecute = rs_aluReady == -1 && rs_loadReady == -1 && rs_storeReady == -1 && rs_bruReady == -1 && rs_otherReady == -1;
+        euAllBusy = (alu0.busy && alu1.busy);
+
         boolean loadAddressReady = false;
         boolean storeAddressReady = false;
-        if(!executeBlocked && !euAllBusy) {
-            Instruction executing;
+        if(!executeBlocked && !nothingToExecute) {
             if(rs_bruReady > -1) {
-                ReservationStation rs_execute = RS[rs_bruReady];
-                rs_execute.ins.data1 = rs_execute.V1;
-                rs_execute.ins.data2 = rs_execute.V2;
-                executing = rs_execute.ins;
-                executing.executeComplete = cycle;
-                RS[executing.rsIndex].executing = true;
-                if (bru0.evaluateCondition(executing.opcode, executing.data1)) {
-                    branchTaken = true;
-                    executing.result = pc = bru0.evaluateTarget(executing.opcode, executing.insAddress, executing.data1, executing.data2);
-                    // Flushing
-                    fetchedQueue.clear();
-                    decodedQueue.clear();
-                    for(int i = 0; i < RS.length; i++) {
-                        // if the instruction is issued later than the branch execution
-                        if(!RS[i].executing && RS[i].ins.id > executing.id) {
-                            regStats[RS[i].ins.Rd].busy = false;
-                            regStats[RS[i].ins.Rd].robIndex = -1;
-                            RS[i] = new ReservationStation();
-                            // if flushed one was dispatched one, flush dispatch
-                            if(rs_aluReady == i) {
-                                rs_aluReady = -1;
-                            }
-                            else if(rs_lsuReady == i) {
-                                rs_lsuReady = -1;
-                            }
-                            else if(rs_bruReady == i) {
-                                rs_bruReady = -1;
-                            }
-                            else if(rs_otherReady == i) {
-                                rs_otherReady = -1;
-                            }
-                        }
-                    }
+                // verify branch
+            }
+            if(rs_aluReady > -1) {
+                Instruction executing = RS[rs_aluReady].ins;
+                if(!alu0.busy) {
+                    alu0.update(executing.opcode,executing.data1,executing.data2);
+                    alu0.executing = executing;
+                    executing.executeComplete = cycle;
+                    RS[executing.rsIndex].executing = true;
                 }
-//                finishedInsts.add(executing);
+                else if(!alu1.busy) {
+                    alu1.update(executing.opcode, executing.data1, executing.data2);
+                    alu1.executing = executing;
+                    executing.executeComplete = cycle;
+                    RS[executing.rsIndex].executing = true;
+                }
+                int i = finishedInsts.indexOf(executing);
+                finishedInsts.set(i,executing);
+            }
+            if(rs_loadReady > -1) {
+                Instruction executing = RS[rs_loadReady].ins;
+                RS[rs_loadReady].executing = true;
+                executing.memAddress = agu.evaluate(Opcode.ADD,executing.data1,executing.data2);
+                executing.executeComplete = cycle;
+                RS[rs_loadReady].ins = executing;
+                loadAddressReady = true;
+                int i = finishedInsts.indexOf(executing);
+                finishedInsts.set(i,executing);
+            }
+            if(rs_storeReady > -1) {
+                Instruction executing = RS[rs_storeReady].ins;
+                RS[rs_storeReady].executing = true;
+                int memAddress = agu.evaluate(Opcode.ADD,executing.data1,executing.data2);
+                executing.memAddress = memAddress;
+                executing.executeComplete = cycle;
+                RS[rs_storeReady].A = memAddress;
+                ROB.buffer[RS[rs_storeReady].robIndex].address = memAddress;
+                storeAddressReady = true;
+                int i = finishedInsts.indexOf(executing);
+                finishedInsts.set(i,executing);
+            }
+            if(rs_otherReady > -1) {
+                Instruction executing = RS[rs_otherReady].ins;
+                RS[rs_otherReady].executing = true;
+                executing.executeComplete = cycle;
                 int i = finishedInsts.indexOf(executing);
                 finishedInsts.set(i,executing);
                 executedInsts++;
-                resultForwarding2(executing);
-
-                RS[rs_bruReady] = new ReservationStation();
-            }
-            if(rs_aluReady > -1 && !branchTaken) {
-                ReservationStation rs_execute = RS[rs_aluReady];
-                rs_execute.ins.data1 = rs_execute.V1;
-                rs_execute.ins.data2 = rs_execute.V2;
-                executing = rs_execute.ins;
-                executing.executeComplete = cycle;
-                if (!alu0.busy) {
-                    alu0.update(executing.opcode, executing.data1, executing.data2);
-                    alu0.executing = executing;
-                    RS[executing.rsIndex].executing = true;
-                } else if (!alu1.busy) {
-                    alu1.update(executing.opcode, executing.data1, executing.data2);
-                    alu1.executing = executing;
-                    RS[executing.rsIndex].executing = true;
-                }
-                int i = finishedInsts.indexOf(executing);
-                finishedInsts.set(i,executing);
-            }
-
-            // load stage 1
-            if(rs_loadReady > -1 && !RS[rs_loadReady].addressReady && !branchTaken) {
-                RS[rs_loadReady].executing = true;
-
-                executing = RS[rs_loadReady].ins;
-                executing.data1 = RS[rs_loadReady].V1;
-                executing.data2 = RS[rs_loadReady].A;
-                executing.executeComplete = cycle;
-
-                executing.memAddress = agu.evaluate(Opcode.ADD,executing.data1,executing.data2);
-
-
-                loadAddressReady = true;
-                RS[rs_loadReady].ins = executing;
-                int i = finishedInsts.indexOf(executing);
-                finishedInsts.set(i,executing);
-            }
-            if(rs_storeReady > -1 && !branchTaken) {
-                int robIndex = RS[rs_storeReady].robIndex;
-                RS[rs_storeReady].executing = true;
-                RS[rs_storeReady].ins.executeComplete = cycle;
-                int memAddress = agu.evaluate(Opcode.ADD,RS[rs_storeReady].V1,RS[rs_storeReady].A);
-                RS[rs_storeReady].ins.memAddress = memAddress;
-                ROB.buffer[robIndex].address = memAddress;
-                storeAddressReady = true;
-                int i = finishedInsts.indexOf(RS[rs_storeReady].ins);
-                finishedInsts.set(i,RS[rs_storeReady].ins);
-            }
-            if(rs_otherReady > -1 && !branchTaken) {
-                ReservationStation rs_execute = RS[rs_otherReady];
-                rs_execute.ins.data1 = rs_execute.V1;
-                rs_execute.ins.data2 = rs_execute.V2;
-                executing = rs_execute.ins;
-                if(executing.opcode.equals(Opcode.HALT)) {
-                    if(!alu0.busy && !alu1.busy && !lsu0.busy && executionResults.isEmpty() && beforeWriteBack.isEmpty()) {
-                        RS[executing.rsIndex].executing = true;
-                        finished = true;
-                        executing.executeComplete = cycle;
-                        executing.memoryComplete = cycle + 1;
-                        executing.writeBackComplete = cycle + 2;
-//                        finishedInsts.add(executing);
-
-
-
-                        int robIndex = RS[rs_otherReady].robIndex;
-
-                        ROB.buffer[robIndex].ready = true;
-
-                        int i = finishedInsts.indexOf(executing);
-                        finishedInsts.set(i,executing);
-                    }
-                }
-                else {
-                    RS[executing.rsIndex].executing = true;
-                    executing.executeComplete = cycle;
-                    executing.memoryComplete = cycle + 1;
-                    executing.writeBackComplete = cycle + 2;
-//                    finishedInsts.add(executing);
-                    int robIndex = RS[rs_otherReady].robIndex;
-                    RS[rs_otherReady] = new ReservationStation(); // clear RS entry
-                    ROB.buffer[robIndex].ready = true;
-
-                    int i = finishedInsts.indexOf(executing);
-                    finishedInsts.set(i,executing);
-                }
+                executionResults.add(executing);
+                // do nothing here
             }
         }
-        // ALUs and LSU works at here
         Instruction alu0_result = alu0.execute();
         Instruction alu1_result = alu1.execute();
-//        Instruction lsu0_result = lsu0.execute();
         if(alu0_result != null && alu0_result.result != null) {
             executionResults.add(alu0_result);
-            resultForwarding2(alu0_result);
+//            resultForwarding2(alu0_result);
+            resultForwardingFromRS(alu0_result);
             alu0.reset();
             executedInsts++;
         }
         if(alu1_result != null && alu1_result.result != null) {
             executionResults.add(alu1_result);
-            resultForwarding2(alu1_result);
+//            resultForwarding2(alu1_result);
+            resultForwardingFromRS(alu1_result);
             alu1.reset();
             executedInsts++;
         }
         if(loadAddressReady) {
-//            RS[rs_otherReady] = new ReservationStation(); // clear RS entry
-            RS[rs_loadReady].A = RS[rs_loadReady].ins.memAddress;
-            RS[rs_loadReady].addressReady = true;
             executionResults.add(RS[rs_loadReady].ins);
             executedInsts++;
         }
@@ -592,18 +539,7 @@ public class Processor7 {
             executionResults.add(RS[rs_storeReady].ins);
             executedInsts++;
         }
-//        if(lsu0_result != null && lsu0_result.memAddress != null) {
-//            executionResults.add(lsu0_result);
-//            RS[lsu0_result.rsIndex].A = lsu0_result.memAddress;
-//            lsu0.reset();
-//            executedInsts++;
-//        }
-//        if(executeBlocked) { // stall: buffer is full
-//
-//        }
-//        if(euAllBusy) { // stall: all EUs are busy
-//
-//        }
+
     }
 
     private void Memory() {
@@ -613,10 +549,10 @@ public class Processor7 {
                 case LD:
                 case LDI:
                     executed.result = mem[executed.memAddress];
-                    resultForwarding2(executed);
+                    resultForwardingFromRS(executed);
                     break;
                 default: // non memory instructions, only do result forwarding
-                    resultForwarding2(executed);
+                    resultForwardingFromRS(executed);
                     break;
             }
             executed.memoryComplete = cycle; // save cycle number of memory stage
@@ -630,22 +566,63 @@ public class Processor7 {
         while(!beforeWriteBack.isEmpty()) {
             Instruction writeBack = beforeWriteBack.remove();
             writeBack.writeBackComplete = cycle;
+            int rsIndex = writeBack.rsIndex;
+            int robIndex = RS[rsIndex].robIndex;
+
             if(writeBack.Rd != 0) {
-                int rsIndex = writeBack.rsIndex;
-                int robIndex = RS[rsIndex].robIndex;
                 if(writeBack.opType.equals(OpType.STORE)) { // store instructions
                     ROB.buffer[ROB.head].value = RS[rsIndex].Vs;
                 }
                 else {
                     ROB.buffer[robIndex].value = writeBack.result;
                 }
+                ROB.buffer[robIndex].ready = true;
+                resultForwardingFromRS(writeBack);
                 RS[rsIndex] = new ReservationStation(); // clear RS entry
-                resultForwarding2(writeBack);
+            }
+            if(writeBack.opType.equals(OpType.OTHER)) {
                 ROB.buffer[robIndex].ready = true;
             }
-//            finishedInsts.add(writeBack);
             int i = finishedInsts.indexOf(writeBack);
             finishedInsts.set(i,writeBack);
+        }
+    }
+
+    private void resultForwardingFromRS(Instruction forwarding) {
+        int b = RS[forwarding.rsIndex].robIndex;
+        if(b == -1) {
+            return;
+        }
+        for(ReservationStation rs : RS) {
+            if(rs.Q1 == b) {
+                rs.V1 = forwarding.result;
+                rs.Q1 = -1;
+            }
+            if(rs.Q2 == b) {
+                rs.V2 = forwarding.result;
+                rs.Q2 = -1;
+            }
+            if(rs.Qs == b) {
+                rs.Vs = forwarding.result;
+                rs.Qs = -1;
+            }
+        }
+    }
+
+    private void resultForwardingFromROB(int robIndex, int value) {
+        for(ReservationStation rs : RS) {
+            if(rs.Q1 == robIndex) {
+                rs.V1 = value;
+                rs.Q1 = -1;
+            }
+            if(rs.Q2 == robIndex) {
+                rs.V2 = value;
+                rs.Q2 = -1;
+            }
+            if(rs.Qs == robIndex) {
+                rs.Vs = value;
+                rs.Qs = -1;
+            }
         }
     }
 
@@ -660,36 +637,18 @@ public class Processor7 {
             if(robHead.ins.opType.equals(OpType.STORE)) {
                 mem[robHead.address] = robHead.value; // update memory here
             }
+            else if(robHead.ins.opcode.equals(Opcode.HALT)) {
+                finished = true;
+            }
             else { // update registers with result
                 int Rd = robHead.destination;
                 rf[Rd] = robHead.value;
-                    if(regStats[Rd].busy && regStats[Rd].robIndex == h) {
-                        regStats[Rd] = new RegisterStatus(); // free up register status entry
-                    }
+                resultForwardingFromROB(h,robHead.value);
+                if(regStats[Rd].busy && regStats[Rd].robIndex == h) {
+                    regStats[Rd] = new RegisterStatus(); // free up register status entry
+                }
             }
             ROB.pop(); // free up ROB entry, new head
-        }
-    }
-
-    private void resultForwarding2(Instruction ins) {
-        if(RS[ins.rsIndex].robIndex == -1) {
-            return;
-        }
-        for (ReservationStation rs : RS) {
-            if (rs.busy) {
-                if (rs.Q1 == RS[ins.rsIndex].robIndex) {
-                    rs.V1 = ins.result;
-                    rs.Q1 = -1;
-                }
-                if (rs.Q2 == RS[ins.rsIndex].robIndex) {
-                    rs.V2 = ins.result;
-                    rs.Q2 = -1;
-                }
-                if (rs.Qs == RS[ins.rsIndex].robIndex) {
-                    rs.Vs = ins.result;
-                    rs.Qs = -1;
-                }
-            }
         }
     }
 
@@ -711,10 +670,13 @@ public class Processor7 {
             Decode();
             Fetch();
             cycle++;
-            if(fetchBlocked || decodeBlocked || issueBlocked || executeBlocked || euAllBusy) {
+            if(fetchBlocked || decodeBlocked || issueBlocked || dispatchBlocked || executeBlocked || euAllBusy) {
                 stalledCycle++;
             }
-            System.out.println("PC: "+ pc);
+            else if(nothingToDecode || nothingToIssue || nothingToDispatch || nothingToExecute || nothingToMemory || nothingToWriteBack) {
+                waitingCycle++;
+            }
+            System.out.println("PC: " + pc);
         }
         finishedInsts.sort(Comparator.comparingInt((Instruction i) -> i.id));
         TraceEncoder traceEncoder = new TraceEncoder(finishedInsts);
@@ -736,8 +698,10 @@ public class Processor7 {
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");
         System.out.println(stalledCycle + " stalled cycles");
+        System.out.println(waitingCycle + " Waiting cycles");
         System.out.println("cycles/instruction ratio: " + ((float) cycle) / (float) executedInsts);
         System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
         System.out.println("stalled_cycle/cycle ratio: " + ((float) stalledCycle / (float) cycle));
+        System.out.println("wasted_cycle/cycle ratio: " + ((float) (stalledCycle + waitingCycle) / (float) cycle));
     }
 }

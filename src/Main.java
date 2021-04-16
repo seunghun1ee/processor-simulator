@@ -127,36 +127,38 @@ public class Main {
         instructions4[16] = new Instruction(Opcode.MUL,4,4,4,0); // $4 = $4 * $4 = 400 (2 cycles)
         instructions4[17] = new Instruction(Opcode.ADD,2,2,1,0); // $2 = $2 + $1 = 32
         instructions4[18] = new Instruction(Opcode.AND,11,14,1,0); // $11 = $14 & $1 = 30
-        instructions4[19] = new Instruction(Opcode.BR,0,0,0,50); // PC <- 50
+//        instructions4[19] = new Instruction(Opcode.BR,0,0,0,50); // PC <- 50
+        instructions4[19] = new Instruction(Opcode.NOOP,0,0,0,0); // placeholder
         instructions4[20] = new Instruction(Opcode.HALT,0,0,0,0); // HALT
-        instructions4[50] = new Instruction(Opcode.ADD,15,1,2,0); // $15 = $1 + $2 = 62
-        instructions4[51] = new Instruction(Opcode.STI,15,3,0,2); // mem[5 + 2] = $15
-        instructions4[52] = new Instruction(Opcode.BR,0,0,0,20); // jump back to halt
+//        instructions4[50] = new Instruction(Opcode.ADD,15,1,2,0); // $15 = $1 + $2 = 62
+//        instructions4[51] = new Instruction(Opcode.STI,15,3,0,2); // mem[5 + 2] = $15
+//        instructions4[52] = new Instruction(Opcode.BR,0,0,0,20); // jump back to halt
 
 
-        System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
-        Processor6 processor = new Processor6(mem,instructions);
-        processor.RunProcessor();
-        createDump(processor.mem, "mem_bench1.txt");
-        createDump(processor.rf,"rf_bench1.txt");
-
-        System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
-        Processor6 processor2 = new Processor6(mem2,instructions2);
-        processor2.RunProcessor();
-        createDump(processor2.mem, "mem_bench2.txt");
-        createDump(processor2.rf,"rf_bench2.txt");
-
-        System.out.println("Benchmark3 - Factorial(" + num + ")");
-	    Processor6 processor3 = new Processor6(mem3,instructions3);
-	    processor3.RunProcessor();
-	    createDump(processor3.mem, "mem_bench3.txt");
-	    createDump(processor3.rf,"rf_bench3.txt");
+//        System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
+//        Processor7 processor = new Processor7(mem,instructions);
+//        processor.RunProcessor();
+//        createDump(processor.mem, "mem_bench1.txt");
+//        createDump(processor.rf,"rf_bench1.txt");
+//
+//        System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
+//        Processor7 processor2 = new Processor7(mem2,instructions2);
+//        processor2.RunProcessor();
+//        createDump(processor2.mem, "mem_bench2.txt");
+//        createDump(processor2.rf,"rf_bench2.txt");
+//
+//        System.out.println("Benchmark3 - Factorial(" + num + ")");
+//	    Processor7 processor3 = new Processor7(mem3,instructions3);
+//	    processor3.RunProcessor();
+//	    createDump(processor3.mem, "mem_bench3.txt");
+//	    createDump(processor3.rf,"rf_bench3.txt");
 
 	    System.out.println("Benchmark4 - many dependencies");
-	    Processor6 processor4 = new Processor6(mem4,instructions4);
+	    Processor8 processor4 = new Processor8(mem4,instructions4);
 	    processor4.RunProcessor();
 	    createDump(processor4.mem, "mem_bench4.txt");
 	    createDump(processor4.rf,"rf_bench4.txt");
+
     }
 
     private static void createDump(int[] array, String filePath) throws IOException {
