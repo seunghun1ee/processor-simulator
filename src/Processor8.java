@@ -503,6 +503,7 @@ public class Processor8 {
                 RS[rs_storeReady].A = memAddress;
                 ROB.buffer[RS[rs_storeReady].robIndex].address = memAddress;
                 storeAddressReady = true;
+                executedInsts++;
                 int i = finishedInsts.indexOf(executing);
                 finishedInsts.set(i,executing);
             }
@@ -565,28 +566,56 @@ public class Processor8 {
     }
 
     private void WriteBack() {
+        Queue<Instruction> copy = new LinkedList<>();
         while(!beforeWriteBack.isEmpty()) {
             Instruction writeBack = beforeWriteBack.remove();
-            writeBack.writeBackComplete = cycle;
+
+            if(!writeBack.opType.equals(OpType.LOAD)) {
+                writeBack.memoryComplete = cycle;
+            }
+
             int rsIndex = writeBack.rsIndex;
             int robIndex = RS[rsIndex].robIndex;
 
-
-            if(writeBack.opType.equals(OpType.STORE)) { // store instructions
-                ROB.buffer[ROB.head].value = RS[rsIndex].Vs;
+            switch (writeBack.opType) {
+                case STORE:
+                    if(robIndex == ROB.head) {
+                        ROB.buffer[ROB.head].value = RS[rsIndex].Vs;
+                        writeBack.writeBackComplete = cycle;
+                        ROB.buffer[robIndex].ready = true;
+                        resultForwardingFromRS(writeBack);
+                        RS[rsIndex] = new ReservationStation(); // clear RS entry
+                    }
+                    else {
+                        copy.add(writeBack);
+                    }
+                    break;
+                case BRU:
+                case OTHER:
+                    ROB.buffer[robIndex].ready = true;
+                    writeBack.writeBackComplete = cycle;
+                    resultForwardingFromRS(writeBack);
+                    RS[rsIndex] = new ReservationStation(); // clear RS entry
+                    break;
+                case ALU:
+                case LOAD:
+                    if(writeBack.Rd != 0) {
+                        ROB.buffer[robIndex].value = writeBack.result;
+                    }
+                    ROB.buffer[robIndex].ready = true;
+                    writeBack.writeBackComplete = cycle;
+                    resultForwardingFromRS(writeBack);
+                    RS[rsIndex] = new ReservationStation(); // clear RS entry
+                    break;
+                default:
+                    System.out.println("illegal optype detected at WriteBack stage");
+                    finished = true;
+                    break;
             }
-            else if(writeBack.Rd != 0){
-                ROB.buffer[robIndex].value = writeBack.result;
-            }
-            if(writeBack.opType.equals(OpType.OTHER)) {
-                ROB.buffer[robIndex].ready = true;
-            }
-            ROB.buffer[robIndex].ready = true;
-            resultForwardingFromRS(writeBack);
-            RS[rsIndex] = new ReservationStation(); // clear RS entry
             int i = finishedInsts.indexOf(writeBack);
             finishedInsts.set(i,writeBack);
         }
+        beforeWriteBack.addAll(copy);
     }
 
     private void resultForwardingFromRS(Instruction forwarding) {
