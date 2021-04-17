@@ -33,7 +33,7 @@ public class Processor8 {
     // final result registers before write back
     Queue<Instruction> beforeWriteBack = new LinkedList<>();
     int BTB_SIZE = 8;
-    Map<Integer,Boolean> BTB = new HashMap<>(); // 1-bit Branch Target Buffer, Key: insAddress, Value: if branch was taken
+    Map<Integer,BTBstatus> BTB = new HashMap<>(); // 2-bit Branch Target Buffer, Key: insAddress, Value: BTB status
 
     int rs_aluReady = -1;
     int rs_loadReady = -1;
@@ -168,27 +168,22 @@ public class Processor8 {
                 branchTaken = true;
             }
             if(decoded.opcode.equals(Opcode.BRZ) || decoded.opcode.equals(Opcode.BRN)) {
-                Boolean btbCondition = BTB.get(decoded.insAddress);
+                BTBstatus btbCondition = BTB.get(decoded.insAddress);
                 decoded.predicted = true;
                 if(btbCondition == null) {
-                    boolean staticCondition = branchPredictor(decoded);
-                    BTB.put(decoded.insAddress,staticCondition);
-                    if(staticCondition) {
+                    if(branchPredictor(decoded)) {
+                        BTB.put(decoded.insAddress,BTBstatus.YES);
                         pc = decoded.Const;
                         decoded.taken = true;
                     }
+                    else {
+                        BTB.put(decoded.insAddress,BTBstatus.NO);
+                    }
                 }
-                else if(btbCondition) {
+                else if(btbCondition.equals(BTBstatus.YES) || btbCondition.equals(BTBstatus.STRONG_YES)) {
                     pc = decoded.Const;
                     decoded.taken = true;
                 }
-
-
-//                decoded.predicted = true;
-//                if(branchPredictor(decoded)) {
-//                    pc = decoded.Const;
-//                    decoded.taken = true;
-//                }
                 speculativeExecution++;
                 predictedBranches++;
             }
@@ -510,10 +505,30 @@ public class Processor8 {
                 if(realBranchCondition && executing.predicted && executing.taken) {
                     // well predicted taken branch
                     correctPrediction++;
+                    BTBstatus oldBtbCondition = BTB.get(executing.insAddress);
+                    switch (oldBtbCondition) {
+                        case STRONG_YES:
+                        case YES:
+                            BTB.put(executing.insAddress,BTBstatus.STRONG_YES);
+                            break;
+                        default:
+                            System.out.println("illegal btb status detected at execute stage");
+                            break;
+                    }
                 }
                 else if(!realBranchCondition && executing.predicted && !executing.taken) {
                     // well predicted denied branch
                     correctPrediction++;
+                    BTBstatus oldBtbCondition = BTB.get(executing.insAddress);
+                    switch (oldBtbCondition) {
+                        case STRONG_NO:
+                        case NO:
+                            BTB.put(executing.insAddress,BTBstatus.STRONG_NO);
+                            break;
+                        default:
+                            System.out.println("illegal btb status detected at execute stage");
+                            break;
+                    }
                 }
                 else {
                     // prediction failed
@@ -725,8 +740,23 @@ public class Processor8 {
             if(robHead.ins.opType.equals(OpType.BRU)) {
                 if(robHead.mispredicted) {
                     // flip BTB condition
-                    boolean oldBtbCondition = BTB.get(robHead.ins.insAddress);
-                    BTB.put(robHead.ins.insAddress,!oldBtbCondition);
+                    BTBstatus oldBtbCondition = BTB.get(robHead.ins.insAddress);
+                    BTBstatus newBtbCondition = oldBtbCondition;
+                    switch (oldBtbCondition) {
+                        case STRONG_YES:
+                            newBtbCondition = BTBstatus.YES;
+                            break;
+                        case YES:
+                            newBtbCondition = BTBstatus.NO;
+                            break;
+                        case NO:
+                            newBtbCondition = BTBstatus.YES;
+                            break;
+                        case STRONG_NO:
+                            newBtbCondition = BTBstatus.NO;
+                            break;
+                    }
+                    BTB.put(robHead.ins.insAddress,newBtbCondition);
                     // clear reorder buffer
                     ROB.clear();
                     // clear register status
