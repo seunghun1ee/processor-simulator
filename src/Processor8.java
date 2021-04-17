@@ -105,6 +105,11 @@ public class Processor8 {
         }
     }
 
+    // static predictor (take backward branch, deny forward branch)
+    private boolean branchPredictor(Instruction ins) {
+        return ins.Const <= pc;
+    }
+
     private void Decode() {
         decodeBlocked = decodedQueue.size() >= QUEUE_SIZE;
         nothingToDecode = fetchedQueue.isEmpty();
@@ -162,7 +167,11 @@ public class Processor8 {
             }
             // fixed branch prediction, always take branch
             if(decoded.opcode.equals(Opcode.BRZ) || decoded.opcode.equals(Opcode.BRN)) {
-                pc = decoded.Const;
+                decoded.predicted = true;
+                if(branchPredictor(decoded)) {
+                    pc = decoded.Const;
+                    decoded.taken = true;
+                }
                 speculativeExecution++;
                 predictedBranches++;
             }
@@ -457,9 +466,13 @@ public class Processor8 {
                 Instruction verifying = RS[rs_bruReady].ins;
                 RS[rs_bruReady].executing = true;
                 verifying.executeComplete = cycle;
-                boolean branchCondition = bru0.evaluateCondition(verifying.opcode, verifying.data1);
-                if(branchCondition) {
-                    // well predicted
+                boolean realBranchCondition = bru0.evaluateCondition(verifying.opcode, verifying.data1);
+                if(realBranchCondition && verifying.predicted && verifying.taken) {
+                    // well predicted taken branch
+                    correctPrediction++;
+                }
+                else if(!realBranchCondition && verifying.predicted && !verifying.taken) {
+                    // well predicted denied branch
                     correctPrediction++;
                 }
                 else {
@@ -692,7 +705,12 @@ public class Processor8 {
                     loadBuffer.clear();
                     beforeWriteBack.clear();
                     // change to correct pc
-                    pc = robHead.ins.insAddress + 1;
+                    if(robHead.ins.taken) {
+                        pc = robHead.ins.insAddress + 1;
+                    }
+                    else {
+                        pc = robHead.ins.Const;
+                    }
                 }
                 speculativeExecution--;
             }
@@ -756,7 +774,7 @@ public class Processor8 {
 //                }
 //                System.out.println();
 //            }
-//            System.out.println("PC: " + pc + " prediction layer: " + speculativeExecution);
+            System.out.println("Cycle: " + cycle + " PC: " + pc);
         }
         finishedInsts.sort(Comparator.comparingInt((Instruction i) -> i.id));
         TraceEncoder traceEncoder = new TraceEncoder(finishedInsts);

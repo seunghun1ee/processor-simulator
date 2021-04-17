@@ -35,8 +35,8 @@ public class Main {
         Instruction[] instructions2 = new Instruction[512];
         int[] mem2 = new int[1024];
 
-        int[] arrayToSort = {512,52,61,3,-6,-127,75,21,98,1,874,-1239,431,94,10,36};
-//        int[] arrayToSort = {512,52,61,3-6,-127};
+//        int[] arrayToSort = {512,52,61,3,-6,-127,75,21,98,1,874,-1239,431,94,10,36};
+        int[] arrayToSort = {512,52,61,3-6,-127};
         int pointer = 2;
         System.arraycopy(arrayToSort,0,mem2,pointer,arrayToSort.length);
         instructions2[0] = new Instruction(Opcode.MOVC,1,0,0,pointer); // load array pointer
@@ -150,11 +150,11 @@ public class Main {
 //        instructions5[15] = new Instruction()
 
 
-        System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
-        Processor8 processor = new Processor8(mem,instructions);
-        processor.RunProcessor();
-        createDump(processor.mem, "mem_bench1.txt");
-        createDump(processor.rf,"rf_bench1.txt");
+//        System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
+//        Processor8 processor = new Processor8(mem,instructions);
+//        processor.RunProcessor();
+//        createDump(processor.mem, "mem_bench1.txt");
+//        createDump(processor.rf,"rf_bench1.txt");
 
         System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
         Processor8 processor2 = new Processor8(mem2,instructions2);
@@ -168,11 +168,11 @@ public class Main {
 //	    createDump(processor3.mem, "mem_bench3.txt");
 //	    createDump(processor3.rf,"rf_bench3.txt");
 
-	    System.out.println("Benchmark4 - many dependencies");
-	    Processor8 processor4 = new Processor8(mem4,instructions4);
-	    processor4.RunProcessor();
-	    createDump(processor4.mem, "mem_bench4.txt");
-	    createDump(processor4.rf,"rf_bench4.txt");
+//	    System.out.println("Benchmark4 - many dependencies");
+//	    Processor8 processor4 = new Processor8(mem4,instructions4);
+//	    processor4.RunProcessor();
+//	    createDump(processor4.mem, "mem_bench4.txt");
+//	    createDump(processor4.rf,"rf_bench4.txt");
 
     }
 
