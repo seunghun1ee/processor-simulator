@@ -32,6 +32,8 @@ public class Processor8 {
     Queue<Instruction> loadBuffer = new LinkedList<>();
     // final result registers before write back
     Queue<Instruction> beforeWriteBack = new LinkedList<>();
+    int BTB_SIZE = 8;
+    Map<Integer,Boolean> BTB = new HashMap<>(); // 1-bit Branch Target Buffer, Key: insAddress, Value: if branch was taken
 
     int rs_aluReady = -1;
     int rs_loadReady = -1;
@@ -165,13 +167,28 @@ public class Processor8 {
                 pc += decoded.Const;
                 branchTaken = true;
             }
-            // fixed branch prediction, always take branch
             if(decoded.opcode.equals(Opcode.BRZ) || decoded.opcode.equals(Opcode.BRN)) {
+                Boolean btbCondition = BTB.get(decoded.insAddress);
                 decoded.predicted = true;
-                if(branchPredictor(decoded)) {
+                if(btbCondition == null) {
+                    boolean staticCondition = branchPredictor(decoded);
+                    BTB.put(decoded.insAddress,staticCondition);
+                    if(staticCondition) {
+                        pc = decoded.Const;
+                        decoded.taken = true;
+                    }
+                }
+                else if(btbCondition) {
                     pc = decoded.Const;
                     decoded.taken = true;
                 }
+
+
+//                decoded.predicted = true;
+//                if(branchPredictor(decoded)) {
+//                    pc = decoded.Const;
+//                    decoded.taken = true;
+//                }
                 speculativeExecution++;
                 predictedBranches++;
             }
@@ -426,6 +443,29 @@ public class Processor8 {
         return true;
     }
 
+    private int getReadyBranchIndex() {
+        int priority = Integer.MAX_VALUE;
+        int readyIndex = -1;
+        for(int i=0; i < RS.length; i++) {
+            if(
+                    RS[i].busy
+                    && !RS[i].executing
+                    && RS[i].type.equals(OpType.BRU)
+                    && RS[i].Q1 == -1
+                    && RS[i].Q2 == -1
+                    && RS[i].Qs == -1
+            ) {
+                // if this was fetched earlier than current priority
+                if(RS[i].ins.id < priority) {
+                    // this is new ready RS
+                    priority = RS[i].ins.id;
+                    readyIndex = i;
+                }
+            }
+        }
+        return readyIndex;
+    }
+
     private int getReadyOtherIndex() {
         int priority = Integer.MAX_VALUE;
         int readyIndex = -1;
@@ -463,28 +503,28 @@ public class Processor8 {
         if(!executeBlocked && !nothingToExecute) {
             if(rs_bruReady > -1) {
                 // verify branch
-                Instruction verifying = RS[rs_bruReady].ins;
+                Instruction executing = RS[rs_bruReady].ins;
                 RS[rs_bruReady].executing = true;
-                verifying.executeComplete = cycle;
-                boolean realBranchCondition = bru0.evaluateCondition(verifying.opcode, verifying.data1);
-                if(realBranchCondition && verifying.predicted && verifying.taken) {
+                executing.executeComplete = cycle;
+                boolean realBranchCondition = bru0.evaluateCondition(executing.opcode, executing.data1);
+                if(realBranchCondition && executing.predicted && executing.taken) {
                     // well predicted taken branch
                     correctPrediction++;
                 }
-                else if(!realBranchCondition && verifying.predicted && !verifying.taken) {
+                else if(!realBranchCondition && executing.predicted && !executing.taken) {
                     // well predicted denied branch
                     correctPrediction++;
                 }
                 else {
                     // prediction failed
                     misprediction++;
-                    ROB.buffer[RS[verifying.rsIndex].robIndex].mispredicted = true;
-                    probes.add(new Probe(cycle,14,verifying.id));
+                    ROB.buffer[RS[executing.rsIndex].robIndex].mispredicted = true;
+                    probes.add(new Probe(cycle,14,executing.id));
                 }
-                ROB.buffer[RS[verifying.rsIndex].robIndex].ready = true;
+                ROB.buffer[RS[executing.rsIndex].robIndex].ready = true;
                 RS[rs_bruReady] = new ReservationStation();
-                int i = finishedInsts.indexOf(verifying);
-                finishedInsts.set(i,verifying);
+                int i = finishedInsts.indexOf(executing);
+                finishedInsts.set(i,executing);
             }
             if(rs_aluReady > -1) {
                 Instruction executing = RS[rs_aluReady].ins;
@@ -684,6 +724,9 @@ public class Processor8 {
             }
             if(robHead.ins.opType.equals(OpType.BRU)) {
                 if(robHead.mispredicted) {
+                    // flip BTB condition
+                    boolean oldBtbCondition = BTB.get(robHead.ins.insAddress);
+                    BTB.put(robHead.ins.insAddress,!oldBtbCondition);
                     // clear reorder buffer
                     ROB.clear();
                     // clear register status
