@@ -13,6 +13,9 @@ public class Processor8 {
     int executedInsts = 0; // Number of instructions executed
     int stalledCycle = 0;
     int waitingCycle = 0;
+    int predictedBranches = 0;
+    int correctPrediction = 0;
+    int misprediction = 0;
     int insIdCount = 1; // for assigning id to instructions
     int[] mem; // memory from user
     int[] rf = new int[64]; //Register file (physical)
@@ -161,6 +164,7 @@ public class Processor8 {
             if(decoded.opcode.equals(Opcode.BRZ) || decoded.opcode.equals(Opcode.BRN)) {
                 pc = decoded.Const;
                 speculativeExecution++;
+                predictedBranches++;
             }
 
             decoded.decodeComplete = cycle; // save cycle number of decode stage
@@ -456,9 +460,11 @@ public class Processor8 {
                 boolean branchCondition = bru0.evaluateCondition(verifying.opcode, verifying.data1);
                 if(branchCondition) {
                     // well predicted
+                    correctPrediction++;
                 }
                 else {
                     // prediction failed
+                    misprediction++;
                     ROB.buffer[RS[verifying.rsIndex].robIndex].mispredicted = true;
                     probes.add(new Probe(cycle,14,verifying.id));
                 }
@@ -773,9 +779,13 @@ public class Processor8 {
         System.out.println(cycle + " cycles spent");
         System.out.println(stalledCycle + " stalled cycles");
         System.out.println(waitingCycle + " Waiting cycles");
+        System.out.println(predictedBranches + " branches predicted");
+        System.out.println(correctPrediction + " correct predictions");
+        System.out.println(misprediction + " incorrect predictions");
         System.out.println("cycles/instruction ratio: " + ((float) cycle) / (float) executedInsts);
         System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
         System.out.println("stalled_cycle/cycle ratio: " + ((float) stalledCycle / (float) cycle));
         System.out.println("wasted_cycle/cycle ratio: " + ((float) (stalledCycle + waitingCycle) / (float) cycle));
+        System.out.println("correct prediction rate: "+ ((float) correctPrediction / (float) predictedBranches));
     }
 }
