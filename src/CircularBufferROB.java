@@ -43,7 +43,7 @@ public class CircularBufferROB {
         return index;
     }
 
-    public ReorderBuffer peak() {
+    public ReorderBuffer peek() {
         return buffer[head];
     }
 

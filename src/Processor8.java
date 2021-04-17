@@ -13,6 +13,9 @@ public class Processor8 {
     int executedInsts = 0; // Number of instructions executed
     int stalledCycle = 0;
     int waitingCycle = 0;
+    int predictedBranches = 0;
+    int correctPrediction = 0;
+    int misprediction = 0;
     int insIdCount = 1; // for assigning id to instructions
     int[] mem; // memory from user
     int[] rf = new int[64]; //Register file (physical)
@@ -26,9 +29,11 @@ public class Processor8 {
     Queue<Instruction> decodedQueue = new LinkedList<>();
     ReservationStation[] RS = new ReservationStation[ISSUE_SIZE]; // unified reservation station
     CircularBufferROB ROB = new CircularBufferROB(ISSUE_SIZE); // Reorder buffer
-    Queue<Instruction> executionResults = new LinkedList<>();
+    Queue<Instruction> loadBuffer = new LinkedList<>();
     // final result registers before write back
     Queue<Instruction> beforeWriteBack = new LinkedList<>();
+    int BTB_SIZE = 8;
+    Map<Integer,BTBstatus> BTB = new HashMap<>(); // 2-bit Branch Target Buffer, Key: insAddress, Value: BTB status
 
     int rs_aluReady = -1;
     int rs_loadReady = -1;
@@ -56,9 +61,15 @@ public class Processor8 {
     boolean nothingToMemory = false;
     // write back states
     boolean nothingToWriteBack = false;
+    boolean writeBackBufferFull = false;
     // commit states
     boolean robEmpty = false;
     boolean commitUnavailable = false;
+
+    boolean loadBufferFull = false;
+
+    int predictionLayerLimit = 1;
+    int speculativeExecution = 0;
 
     // execution units
     // Arithmetic Logic Unit
@@ -96,10 +107,16 @@ public class Processor8 {
         }
     }
 
+    // static predictor (take backward branch, deny forward branch)
+    private boolean branchPredictor(Instruction ins) {
+        return ins.Const <= pc;
+    }
+
     private void Decode() {
         decodeBlocked = decodedQueue.size() >= QUEUE_SIZE;
         nothingToDecode = fetchedQueue.isEmpty();
         if(!decodeBlocked && !nothingToDecode) {
+            boolean branchTaken = false;
             Instruction decoded = fetchedQueue.remove();
             switch (decoded.opcode) {
                 case NOOP:
@@ -131,9 +148,9 @@ public class Processor8 {
                 case STI:
                     decoded.opType = OpType.STORE;
                     break;
-                case BR:
+                case BR: // unconditional branches
                 case JMP:
-                case BRZ:
+                case BRZ: // conditional branches
                 case BRN:
                     decoded.opType = OpType.BRU;
                     break;
@@ -142,12 +159,41 @@ public class Processor8 {
                     finished = true;
                     break;
             }
+            if(decoded.Rs1 == 0 && decoded.opcode.equals(Opcode.BR)) {
+                pc =  decoded.Const;
+                branchTaken = true;
+            }
+            if(decoded.opcode.equals(Opcode.JMP)) {
+                pc += decoded.Const;
+                branchTaken = true;
+            }
+            if(decoded.opcode.equals(Opcode.BRZ) || decoded.opcode.equals(Opcode.BRN)) {
+                BTBstatus btbCondition = BTB.get(decoded.insAddress);
+                decoded.predicted = true;
+                if(btbCondition == null) {
+                    if(branchPredictor(decoded)) {
+                        BTB.put(decoded.insAddress,BTBstatus.YES);
+                        pc = decoded.Const;
+                        decoded.taken = true;
+                    }
+                    else {
+                        BTB.put(decoded.insAddress,BTBstatus.NO);
+                    }
+                }
+                else if(btbCondition.equals(BTBstatus.YES) || btbCondition.equals(BTBstatus.STRONG_YES)) {
+                    pc = decoded.Const;
+                    decoded.taken = true;
+                }
+                speculativeExecution++;
+                predictedBranches++;
+            }
 
             decoded.decodeComplete = cycle; // save cycle number of decode stage
-            decodedQueue.add(decoded);
-
             int i = finishedInsts.indexOf(decoded);
             finishedInsts.set(i,decoded);
+            if(!branchTaken) {
+                decodedQueue.add(decoded);
+            }
         }
 
         if(decodeBlocked) { // stall: can't decode because the buffer is full
@@ -159,6 +205,15 @@ public class Processor8 {
 //        if(nothingToDecode) {
 //            probes.add(new Probe(cycle, ,0));
 //        }
+    }
+
+    private boolean checkSpeculative() {
+        for(ReorderBuffer rob : ROB.buffer) {
+            if(rob.busy && rob.speculative) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void Issue() { // issuing decoded instruction to reservation stations
@@ -216,7 +271,9 @@ public class Processor8 {
             // set Reorder Buffer
             allocatedROB.ins = issuing;
             allocatedROB.destination = issuing.Rd;
+            allocatedROB.busy = true;
             allocatedROB.ready = false;
+
             int robIndex = ROB.push(allocatedROB);
             // set Reservation Station
             RS[rsIndex].op = issuing.opcode;
@@ -303,8 +360,8 @@ public class Processor8 {
 
     private void Dispatch() {
         rs_aluReady = getReadyRSIndex(OpType.ALU);
-        rs_loadReady = getReadyLoadIndex();
-        rs_storeReady = getReadyStoreIndex();
+        rs_loadReady = getReadyRSIndex(OpType.LOAD);
+        rs_storeReady = getReadyRSIndex(OpType.STORE);
         rs_bruReady = getReadyRSIndex(OpType.BRU);
         rs_otherReady = getReadyOtherIndex();
         if(rs_aluReady > -1) {
@@ -365,57 +422,33 @@ public class Processor8 {
         return readyIndex;
     }
 
-    private int getReadyLoadIndex() {
-        int priority = Integer.MAX_VALUE;
-        int readyIndex = -1;
-        for(int i = 0; i < RS.length; i++) {
-            if(
-                    RS[i].busy
-                            && !RS[i].executing
-                            && RS[i].type.equals(OpType.LOAD)
-                            && RS[i].Q1 == -1
-                            && RS[i].Q2 == -1
-            ) {
-                int j = RS[i].robIndex; // j is ROB index of the ins
-                if(checkRobForLoadStage1(j) && RS[i].ins.id < priority) {
-                    priority = RS[i].ins.id;
-                    readyIndex = i;
-                }
-            }
-        }
-        return readyIndex;
-    }
-
-    private boolean checkRobForLoadStage1(int currentRobIndex) {
+    private boolean checkRobForLoadStage2(int currentRobIndex, int loadAddress) {
         int j = currentRobIndex;
         while (j != ROB.head) {
-            System.out.println("load1 while loop " + j);
             if(j == 0) {
                 j = ROB.capacity -1;
             }
             else {
                 j--;
             }
-            if(ROB.buffer[j] != null && ROB.buffer[j].ins.opType.equals(OpType.STORE)) {
+            if(ROB.buffer[j] != null && ROB.buffer[j].busy && ROB.buffer[j].ins.opType.equals(OpType.STORE) && ROB.buffer[j].address == loadAddress) {
                 return false;
             }
         }
         return true;
     }
 
-    private int getReadyStoreIndex() {
+    private int getReadyBranchIndex() {
         int priority = Integer.MAX_VALUE;
         int readyIndex = -1;
-        for(int i = 0; i < RS.length; i++) {
-            int robIndex = RS[i].robIndex;
+        for(int i=0; i < RS.length; i++) {
             if(
                     RS[i].busy
-                            && !RS[i].executing
-                            && RS[i].type.equals(OpType.STORE)
-                            && RS[i].Q1 == -1
-                            && RS[i].Q2 == -1
-                            && RS[i].Qs == -1
-                            && robIndex == ROB.head
+                    && !RS[i].executing
+                    && RS[i].type.equals(OpType.BRU)
+                    && RS[i].Q1 == -1
+                    && RS[i].Q2 == -1
+                    && RS[i].Qs == -1
             ) {
                 // if this was fetched earlier than current priority
                 if(RS[i].ins.id < priority) {
@@ -440,7 +473,7 @@ public class Processor8 {
                             && RS[i].Q2 == -1
                             && RS[i].Qs == -1
             ) {
-                if(RS[i].ins.opcode.equals(Opcode.HALT) && !ROB.peak().ins.equals(RS[i].ins)) {
+                if(RS[i].ins.opcode.equals(Opcode.HALT) && !ROB.peek().ins.equals(RS[i].ins)) {
                     continue; // when it's HALT but if it's not the head of ROB, don't dispatch it
                 }
                 // if this was fetched earlier than current priority
@@ -455,15 +488,58 @@ public class Processor8 {
     }
 
     private void Execute() {
-        executeBlocked = executionResults.size() >= QUEUE_SIZE;
+        loadBufferFull = loadBuffer.size() >= QUEUE_SIZE;
+        writeBackBufferFull = beforeWriteBack.size() >= QUEUE_SIZE;
+        executeBlocked = (writeBackBufferFull && (rs_aluReady > -1 || rs_storeReady > -1 || rs_otherReady > -1)) || (loadBufferFull && rs_loadReady > -1);
         nothingToExecute = rs_aluReady == -1 && rs_loadReady == -1 && rs_storeReady == -1 && rs_bruReady == -1 && rs_otherReady == -1;
         euAllBusy = (alu0.busy && alu1.busy);
-
         boolean loadAddressReady = false;
         boolean storeAddressReady = false;
         if(!executeBlocked && !nothingToExecute) {
             if(rs_bruReady > -1) {
                 // verify branch
+                Instruction executing = RS[rs_bruReady].ins;
+                RS[rs_bruReady].executing = true;
+                executing.executeComplete = cycle;
+                boolean realBranchCondition = bru0.evaluateCondition(executing.opcode, executing.data1);
+                if(realBranchCondition && executing.predicted && executing.taken) {
+                    // well predicted taken branch
+                    correctPrediction++;
+                    BTBstatus oldBtbCondition = BTB.get(executing.insAddress);
+                    switch (oldBtbCondition) {
+                        case STRONG_YES:
+                        case YES:
+                            BTB.put(executing.insAddress,BTBstatus.STRONG_YES);
+                            break;
+                        default:
+                            System.out.println("illegal btb status detected at execute stage");
+                            break;
+                    }
+                }
+                else if(!realBranchCondition && executing.predicted && !executing.taken) {
+                    // well predicted denied branch
+                    correctPrediction++;
+                    BTBstatus oldBtbCondition = BTB.get(executing.insAddress);
+                    switch (oldBtbCondition) {
+                        case STRONG_NO:
+                        case NO:
+                            BTB.put(executing.insAddress,BTBstatus.STRONG_NO);
+                            break;
+                        default:
+                            System.out.println("illegal btb status detected at execute stage");
+                            break;
+                    }
+                }
+                else {
+                    // prediction failed
+                    misprediction++;
+                    ROB.buffer[RS[executing.rsIndex].robIndex].mispredicted = true;
+                    probes.add(new Probe(cycle,14,executing.id));
+                }
+                ROB.buffer[RS[executing.rsIndex].robIndex].ready = true;
+                RS[rs_bruReady] = new ReservationStation();
+                int i = finishedInsts.indexOf(executing);
+                finishedInsts.set(i,executing);
             }
             if(rs_aluReady > -1) {
                 Instruction executing = RS[rs_aluReady].ins;
@@ -482,7 +558,7 @@ public class Processor8 {
                 int i = finishedInsts.indexOf(executing);
                 finishedInsts.set(i,executing);
             }
-            if(rs_loadReady > -1) {
+            if(rs_loadReady > -1 && !loadBufferFull) {
                 Instruction executing = RS[rs_loadReady].ins;
                 RS[rs_loadReady].executing = true;
                 executing.memAddress = agu.evaluate(Opcode.ADD,executing.data1,executing.data2);
@@ -501,6 +577,7 @@ public class Processor8 {
                 RS[rs_storeReady].A = memAddress;
                 ROB.buffer[RS[rs_storeReady].robIndex].address = memAddress;
                 storeAddressReady = true;
+                executedInsts++;
                 int i = finishedInsts.indexOf(executing);
                 finishedInsts.set(i,executing);
             }
@@ -511,81 +588,108 @@ public class Processor8 {
                 int i = finishedInsts.indexOf(executing);
                 finishedInsts.set(i,executing);
                 executedInsts++;
-                executionResults.add(executing);
+                beforeWriteBack.add(executing);
                 // do nothing here
             }
         }
         Instruction alu0_result = alu0.execute();
         Instruction alu1_result = alu1.execute();
         if(alu0_result != null && alu0_result.result != null) {
-            executionResults.add(alu0_result);
-//            resultForwarding2(alu0_result);
+            beforeWriteBack.add(alu0_result);
             resultForwardingFromRS(alu0_result);
             alu0.reset();
             executedInsts++;
         }
         if(alu1_result != null && alu1_result.result != null) {
-            executionResults.add(alu1_result);
-//            resultForwarding2(alu1_result);
+            beforeWriteBack.add(alu1_result);
             resultForwardingFromRS(alu1_result);
             alu1.reset();
             executedInsts++;
         }
         if(loadAddressReady) {
-            executionResults.add(RS[rs_loadReady].ins);
+            loadBuffer.add(RS[rs_loadReady].ins);
             executedInsts++;
         }
         if(storeAddressReady) {
-            executionResults.add(RS[rs_storeReady].ins);
+            beforeWriteBack.add(RS[rs_storeReady].ins);
             executedInsts++;
         }
 
     }
 
     private void Memory() {
-        while(!executionResults.isEmpty()) {
-            Instruction executed = executionResults.remove();
-            switch (executed.opcode) {
-                case LD:
-                case LDI:
-                    executed.result = mem[executed.memAddress];
-                    resultForwardingFromRS(executed);
-                    break;
-                default: // non memory instructions, only do result forwarding
-                    resultForwardingFromRS(executed);
-                    break;
+        while(!loadBuffer.isEmpty()) {
+            Instruction loading = loadBuffer.peek();
+            if(!loading.opType.equals(OpType.LOAD)) {
+                System.out.println("illegal instruction detected at memory stage");
+                finished = true;
+                return;
             }
-            executed.memoryComplete = cycle; // save cycle number of memory stage
-            int i = finishedInsts.indexOf(executed);
-            finishedInsts.set(i,executed);
-            beforeWriteBack.add(executed);
+            if(!checkRobForLoadStage2(RS[loading.rsIndex].robIndex, loading.memAddress)) {
+                return;
+            }
+            loading.result = mem[loading.memAddress];
+            resultForwardingFromRS(loading);
+            loadBuffer.remove();
+
+            loading.memoryComplete = cycle; // save cycle number of memory stage
+            int i = finishedInsts.indexOf(loading);
+            finishedInsts.set(i,loading);
+            beforeWriteBack.add(loading);
         }
     }
 
     private void WriteBack() {
+        Queue<Instruction> copy = new LinkedList<>();
         while(!beforeWriteBack.isEmpty()) {
             Instruction writeBack = beforeWriteBack.remove();
-            writeBack.writeBackComplete = cycle;
+
+            if(!writeBack.opType.equals(OpType.LOAD)) {
+                writeBack.memoryComplete = cycle;
+            }
+
             int rsIndex = writeBack.rsIndex;
             int robIndex = RS[rsIndex].robIndex;
 
-            if(writeBack.Rd != 0) {
-                if(writeBack.opType.equals(OpType.STORE)) { // store instructions
-                    ROB.buffer[ROB.head].value = RS[rsIndex].Vs;
-                }
-                else {
-                    ROB.buffer[robIndex].value = writeBack.result;
-                }
-                ROB.buffer[robIndex].ready = true;
-                resultForwardingFromRS(writeBack);
-                RS[rsIndex] = new ReservationStation(); // clear RS entry
-            }
-            if(writeBack.opType.equals(OpType.OTHER)) {
-                ROB.buffer[robIndex].ready = true;
+            switch (writeBack.opType) {
+                case STORE:
+                    if(robIndex == ROB.head) {
+                        ROB.buffer[ROB.head].value = RS[rsIndex].Vs;
+                        writeBack.writeBackComplete = cycle;
+                        ROB.buffer[robIndex].ready = true;
+                        resultForwardingFromRS(writeBack);
+                        RS[rsIndex] = new ReservationStation(); // clear RS entry
+                    }
+                    else {
+                        copy.add(writeBack);
+                    }
+                    break;
+                case BRU:
+                case OTHER:
+                    ROB.buffer[robIndex].ready = true;
+                    writeBack.writeBackComplete = cycle;
+                    resultForwardingFromRS(writeBack);
+                    RS[rsIndex] = new ReservationStation(); // clear RS entry
+                    break;
+                case ALU:
+                case LOAD:
+                    if(writeBack.Rd != 0) {
+                        ROB.buffer[robIndex].value = writeBack.result;
+                    }
+                    ROB.buffer[robIndex].ready = true;
+                    writeBack.writeBackComplete = cycle;
+                    resultForwardingFromRS(writeBack);
+                    RS[rsIndex] = new ReservationStation(); // clear RS entry
+                    break;
+                default:
+                    System.out.println("illegal optype detected at WriteBack stage");
+                    finished = true;
+                    break;
             }
             int i = finishedInsts.indexOf(writeBack);
             finishedInsts.set(i,writeBack);
         }
+        beforeWriteBack.addAll(copy);
     }
 
     private void resultForwardingFromRS(Instruction forwarding) {
@@ -629,12 +733,62 @@ public class Processor8 {
     private void Commit() {
         while(!ROB.isEmpty()) {
             int h = ROB.head;
-            ReorderBuffer robHead = ROB.peak();
+            ReorderBuffer robHead = ROB.peek();
             if(!robHead.ready) { // head is not ready to commit
                 break; // abort committing
             }
+            if(robHead.ins.opType.equals(OpType.BRU)) {
+                if(robHead.mispredicted) {
+                    // flip BTB condition
+                    BTBstatus oldBtbCondition = BTB.get(robHead.ins.insAddress);
+                    BTBstatus newBtbCondition = oldBtbCondition;
+                    switch (oldBtbCondition) {
+                        case STRONG_YES:
+                            newBtbCondition = BTBstatus.YES;
+                            break;
+                        case YES:
+                            newBtbCondition = BTBstatus.NO;
+                            break;
+                        case NO:
+                            newBtbCondition = BTBstatus.YES;
+                            break;
+                        case STRONG_NO:
+                            newBtbCondition = BTBstatus.NO;
+                            break;
+                    }
+                    BTB.put(robHead.ins.insAddress,newBtbCondition);
+                    // clear reorder buffer
+                    ROB.clear();
+                    // clear register status
+                    for(int i = 0; i < regStats.length; i++) {
+                        regStats[i] = new RegisterStatus();
+                    }
+                    // clear reservation station entries that is later than this branch
+                    for(int i = 0; i < RS.length; i++) {
+                        RS[i] = new ReservationStation();
+                    }
+                    rs_aluReady = -1;
+                    rs_loadReady = -1;
+                    rs_storeReady = -1;
+                    rs_bruReady = -1;
+                    rs_otherReady = -1;
+                    // flush queues
+                    fetchedQueue.clear();
+                    decodedQueue.clear();
+                    loadBuffer.clear();
+                    beforeWriteBack.clear();
+                    // change to correct pc
+                    if(robHead.ins.taken) {
+                        pc = robHead.ins.insAddress + 1;
+                    }
+                    else {
+                        pc = robHead.ins.Const;
+                    }
+                }
+                speculativeExecution--;
+            }
 
-            if(robHead.ins.opType.equals(OpType.STORE)) {
+            else if(robHead.ins.opType.equals(OpType.STORE)) {
                 mem[robHead.address] = robHead.value; // update memory here
             }
             else if(robHead.ins.opcode.equals(Opcode.HALT)) {
@@ -648,6 +802,12 @@ public class Processor8 {
                     regStats[Rd] = new RegisterStatus(); // free up register status entry
                 }
             }
+            int i = finishedInsts.indexOf(robHead.ins);
+            Instruction committing = finishedInsts.get(i);
+            committing.commitComplete = cycle;
+            finishedInsts.set(i,committing);
+
+            ROB.buffer[ROB.head].busy = false;
             ROB.pop(); // free up ROB entry, new head
         }
     }
@@ -670,13 +830,24 @@ public class Processor8 {
             Decode();
             Fetch();
             cycle++;
-            if(fetchBlocked || decodeBlocked || issueBlocked || dispatchBlocked || executeBlocked || euAllBusy) {
-                stalledCycle++;
+            if(!beforeFinish) {
+                if(fetchBlocked || decodeBlocked || issueBlocked || dispatchBlocked || executeBlocked || euAllBusy || loadBufferFull) {
+                    stalledCycle++;
+                }
+                else if(nothingToDecode || nothingToIssue || nothingToDispatch || nothingToExecute || nothingToMemory || nothingToWriteBack) {
+                    waitingCycle++;
+                }
             }
-            else if(nothingToDecode || nothingToIssue || nothingToDispatch || nothingToExecute || nothingToMemory || nothingToWriteBack) {
-                waitingCycle++;
-            }
-            System.out.println("PC: " + pc);
+//            if(issueBlocked) {
+//                System.out.printf("Issue blocked at PC: %d\nRS entries\n",pc);
+//                for(ReservationStation rs : RS) {
+//                    if(rs.busy) {
+//                        System.out.printf("%d:%s:%d ",rs.ins.id,rs.op.toString(),rs.ins.insAddress);
+//                    }
+//                }
+//                System.out.println();
+//            }
+            System.out.println("Cycle: " + cycle + " PC: " + pc);
         }
         finishedInsts.sort(Comparator.comparingInt((Instruction i) -> i.id));
         TraceEncoder traceEncoder = new TraceEncoder(finishedInsts);
@@ -699,9 +870,13 @@ public class Processor8 {
         System.out.println(cycle + " cycles spent");
         System.out.println(stalledCycle + " stalled cycles");
         System.out.println(waitingCycle + " Waiting cycles");
+        System.out.println(predictedBranches + " branches predicted");
+        System.out.println(correctPrediction + " correct predictions");
+        System.out.println(misprediction + " incorrect predictions");
         System.out.println("cycles/instruction ratio: " + ((float) cycle) / (float) executedInsts);
         System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
         System.out.println("stalled_cycle/cycle ratio: " + ((float) stalledCycle / (float) cycle));
         System.out.println("wasted_cycle/cycle ratio: " + ((float) (stalledCycle + waitingCycle) / (float) cycle));
+        System.out.println("correct prediction rate: "+ ((float) correctPrediction / (float) predictedBranches));
     }
 }

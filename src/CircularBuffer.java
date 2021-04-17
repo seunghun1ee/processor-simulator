@@ -43,7 +43,7 @@ public class CircularBuffer<T> {
         return index;
     }
 
-    public T peak() {
+    public T peek() {
         return buffer[head];
     }
 

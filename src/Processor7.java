@@ -391,7 +391,7 @@ public class Processor7 {
                     && RS[i].Q2 == -1
                     && RS[i].Qs == -1
             ) {
-                if(RS[i].ins.opcode.equals(Opcode.HALT) && !ROB.peak().ins.equals(RS[i].ins)) {
+                if(RS[i].ins.opcode.equals(Opcode.HALT) && !ROB.peek().ins.equals(RS[i].ins)) {
                     continue; // when it's HALT but if it's not the head of ROB, don't dispatch it
                 }
                 // if this was fetched earlier than current priority
@@ -652,7 +652,7 @@ public class Processor7 {
     private void Commit() {
         while(!ROB.isEmpty()) {
             int h = ROB.head;
-            ReorderBuffer robHead = ROB.peak();
+            ReorderBuffer robHead = ROB.peek();
             if(!robHead.ready) { // head is not ready to commit
                 break; // abort committing
             }

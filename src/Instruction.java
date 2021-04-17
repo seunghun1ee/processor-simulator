@@ -16,6 +16,10 @@ public class Instruction {
     Integer result = null;
     Integer memAddress = null; // if this instruction is memory related
 
+    // branch prediction result
+    boolean predicted = false;
+    boolean taken = false;
+
     // info for debugging
     int insAddress = 0;
     int fetchComplete = 0;
@@ -53,6 +57,8 @@ public class Instruction {
         this.result = ins.result;
         this.memAddress = ins.memAddress;
         this.insAddress = ins.insAddress;
+        this.predicted = ins.predicted;
+        this.taken = ins.taken;
         this.fetchComplete = ins.fetchComplete;
         this.decodeComplete = ins.decodeComplete;
         this.issueComplete = ins.issueComplete;
