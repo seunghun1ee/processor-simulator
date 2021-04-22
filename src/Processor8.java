@@ -28,14 +28,14 @@ public class Processor8 {
     Queue<Instruction> fetchedQueue = new LinkedList<>();
     Queue<Instruction> decodedQueue = new LinkedList<>();
     ReservationStation[] RS = new ReservationStation[ISSUE_SIZE]; // unified reservation station
-    CircularBufferROB ROB = new CircularBufferROB(ISSUE_SIZE); // Reorder buffer
+    CircularBufferROB ROB = new CircularBufferROB(ISSUE_SIZE * 2); // Reorder buffer
     Queue<Instruction> loadBuffer = new LinkedList<>();
     // final result registers before write back
     Queue<Instruction> beforeWriteBack = new LinkedList<>();
-    int BTB_SIZE = 8;
     Map<Integer,BTBstatus> BTB = new HashMap<>(); // 2-bit Branch Target Buffer, Key: insAddress, Value: BTB status
 
     int rs_aluReady = -1;
+    int rs_aluReady2 = -1;
     int rs_loadReady = -1;
     int rs_storeReady = -1;
     int rs_bruReady = -1;
@@ -51,8 +51,7 @@ public class Processor8 {
     boolean nothingToIssue = false;
     boolean issueBlocked = false;
     // dispatch states
-    boolean nothingToDispatch = false;
-    boolean dispatchBlocked = false;
+    boolean noReadyInstruction = false;
     // execute states
     boolean nothingToExecute = false;
     boolean executeBlocked = false;
@@ -116,7 +115,7 @@ public class Processor8 {
         decodeBlocked = decodedQueue.size() >= QUEUE_SIZE;
         nothingToDecode = fetchedQueue.isEmpty();
         if(!decodeBlocked && !nothingToDecode) {
-            boolean branchTaken = false;
+            boolean unconditionalBranchTaken = false;
             Instruction decoded = fetchedQueue.remove();
             switch (decoded.opcode) {
                 case NOOP:
@@ -161,15 +160,16 @@ public class Processor8 {
             }
             if(decoded.Rs1 == 0 && decoded.opcode.equals(Opcode.BR)) {
                 pc =  decoded.Const;
-                branchTaken = true;
+                unconditionalBranchTaken = true;
             }
             if(decoded.opcode.equals(Opcode.JMP)) {
                 pc += decoded.Const;
-                branchTaken = true;
+                unconditionalBranchTaken = true;
             }
             if(decoded.opcode.equals(Opcode.BRZ) || decoded.opcode.equals(Opcode.BRN)) {
                 BTBstatus btbCondition = BTB.get(decoded.insAddress);
                 decoded.predicted = true;
+                probes.add(new Probe(cycle,14,decoded.id));
                 if(btbCondition == null) {
                     if(branchPredictor(decoded)) {
                         BTB.put(decoded.insAddress,BTBstatus.YES);
@@ -183,6 +183,7 @@ public class Processor8 {
                 else if(btbCondition.equals(BTBstatus.YES) || btbCondition.equals(BTBstatus.STRONG_YES)) {
                     pc = decoded.Const;
                     decoded.taken = true;
+                    fetchedQueue.clear();
                 }
                 speculativeExecution++;
                 predictedBranches++;
@@ -191,7 +192,7 @@ public class Processor8 {
             decoded.decodeComplete = cycle; // save cycle number of decode stage
             int i = finishedInsts.indexOf(decoded);
             finishedInsts.set(i,decoded);
-            if(!branchTaken) {
+            if(!unconditionalBranchTaken) {
                 decodedQueue.add(decoded);
             }
         }
@@ -199,12 +200,12 @@ public class Processor8 {
         if(decodeBlocked) { // stall: can't decode because the buffer is full
             Instruction ins = fetchedQueue.peek();
             if(ins != null) {
-                probes.add(new Probe(cycle,1,ins.id));
+                probes.add(new Probe(cycle,2,ins.id));
             }
         }
-//        if(nothingToDecode) {
-//            probes.add(new Probe(cycle, ,0));
-//        }
+        if(nothingToDecode) {
+            probes.add(new Probe(cycle,1,0));
+        }
     }
 
     private boolean checkSpeculative() {
@@ -228,9 +229,9 @@ public class Processor8 {
         }
         boolean robBlocked = ROB.size() >= ROB.capacity; // ROB full
         issueBlocked = rsBlocked || robBlocked;
-        nothingToDecode = decodedQueue.isEmpty();
+        nothingToIssue = decodedQueue.isEmpty();
 
-        if(!issueBlocked && !nothingToDecode) {
+        if(!issueBlocked && !nothingToIssue) {
             Instruction issuing = decodedQueue.remove();
             ReorderBuffer allocatedROB = new ReorderBuffer();
             // for all ins
@@ -353,19 +354,29 @@ public class Processor8 {
             int i = finishedInsts.indexOf(issuing);
             finishedInsts.set(i,issuing);
         }
-        if(issueBlocked && !decodedQueue.isEmpty()) {
-            probes.add(new Probe(cycle,7,decodedQueue.peek().id));
+        if(nothingToIssue) {
+            probes.add(new Probe(cycle,3,0));
+        }
+        else if(rsBlocked) {
+            probes.add(new Probe(cycle,4,decodedQueue.peek().id));
+        }
+        else if(robBlocked) {
+            probes.add(new Probe(cycle,5,decodedQueue.peek().id));
         }
     }
 
     private void Dispatch() {
         rs_aluReady = getReadyRSIndex(OpType.ALU);
+        rs_aluReady2 = getReadyRSIndex(OpType.ALU);
         rs_loadReady = getReadyRSIndex(OpType.LOAD);
         rs_storeReady = getReadyRSIndex(OpType.STORE);
         rs_bruReady = getReadyRSIndex(OpType.BRU);
         rs_otherReady = getReadyOtherIndex();
         if(rs_aluReady > -1) {
             dispatchOperands(rs_aluReady);
+        }
+        if(rs_aluReady2 > -1) {
+            dispatchOperands(rs_aluReady2);
         }
         if(rs_loadReady > -1) {
             dispatchOperands(rs_loadReady);
@@ -386,7 +397,10 @@ public class Processor8 {
                 beforeFinish = true;
             }
         }
-        dispatchBlocked = (rs_aluReady == -1) && (rs_loadReady == -1) && (rs_storeReady == -1) && (rs_bruReady == -1) && (rs_otherReady == -1);
+        noReadyInstruction = (rs_aluReady == -1) && (rs_loadReady == -1) && (rs_storeReady == -1) && (rs_bruReady == -1) && (rs_otherReady == -1);
+        if(noReadyInstruction) {
+            probes.add(new Probe(cycle,6,0));
+        }
     }
 
     private void dispatchOperands(int rs_index) {
@@ -404,12 +418,18 @@ public class Processor8 {
         int readyIndex = -1;
         for(int i=0; i < RS.length; i++) {
             if(
-                    RS[i].busy &&
-                            !RS[i].executing &&
-                            RS[i].type.equals(opType) &&
-                            RS[i].Q1 == -1 &&
-                            RS[i].Q2 == -1 &&
-                            RS[i].Qs == -1
+                    RS[i].busy
+                    && !RS[i].executing
+                    && RS[i].type.equals(opType)
+                    && RS[i].Q1 == -1
+                    && RS[i].Q2 == -1
+                    && RS[i].Qs == -1
+                    && i != rs_aluReady
+                    && i != rs_aluReady2
+                    && i != rs_loadReady
+                    && i != rs_storeReady
+                    && i != rs_bruReady
+                    && i != rs_otherReady
             ) {
                 // if this was fetched earlier than current priority
                 if(RS[i].ins.id < priority) {
@@ -534,7 +554,7 @@ public class Processor8 {
                     // prediction failed
                     misprediction++;
                     ROB.buffer[RS[executing.rsIndex].robIndex].mispredicted = true;
-                    probes.add(new Probe(cycle,14,executing.id));
+                    probes.add(new Probe(cycle,15,executing.id));
                 }
                 ROB.buffer[RS[executing.rsIndex].robIndex].ready = true;
                 RS[rs_bruReady] = new ReservationStation();
@@ -549,7 +569,18 @@ public class Processor8 {
                     executing.executeComplete = cycle;
                     RS[executing.rsIndex].executing = true;
                 }
-                else if(!alu1.busy) {
+//                else if(!alu1.busy) {
+//                    alu1.update(executing.opcode, executing.data1, executing.data2);
+//                    alu1.executing = executing;
+//                    executing.executeComplete = cycle;
+//                    RS[executing.rsIndex].executing = true;
+//                }
+                int i = finishedInsts.indexOf(executing);
+                finishedInsts.set(i,executing);
+            }
+            if(rs_aluReady2 > -1) {
+                Instruction executing = RS[rs_aluReady2].ins;
+                if(!alu1.busy) {
                     alu1.update(executing.opcode, executing.data1, executing.data2);
                     alu1.executing = executing;
                     executing.executeComplete = cycle;
@@ -615,9 +646,22 @@ public class Processor8 {
             executedInsts++;
         }
 
+        if(nothingToExecute) {
+            probes.add(new Probe(cycle,7,0));
+        }
+        if(executeBlocked) {
+            probes.add(new Probe(cycle,8,0));
+        }
+        if(euAllBusy) {
+            probes.add(new Probe(cycle,9,0));
+        }
     }
 
     private void Memory() {
+        if(loadBuffer.isEmpty()) {
+            probes.add(new Probe(cycle,10,0));
+            return;
+        }
         while(!loadBuffer.isEmpty()) {
             Instruction loading = loadBuffer.peek();
             if(!loading.opType.equals(OpType.LOAD)) {
@@ -626,6 +670,7 @@ public class Processor8 {
                 return;
             }
             if(!checkRobForLoadStage2(RS[loading.rsIndex].robIndex, loading.memAddress)) {
+                probes.add(new Probe(cycle,11,loading.id));
                 return;
             }
             loading.result = mem[loading.memAddress];
@@ -661,6 +706,7 @@ public class Processor8 {
                         RS[rsIndex] = new ReservationStation(); // clear RS entry
                     }
                     else {
+                        probes.add(new Probe(cycle,12, writeBack.id));
                         copy.add(writeBack);
                     }
                     break;
@@ -735,6 +781,7 @@ public class Processor8 {
             int h = ROB.head;
             ReorderBuffer robHead = ROB.peek();
             if(!robHead.ready) { // head is not ready to commit
+                probes.add(new Probe(cycle,13,robHead.ins.id));
                 break; // abort committing
             }
             if(robHead.ins.opType.equals(OpType.BRU)) {
@@ -784,11 +831,17 @@ public class Processor8 {
                     else {
                         pc = robHead.ins.Const;
                     }
+                    probes.add(new Probe(cycle,16,robHead.ins.id));
                 }
                 speculativeExecution--;
             }
 
             else if(robHead.ins.opType.equals(OpType.STORE)) {
+                if(robHead.address >= mem.length) {
+                    finished = true;
+                    System.out.println("memory index out of range at commit");
+                    return;
+                }
                 mem[robHead.address] = robHead.value; // update memory here
             }
             else if(robHead.ins.opcode.equals(Opcode.HALT)) {
@@ -827,14 +880,17 @@ public class Processor8 {
             Execute();
             Dispatch();
             Issue();
+            Issue();
             Decode();
+            Decode();
+            Fetch();
             Fetch();
             cycle++;
             if(!beforeFinish) {
-                if(fetchBlocked || decodeBlocked || issueBlocked || dispatchBlocked || executeBlocked || euAllBusy || loadBufferFull) {
+                if(fetchBlocked || decodeBlocked || issueBlocked || executeBlocked || euAllBusy || loadBufferFull) {
                     stalledCycle++;
                 }
-                else if(nothingToDecode || nothingToIssue || nothingToDispatch || nothingToExecute || nothingToMemory || nothingToWriteBack) {
+                else if(nothingToDecode || nothingToIssue || noReadyInstruction || nothingToExecute || nothingToMemory || nothingToWriteBack) {
                     waitingCycle++;
                 }
             }
@@ -847,7 +903,7 @@ public class Processor8 {
 //                }
 //                System.out.println();
 //            }
-            System.out.println("Cycle: " + cycle + " PC: " + pc);
+//            System.out.println("Cycle: " + cycle + " PC: " + pc);
         }
         finishedInsts.sort(Comparator.comparingInt((Instruction i) -> i.id));
         TraceEncoder traceEncoder = new TraceEncoder(finishedInsts);
