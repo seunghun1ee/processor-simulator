@@ -921,7 +921,7 @@ public class Processor8 {
         if(cycle >= cycleLimit) {
             System.out.println("Time out");
         }
-        System.out.println("Scalar Out of Order 8-stage pipeline processor Terminated");
+        System.out.println("2-way Superscalar Out of Order 8-stage pipeline processor Terminated");
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");
         System.out.println(stalledCycle + " stalled cycles");
@@ -933,6 +933,6 @@ public class Processor8 {
         System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
         System.out.println("stalled_cycle/cycle ratio: " + ((float) stalledCycle / (float) cycle));
         System.out.println("wasted_cycle/cycle ratio: " + ((float) (stalledCycle + waitingCycle) / (float) cycle));
-        System.out.println("correct prediction rate: "+ ((float) correctPrediction / (float) predictedBranches));
+        System.out.println("correct prediction rate: "+ ((float) correctPrediction / (float) (correctPrediction + misprediction)));
     }
 }
