@@ -10,6 +10,7 @@ public class Processor8 {
 
     int cycle = 0;
     int pc = 0; // Program counter
+    int superScalarWidth = 4;
     int executedInsts = 0; // Number of instructions executed
     int stalledCycle = 0;
     int waitingCycle = 0;
@@ -28,14 +29,14 @@ public class Processor8 {
     Queue<Instruction> fetchedQueue = new LinkedList<>();
     Queue<Instruction> decodedQueue = new LinkedList<>();
     ReservationStation[] RS = new ReservationStation[ISSUE_SIZE]; // unified reservation station
-    CircularBufferROB ROB = new CircularBufferROB(ISSUE_SIZE); // Reorder buffer
+    CircularBufferROB ROB = new CircularBufferROB(ISSUE_SIZE * 2); // Reorder buffer
     Queue<Instruction> loadBuffer = new LinkedList<>();
     // final result registers before write back
     Queue<Instruction> beforeWriteBack = new LinkedList<>();
-    int BTB_SIZE = 8;
     Map<Integer,BTBstatus> BTB = new HashMap<>(); // 2-bit Branch Target Buffer, Key: insAddress, Value: BTB status
 
     int rs_aluReady = -1;
+    int rs_aluReady2 = -1;
     int rs_loadReady = -1;
     int rs_storeReady = -1;
     int rs_bruReady = -1;
@@ -51,8 +52,7 @@ public class Processor8 {
     boolean nothingToIssue = false;
     boolean issueBlocked = false;
     // dispatch states
-    boolean nothingToDispatch = false;
-    boolean dispatchBlocked = false;
+    boolean noReadyInstruction = false;
     // execute states
     boolean nothingToExecute = false;
     boolean executeBlocked = false;
@@ -85,25 +85,27 @@ public class Processor8 {
     List<Probe> probes = new ArrayList<>();
 
     private void Fetch() {
-        fetchBlocked = fetchedQueue.size() >= QUEUE_SIZE;
-        if(!fetchBlocked && pc < instructions.length && !beforeFinish) {
-            Instruction fetch = instructions[pc];
-            Instruction ins = new Instruction(); // NOOP
-            if(fetch != null) {
-                ins = new Instruction(fetch);
+        for(int x=0; x < superScalarWidth; x++) {
+            fetchBlocked = fetchedQueue.size() >= QUEUE_SIZE;
+            if(!fetchBlocked && pc < instructions.length && !beforeFinish) {
+                Instruction fetch = instructions[pc];
+                Instruction ins = new Instruction(); // NOOP
+                if(fetch != null) {
+                    ins = new Instruction(fetch);
+                }
+                ins.id = insIdCount; // assign id
+                ins.insAddress = pc; // assign ins address
+                ins.fetchComplete = cycle; // save cycle number of fetch stage
+                fetchedQueue.add(ins);
+                pc++;
+                insIdCount++; // prepare next id
+
+                finishedInsts.add(ins);
             }
-            ins.id = insIdCount; // assign id
-            ins.insAddress = pc; // assign ins address
-            ins.fetchComplete = cycle; // save cycle number of fetch stage
-            fetchedQueue.add(ins);
-            pc++;
-            insIdCount++; // prepare next id
 
-            finishedInsts.add(ins);
-        }
-
-        if(fetchBlocked) { // stall can't fetch because the buffer is full
-            probes.add(new Probe(cycle,0,0));
+            if(fetchBlocked) { // stall can't fetch because the buffer is full
+                probes.add(new Probe(cycle,0,0));
+            }
         }
     }
 
@@ -113,98 +115,105 @@ public class Processor8 {
     }
 
     private void Decode() {
-        decodeBlocked = decodedQueue.size() >= QUEUE_SIZE;
-        nothingToDecode = fetchedQueue.isEmpty();
-        if(!decodeBlocked && !nothingToDecode) {
-            boolean branchTaken = false;
-            Instruction decoded = fetchedQueue.remove();
-            switch (decoded.opcode) {
-                case NOOP:
-                case HALT:
-                    decoded.opType = OpType.OTHER;
-                    break;
-                case ADD:
-                case ADDI:
-                case SUB:
-                case MUL:
-                case MULI:
-                case DIV:
-                case DIVI:
-                case SHL:
-                case SHR:
-                case NOT:
-                case AND:
-                case OR:
-                case MOV:
-                case MOVC:
-                case CMP:
-                    decoded.opType = OpType.ALU;
-                    break;
-                case LD:
-                case LDI:
-                    decoded.opType = OpType.LOAD;
-                    break;
-                case ST:
-                case STI:
-                    decoded.opType = OpType.STORE;
-                    break;
-                case BR: // unconditional branches
-                case JMP:
-                case BRZ: // conditional branches
-                case BRN:
-                    decoded.opType = OpType.BRU;
-                    break;
-                default:
-                    System.out.println("invalid opcode detected while decoding");
-                    finished = true;
-                    break;
-            }
-            if(decoded.Rs1 == 0 && decoded.opcode.equals(Opcode.BR)) {
-                pc =  decoded.Const;
-                branchTaken = true;
-            }
-            if(decoded.opcode.equals(Opcode.JMP)) {
-                pc += decoded.Const;
-                branchTaken = true;
-            }
-            if(decoded.opcode.equals(Opcode.BRZ) || decoded.opcode.equals(Opcode.BRN)) {
-                BTBstatus btbCondition = BTB.get(decoded.insAddress);
-                decoded.predicted = true;
-                if(btbCondition == null) {
-                    if(branchPredictor(decoded)) {
-                        BTB.put(decoded.insAddress,BTBstatus.YES);
+        for(int x=0; x < superScalarWidth; x++) {
+            decodeBlocked = decodedQueue.size() >= QUEUE_SIZE;
+            nothingToDecode = fetchedQueue.isEmpty();
+            if(!decodeBlocked && !nothingToDecode) {
+                boolean unconditionalBranchTaken = false;
+                Instruction decoded = fetchedQueue.remove();
+                switch (decoded.opcode) {
+                    case NOOP:
+                    case HALT:
+                        decoded.opType = OpType.OTHER;
+                        break;
+                    case ADD:
+                    case ADDI:
+                    case SUB:
+                    case MUL:
+                    case MULI:
+                    case DIV:
+                    case DIVI:
+                    case SHL:
+                    case SHR:
+                    case NOT:
+                    case AND:
+                    case OR:
+                    case MOV:
+                    case MOVC:
+                    case CMP:
+                        decoded.opType = OpType.ALU;
+                        break;
+                    case LD:
+                    case LDI:
+                        decoded.opType = OpType.LOAD;
+                        break;
+                    case ST:
+                    case STI:
+                        decoded.opType = OpType.STORE;
+                        break;
+                    case BR: // unconditional branches
+                    case JMP:
+                    case BRZ: // conditional branches
+                    case BRN:
+                        decoded.opType = OpType.BRU;
+                        break;
+                    default:
+                        System.out.println("invalid opcode detected while decoding");
+                        finished = true;
+                        break;
+                }
+                if(decoded.Rs1 == 0 && decoded.opcode.equals(Opcode.BR)) {
+                    pc =  decoded.Const;
+                    unconditionalBranchTaken = true;
+                    fetchedQueue.clear();
+                }
+                if(decoded.opcode.equals(Opcode.JMP)) {
+                    pc += decoded.Const;
+                    unconditionalBranchTaken = true;
+                    fetchedQueue.clear();
+                }
+                if(decoded.opcode.equals(Opcode.BRZ) || decoded.opcode.equals(Opcode.BRN)) {
+                    BTBstatus btbCondition = BTB.get(decoded.insAddress);
+                    decoded.predicted = true;
+                    probes.add(new Probe(cycle,14,decoded.id));
+                    if(btbCondition == null) {
+                        if(branchPredictor(decoded)) {
+                            BTB.put(decoded.insAddress,BTBstatus.YES);
+                            pc = decoded.Const;
+                            decoded.taken = true;
+                            fetchedQueue.clear();
+                        }
+                        else {
+                            BTB.put(decoded.insAddress,BTBstatus.NO);
+                        }
+                    }
+                    else if(btbCondition.equals(BTBstatus.YES) || btbCondition.equals(BTBstatus.STRONG_YES)) {
                         pc = decoded.Const;
                         decoded.taken = true;
+                        fetchedQueue.clear();
                     }
-                    else {
-                        BTB.put(decoded.insAddress,BTBstatus.NO);
-                    }
+                    speculativeExecution++;
+                    predictedBranches++;
                 }
-                else if(btbCondition.equals(BTBstatus.YES) || btbCondition.equals(BTBstatus.STRONG_YES)) {
-                    pc = decoded.Const;
-                    decoded.taken = true;
+
+                decoded.decodeComplete = cycle; // save cycle number of decode stage
+                int i = finishedInsts.indexOf(decoded);
+                finishedInsts.set(i,decoded);
+                if(!unconditionalBranchTaken) {
+                    decodedQueue.add(decoded);
                 }
-                speculativeExecution++;
-                predictedBranches++;
             }
 
-            decoded.decodeComplete = cycle; // save cycle number of decode stage
-            int i = finishedInsts.indexOf(decoded);
-            finishedInsts.set(i,decoded);
-            if(!branchTaken) {
-                decodedQueue.add(decoded);
+            if(decodeBlocked) { // stall: can't decode because the buffer is full
+                Instruction ins = fetchedQueue.peek();
+                if(ins != null) {
+                    probes.add(new Probe(cycle,2,ins.id));
+                }
+            }
+            if(nothingToDecode) {
+                probes.add(new Probe(cycle,1,0));
             }
         }
-
-        if(decodeBlocked) { // stall: can't decode because the buffer is full
-            Instruction ins = fetchedQueue.peek();
-            if(ins != null) {
-                probes.add(new Probe(cycle,1,ins.id));
-            }
-        }
-//        if(nothingToDecode) {
-//            probes.add(new Probe(cycle, ,0));
-//        }
     }
 
     private boolean checkSpeculative() {
@@ -217,155 +226,167 @@ public class Processor8 {
     }
 
     private void Issue() { // issuing decoded instruction to reservation stations
-        int rsIndex = -1;
-        boolean rsBlocked = true;
-        for(int i = 0; i < RS.length; i++) {
-            if(!RS[i].busy) { // there is available rs
-                rsBlocked = false; // RS available
-                rsIndex = i; // get available rs index
-                break;
+        for(int x=0; x < superScalarWidth; x++) {
+            int rsIndex = -1;
+            boolean rsBlocked = true;
+            for(int i = 0; i < RS.length; i++) {
+                if(!RS[i].busy) { // there is available rs
+                    rsBlocked = false; // RS available
+                    rsIndex = i; // get available rs index
+                    break;
+                }
             }
-        }
-        boolean robBlocked = ROB.size() >= ROB.capacity; // ROB full
-        issueBlocked = rsBlocked || robBlocked;
-        nothingToDecode = decodedQueue.isEmpty();
+            boolean robBlocked = ROB.size() >= ROB.capacity; // ROB full
+            issueBlocked = rsBlocked || robBlocked;
+            nothingToIssue = decodedQueue.isEmpty();
 
-        if(!issueBlocked && !nothingToDecode) {
-            Instruction issuing = decodedQueue.remove();
-            ReorderBuffer allocatedROB = new ReorderBuffer();
-            // for all ins
-            issuing.issueComplete = cycle;
-            issuing.rsIndex = rsIndex;
-            if(issuing.Rs1 != 0 && regStats[issuing.Rs1].busy) { // there is in-flight ins that writes Rs1
-                int Rs1robIndex = regStats[issuing.Rs1].robIndex;
-                if(ROB.buffer[Rs1robIndex].ready) { // dependent instruction is completed and ready
-                    //dependency resolved from ROB
-                    RS[rsIndex].V1 = ROB.buffer[Rs1robIndex].value;
+            if(!issueBlocked && !nothingToIssue) {
+                Instruction issuing = decodedQueue.remove();
+                ReorderBuffer allocatedROB = new ReorderBuffer();
+                // for all ins
+                issuing.issueComplete = cycle;
+                issuing.rsIndex = rsIndex;
+                if(issuing.Rs1 != 0 && regStats[issuing.Rs1].busy) { // there is in-flight ins that writes Rs1
+                    int Rs1robIndex = regStats[issuing.Rs1].robIndex;
+                    if(ROB.buffer[Rs1robIndex].ready) { // dependent instruction is completed and ready
+                        //dependency resolved from ROB
+                        RS[rsIndex].V1 = ROB.buffer[Rs1robIndex].value;
+                        RS[rsIndex].Q1 = -1;
+                    }
+                    else {
+                        // wait for result from ROB
+                        RS[rsIndex].Q1 = Rs1robIndex;
+                    }
+                }
+                else { // no Rs1 dependency
+                    RS[rsIndex].V1 = rf[issuing.Rs1]; // 0 if Rs1 = 0
                     RS[rsIndex].Q1 = -1;
                 }
-                else {
-                    // wait for result from ROB
-                    RS[rsIndex].Q1 = Rs1robIndex;
+                if(issuing.Rs2 != 0 && regStats[issuing.Rs2].busy) { // there is in-flight ins that writes Rs2
+                    int Rs2robIndex = regStats[issuing.Rs2].robIndex;
+                    if(ROB.buffer[Rs2robIndex].ready) { // dependent instruction is completed and ready
+                        //dependency resolved from ROB
+                        RS[rsIndex].V2 = ROB.buffer[Rs2robIndex].value;
+                        RS[rsIndex].Q2 = -1;
+                    }
+                    else {
+                        // wait for result from ROB
+                        RS[rsIndex].Q2 = Rs2robIndex;
+                    }
                 }
-            }
-            else { // no Rs1 dependency
-                RS[rsIndex].V1 = rf[issuing.Rs1]; // 0 if Rs1 = 0
-                RS[rsIndex].Q1 = -1;
-            }
-            if(issuing.Rs2 != 0 && regStats[issuing.Rs2].busy) { // there is in-flight ins that writes Rs2
-                int Rs2robIndex = regStats[issuing.Rs2].robIndex;
-                if(ROB.buffer[Rs2robIndex].ready) { // dependent instruction is completed and ready
-                    //dependency resolved from ROB
-                    RS[rsIndex].V2 = ROB.buffer[Rs2robIndex].value;
+                else { // no Rs2 dependency
+                    RS[rsIndex].V2 = rf[issuing.Rs2]; // 0 if Rs2 = 0
                     RS[rsIndex].Q2 = -1;
                 }
-                else {
-                    // wait for result from ROB
-                    RS[rsIndex].Q2 = Rs2robIndex;
-                }
-            }
-            else { // no Rs2 dependency
-                RS[rsIndex].V2 = rf[issuing.Rs2]; // 0 if Rs2 = 0
-                RS[rsIndex].Q2 = -1;
-            }
-            // set Reorder Buffer
-            allocatedROB.ins = issuing;
-            allocatedROB.destination = issuing.Rd;
-            allocatedROB.busy = true;
-            allocatedROB.ready = false;
+                // set Reorder Buffer
+                allocatedROB.ins = issuing;
+                allocatedROB.destination = issuing.Rd;
+                allocatedROB.busy = true;
+                allocatedROB.ready = false;
 
-            int robIndex = ROB.push(allocatedROB);
-            // set Reservation Station
-            RS[rsIndex].op = issuing.opcode;
-            RS[rsIndex].ins = issuing;
-            RS[rsIndex].busy = true;
-            RS[rsIndex].robIndex = robIndex;
-            RS[rsIndex].type = issuing.opType;
+                int robIndex = ROB.push(allocatedROB);
+                // set Reservation Station
+                RS[rsIndex].op = issuing.opcode;
+                RS[rsIndex].ins = issuing;
+                RS[rsIndex].busy = true;
+                RS[rsIndex].robIndex = robIndex;
+                RS[rsIndex].type = issuing.opType;
 
-            switch (issuing.opType) {
-                case ALU:
-                    // for ins that only use Const
-                    if(RS[rsIndex].Q1 == -1 && issuing.opcode.equals(Opcode.MOVC)) {
-                        RS[rsIndex].V1 += issuing.Const;
-                    }
-                    // when second operand is ready
-                    else if(RS[rsIndex].Q2 == -1) {
+                switch (issuing.opType) {
+                    case ALU:
+                        // for ins that only use Const
+                        if(RS[rsIndex].Q1 == -1 && issuing.opcode.equals(Opcode.MOVC)) {
+                            RS[rsIndex].V1 += issuing.Const;
+                        }
+                        // when second operand is ready
+                        else if(RS[rsIndex].Q2 == -1) {
 
-                        RS[rsIndex].V2 += issuing.Const; // for imm instructions
-                    }
-                    // set regStats
-                    if(issuing.Rd != 0) {
-                        regStats[issuing.Rd].robIndex = robIndex;
-                        regStats[issuing.Rd].busy = true;
-                    }
-                    break;
-                case LOAD:
-                    if(RS[rsIndex].ins.opcode.equals(Opcode.LDI)) {
-                        RS[rsIndex].V2 = issuing.Const; // for LDI
-                    }
-                    // set regStats
-                    if(issuing.Rd != 0) {
-                        regStats[issuing.Rd].robIndex = robIndex;
-                        regStats[issuing.Rd].busy = true;
-                    }
-                    break;
-                case STORE:
-                    if(issuing.Rd != 0 && regStats[issuing.Rd].busy) { // there is in-flight ins that writes at Rd
-                        int storeRobIndex = regStats[issuing.Rd].robIndex;
-                        if(ROB.buffer[storeRobIndex].ready) { // dependent instruction is completed and ready
-                            //dependency resolved from ROB
-                            RS[rsIndex].Vs = ROB.buffer[storeRobIndex].value;
+                            RS[rsIndex].V2 += issuing.Const; // for imm instructions
+                        }
+                        // set regStats
+                        if(issuing.Rd != 0) {
+                            regStats[issuing.Rd].robIndex = robIndex;
+                            regStats[issuing.Rd].busy = true;
+                        }
+                        break;
+                    case LOAD:
+                        if(RS[rsIndex].ins.opcode.equals(Opcode.LDI)) {
+                            RS[rsIndex].V2 = issuing.Const; // for LDI
+                        }
+                        // set regStats
+                        if(issuing.Rd != 0) {
+                            regStats[issuing.Rd].robIndex = robIndex;
+                            regStats[issuing.Rd].busy = true;
+                        }
+                        break;
+                    case STORE:
+                        if(issuing.Rd != 0 && regStats[issuing.Rd].busy) { // there is in-flight ins that writes at Rd
+                            int storeRobIndex = regStats[issuing.Rd].robIndex;
+                            if(ROB.buffer[storeRobIndex].ready) { // dependent instruction is completed and ready
+                                //dependency resolved from ROB
+                                RS[rsIndex].Vs = ROB.buffer[storeRobIndex].value;
+                                RS[rsIndex].Qs = -1;
+                            }
+                            else {
+                                // wait for result from ROB
+                                RS[rsIndex].Qs = storeRobIndex;
+                            }
+                        }
+                        else { // no Rd dependency
+                            RS[rsIndex].Vs = rf[issuing.Rd]; // 0 if Rd = 0
                             RS[rsIndex].Qs = -1;
                         }
-                        else {
-                            // wait for result from ROB
-                            RS[rsIndex].Qs = storeRobIndex;
+                        if(RS[rsIndex].ins.opcode.equals(Opcode.STI)) {
+                            RS[rsIndex].V2 = issuing.Const; // for STI
                         }
-                    }
-                    else { // no Rd dependency
-                        RS[rsIndex].Vs = rf[issuing.Rd]; // 0 if Rd = 0
-                        RS[rsIndex].Qs = -1;
-                    }
-                    if(RS[rsIndex].ins.opcode.equals(Opcode.STI)) {
-                        RS[rsIndex].V2 = issuing.Const; // for STI
-                    }
-                    // no regStats set for stores
-                    break;
-                case BRU:
-                    // for ins that only use Const
-                    if(RS[rsIndex].Q1 == -1 && issuing.opcode.equals(Opcode.JMP)) {
-                        RS[rsIndex].V1 += issuing.Const;
-                    }
-                    // when second operand is ready
-                    else if(RS[rsIndex].Q2 == -1) {
-                        RS[rsIndex].V2 += issuing.Const; // for imm instructions
-                    }
-                    // no regStats set for branch operations
-                    break;
-                case OTHER:
-                    break;
-                default:
-                    System.out.println("invalid instruction detected at issue stage");
-                    finished = true;
-                    break;
-            }
+                        // no regStats set for stores
+                        break;
+                    case BRU:
+                        // for ins that only use Const
+                        if(RS[rsIndex].Q1 == -1 && issuing.opcode.equals(Opcode.JMP)) {
+                            RS[rsIndex].V1 += issuing.Const;
+                        }
+                        // when second operand is ready
+                        else if(RS[rsIndex].Q2 == -1) {
+                            RS[rsIndex].V2 += issuing.Const; // for imm instructions
+                        }
+                        // no regStats set for branch operations
+                        break;
+                    case OTHER:
+                        break;
+                    default:
+                        System.out.println("invalid instruction detected at issue stage");
+                        finished = true;
+                        break;
+                }
 
-            int i = finishedInsts.indexOf(issuing);
-            finishedInsts.set(i,issuing);
-        }
-        if(issueBlocked && !decodedQueue.isEmpty()) {
-            probes.add(new Probe(cycle,7,decodedQueue.peek().id));
+                int i = finishedInsts.indexOf(issuing);
+                finishedInsts.set(i,issuing);
+            }
+            if(nothingToIssue) {
+                probes.add(new Probe(cycle,3,0));
+            }
+            else if(rsBlocked) {
+                probes.add(new Probe(cycle,4,decodedQueue.peek().id));
+            }
+            else if(robBlocked) {
+                probes.add(new Probe(cycle,5,decodedQueue.peek().id));
+            }
         }
     }
 
     private void Dispatch() {
         rs_aluReady = getReadyRSIndex(OpType.ALU);
+        rs_aluReady2 = getReadyRSIndex(OpType.ALU);
         rs_loadReady = getReadyRSIndex(OpType.LOAD);
         rs_storeReady = getReadyRSIndex(OpType.STORE);
         rs_bruReady = getReadyRSIndex(OpType.BRU);
         rs_otherReady = getReadyOtherIndex();
         if(rs_aluReady > -1) {
             dispatchOperands(rs_aluReady);
+        }
+        if(rs_aluReady2 > -1) {
+            dispatchOperands(rs_aluReady2);
         }
         if(rs_loadReady > -1) {
             dispatchOperands(rs_loadReady);
@@ -386,7 +407,10 @@ public class Processor8 {
                 beforeFinish = true;
             }
         }
-        dispatchBlocked = (rs_aluReady == -1) && (rs_loadReady == -1) && (rs_storeReady == -1) && (rs_bruReady == -1) && (rs_otherReady == -1);
+        noReadyInstruction = (rs_aluReady == -1) && (rs_loadReady == -1) && (rs_storeReady == -1) && (rs_bruReady == -1) && (rs_otherReady == -1);
+        if(noReadyInstruction) {
+            probes.add(new Probe(cycle,6,0));
+        }
     }
 
     private void dispatchOperands(int rs_index) {
@@ -404,12 +428,18 @@ public class Processor8 {
         int readyIndex = -1;
         for(int i=0; i < RS.length; i++) {
             if(
-                    RS[i].busy &&
-                            !RS[i].executing &&
-                            RS[i].type.equals(opType) &&
-                            RS[i].Q1 == -1 &&
-                            RS[i].Q2 == -1 &&
-                            RS[i].Qs == -1
+                    RS[i].busy
+                    && !RS[i].executing
+                    && RS[i].type.equals(opType)
+                    && RS[i].Q1 == -1
+                    && RS[i].Q2 == -1
+                    && RS[i].Qs == -1
+                    && i != rs_aluReady
+                    && i != rs_aluReady2
+                    && i != rs_loadReady
+                    && i != rs_storeReady
+                    && i != rs_bruReady
+                    && i != rs_otherReady
             ) {
                 // if this was fetched earlier than current priority
                 if(RS[i].ins.id < priority) {
@@ -467,11 +497,11 @@ public class Processor8 {
         for(int i=0; i < RS.length; i++) {
             if(
                     RS[i].busy
-                            && !RS[i].executing
-                            && RS[i].type.equals(OpType.OTHER)
-                            && RS[i].Q1 == -1
-                            && RS[i].Q2 == -1
-                            && RS[i].Qs == -1
+                    && !RS[i].executing
+                    && RS[i].type.equals(OpType.OTHER)
+                    && RS[i].Q1 == -1
+                    && RS[i].Q2 == -1
+                    && RS[i].Qs == -1
             ) {
                 if(RS[i].ins.opcode.equals(Opcode.HALT) && !ROB.peek().ins.equals(RS[i].ins)) {
                     continue; // when it's HALT but if it's not the head of ROB, don't dispatch it
@@ -534,7 +564,7 @@ public class Processor8 {
                     // prediction failed
                     misprediction++;
                     ROB.buffer[RS[executing.rsIndex].robIndex].mispredicted = true;
-                    probes.add(new Probe(cycle,14,executing.id));
+                    probes.add(new Probe(cycle,15,executing.id));
                 }
                 ROB.buffer[RS[executing.rsIndex].robIndex].ready = true;
                 RS[rs_bruReady] = new ReservationStation();
@@ -549,7 +579,18 @@ public class Processor8 {
                     executing.executeComplete = cycle;
                     RS[executing.rsIndex].executing = true;
                 }
-                else if(!alu1.busy) {
+//                else if(!alu1.busy) {
+//                    alu1.update(executing.opcode, executing.data1, executing.data2);
+//                    alu1.executing = executing;
+//                    executing.executeComplete = cycle;
+//                    RS[executing.rsIndex].executing = true;
+//                }
+                int i = finishedInsts.indexOf(executing);
+                finishedInsts.set(i,executing);
+            }
+            if(rs_aluReady2 > -1) {
+                Instruction executing = RS[rs_aluReady2].ins;
+                if(!alu1.busy) {
                     alu1.update(executing.opcode, executing.data1, executing.data2);
                     alu1.executing = executing;
                     executing.executeComplete = cycle;
@@ -615,9 +656,22 @@ public class Processor8 {
             executedInsts++;
         }
 
+        if(nothingToExecute) {
+            probes.add(new Probe(cycle,7,0));
+        }
+        if(executeBlocked) {
+            probes.add(new Probe(cycle,8,0));
+        }
+        if(euAllBusy) {
+            probes.add(new Probe(cycle,9,0));
+        }
     }
 
     private void Memory() {
+        if(loadBuffer.isEmpty()) {
+            probes.add(new Probe(cycle,10,0));
+            return;
+        }
         while(!loadBuffer.isEmpty()) {
             Instruction loading = loadBuffer.peek();
             if(!loading.opType.equals(OpType.LOAD)) {
@@ -626,6 +680,7 @@ public class Processor8 {
                 return;
             }
             if(!checkRobForLoadStage2(RS[loading.rsIndex].robIndex, loading.memAddress)) {
+                probes.add(new Probe(cycle,11,loading.id));
                 return;
             }
             loading.result = mem[loading.memAddress];
@@ -661,6 +716,7 @@ public class Processor8 {
                         RS[rsIndex] = new ReservationStation(); // clear RS entry
                     }
                     else {
+                        probes.add(new Probe(cycle,12, writeBack.id));
                         copy.add(writeBack);
                     }
                     break;
@@ -735,6 +791,7 @@ public class Processor8 {
             int h = ROB.head;
             ReorderBuffer robHead = ROB.peek();
             if(!robHead.ready) { // head is not ready to commit
+                probes.add(new Probe(cycle,13,robHead.ins.id));
                 break; // abort committing
             }
             if(robHead.ins.opType.equals(OpType.BRU)) {
@@ -784,11 +841,17 @@ public class Processor8 {
                     else {
                         pc = robHead.ins.Const;
                     }
+                    probes.add(new Probe(cycle,16,robHead.ins.id));
                 }
                 speculativeExecution--;
             }
 
             else if(robHead.ins.opType.equals(OpType.STORE)) {
+                if(robHead.address >= mem.length) {
+                    finished = true;
+                    System.out.println("memory index out of range at commit");
+                    return;
+                }
                 mem[robHead.address] = robHead.value; // update memory here
             }
             else if(robHead.ins.opcode.equals(Opcode.HALT)) {
@@ -831,10 +894,10 @@ public class Processor8 {
             Fetch();
             cycle++;
             if(!beforeFinish) {
-                if(fetchBlocked || decodeBlocked || issueBlocked || dispatchBlocked || executeBlocked || euAllBusy || loadBufferFull) {
+                if(fetchBlocked || decodeBlocked || issueBlocked || executeBlocked || euAllBusy || loadBufferFull) {
                     stalledCycle++;
                 }
-                else if(nothingToDecode || nothingToIssue || nothingToDispatch || nothingToExecute || nothingToMemory || nothingToWriteBack) {
+                else if(nothingToDecode || nothingToIssue || noReadyInstruction || nothingToExecute || nothingToMemory || nothingToWriteBack) {
                     waitingCycle++;
                 }
             }
@@ -847,7 +910,7 @@ public class Processor8 {
 //                }
 //                System.out.println();
 //            }
-            System.out.println("Cycle: " + cycle + " PC: " + pc);
+//            System.out.println("Cycle: " + cycle + " PC: " + pc);
         }
         finishedInsts.sort(Comparator.comparingInt((Instruction i) -> i.id));
         TraceEncoder traceEncoder = new TraceEncoder(finishedInsts);
@@ -865,7 +928,7 @@ public class Processor8 {
         if(cycle >= cycleLimit) {
             System.out.println("Time out");
         }
-        System.out.println("Scalar Out of Order 8-stage pipeline processor Terminated");
+        System.out.println(superScalarWidth + "-way Superscalar Out of Order 8-stage pipeline processor Terminated");
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");
         System.out.println(stalledCycle + " stalled cycles");
@@ -877,6 +940,6 @@ public class Processor8 {
         System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
         System.out.println("stalled_cycle/cycle ratio: " + ((float) stalledCycle / (float) cycle));
         System.out.println("wasted_cycle/cycle ratio: " + ((float) (stalledCycle + waitingCycle) / (float) cycle));
-        System.out.println("correct prediction rate: "+ ((float) correctPrediction / (float) predictedBranches));
+        System.out.println("correct prediction rate: "+ ((float) correctPrediction / (float) (correctPrediction + misprediction)));
     }
 }
