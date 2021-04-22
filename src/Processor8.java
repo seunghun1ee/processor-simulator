@@ -161,10 +161,12 @@ public class Processor8 {
             if(decoded.Rs1 == 0 && decoded.opcode.equals(Opcode.BR)) {
                 pc =  decoded.Const;
                 unconditionalBranchTaken = true;
+                fetchedQueue.clear();
             }
             if(decoded.opcode.equals(Opcode.JMP)) {
                 pc += decoded.Const;
                 unconditionalBranchTaken = true;
+                fetchedQueue.clear();
             }
             if(decoded.opcode.equals(Opcode.BRZ) || decoded.opcode.equals(Opcode.BRN)) {
                 BTBstatus btbCondition = BTB.get(decoded.insAddress);
@@ -175,6 +177,7 @@ public class Processor8 {
                         BTB.put(decoded.insAddress,BTBstatus.YES);
                         pc = decoded.Const;
                         decoded.taken = true;
+                        fetchedQueue.clear();
                     }
                     else {
                         BTB.put(decoded.insAddress,BTBstatus.NO);
