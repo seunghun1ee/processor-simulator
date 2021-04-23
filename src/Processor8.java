@@ -801,14 +801,10 @@ public class Processor8 {
                     BTBstatus newBtbCondition = oldBtbCondition;
                     switch (oldBtbCondition) {
                         case STRONG_YES:
-                            newBtbCondition = BTBstatus.YES;
-                            break;
-                        case YES:
-                            newBtbCondition = BTBstatus.NO;
-                            break;
                         case NO:
                             newBtbCondition = BTBstatus.YES;
                             break;
+                        case YES:
                         case STRONG_NO:
                             newBtbCondition = BTBstatus.NO;
                             break;
@@ -853,6 +849,12 @@ public class Processor8 {
                     return;
                 }
                 mem[robHead.address] = robHead.value; // update memory here
+                System.out.println("Cycle: " + cycle + " PC: "  + pc);
+                System.out.print("[");
+                for (int j : mem) {
+                    System.out.printf("%d, ", j);
+                }
+                System.out.print("]\n");
             }
             else if(robHead.ins.opcode.equals(Opcode.HALT)) {
                 finished = true;
