@@ -36,7 +36,7 @@ public class Main {
         int[] mem2 = new int[1024];
 
         int[] arrayToSort = {512,52,61,3,-6,-127,75,21,98,1,874,-1239,431,94,10,36};
-//        int[] arrayToSort = {512,52,61,3-6,-127};
+//        int[] arrayToSort = {512,52,61,-3,-127};
         int pointer = 2;
         System.arraycopy(arrayToSort,0,mem2,pointer,arrayToSort.length);
         instructions2[0] = new Instruction(Opcode.MOVC,1,0,0,pointer); // load array pointer
