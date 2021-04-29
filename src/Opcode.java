@@ -19,7 +19,8 @@ public enum Opcode {
     STI, // mem[ rf[Rs1] + Const ] <- rf[Rd]
     MOV, // rf[Rd] <- rf[Rs1]
     JMP, // pc <- pc + Const
-    BR, // pc <- rf[Rs1] + Const
+    BR, // pc <- Const
+    BRR, // pc <- rf[Rs1]
     CMP, // rf[Rd] <- -1 if(rf[Rs1] < rf[Rs2]), 0 if(rf[Rs1] == rf[Rs2]), 1 if(rf[Rs1] > rf[Rs2])
     BRZ, // pc <- Const if (rf[Rs1] == 0)
     BRN, // pc <- Const if (rf[Rs1] < 0)
