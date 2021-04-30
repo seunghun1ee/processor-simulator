@@ -581,7 +581,9 @@ public class Processor9 {
                 // update RS and ROB with result
                 int robIndex = RS[rsIndex].robIndex;
                 RS[rsIndex].ins.result = result;
-                ROB.buffer[robIndex].value = result;
+                if(RS[rsIndex].ins.Rd != 0) { // if Rd is 0, result is ignored
+                    ROB.buffer[robIndex].value = result;
+                }
                 ROB.buffer[robIndex].ready = true;
                 // result forwarding
                 resultForwardingFromRS(RS[rsIndex].ins);
@@ -614,15 +616,17 @@ public class Processor9 {
     private void storeExecution() {
         for(int i=0; i < numOfSTORE; i++) {
             int rsIndex = STOREs[i].destination;
-            Integer address = STOREs[i].agu();
+            Integer memAddress = STOREs[i].agu();
             if(rsIndex != -1) {
                 RS[rsIndex].executing = true;
             }
-            if(address != null) {
+            if(memAddress != null) {
                 // update RS and ROB
-                RS[rsIndex].A = address;
+                RS[rsIndex].ins.memAddress = memAddress;
+                RS[rsIndex].A = memAddress;
                 int robIndex = RS[rsIndex].robIndex;
-                ROB.buffer[robIndex].address = address;
+                ROB.buffer[robIndex].value = RS[rsIndex].Vs;
+                ROB.buffer[robIndex].address = memAddress;
                 ROB.buffer[robIndex].ready = true;
                 // clear used STORE
                 STOREs[i].reset();
@@ -729,6 +733,34 @@ public class Processor9 {
         }
     }
 
+    private void Memory() {
+        for(int i=0; i < numOfLOAD; i++) {
+            Instruction loading = loadBuffer.peek();
+            if(loading == null) {
+                break;
+            }
+            if(!loading.opType.equals(OpType.LOAD)) {
+                System.out.println("Illegal instruction stored at load buffer at cycle: " + cycle);
+                finished = true;
+                break;
+            }
+            if(!checkRobForLoadStage2(RS[loading.rsIndex].robIndex,loading.memAddress)) {
+                probes.add(new Probe(cycle,11,loading.id));
+                break;
+            }
+            // access memory
+            loading.result = mem[loading.memAddress];
+            // result forwarding
+            resultForwardingFromRS(loading);
+            // update ROB
+            if(loading.Rd != 0) { // if Rd is 0, value is ignored
+                ROB.buffer[RS[loading.rsIndex].robIndex].value = mem[loading.memAddress];
+            }
+            ROB.buffer[RS[loading.rsIndex].robIndex].ready = true;
+            loadBuffer.remove();
+        }
+    }
+
     private void init() {
         for(int i=0; i < RS.length; i++) {
             RS[i] = new ReservationStation();
@@ -755,7 +787,7 @@ public class Processor9 {
         int cycleLimit = 10000;
         while(!finished && pc < instructions.length && cycle < cycleLimit) {
 //            Commit();
-//            Memory();
+            Memory();
             Execute();
             Dispatch();
             Issue();
