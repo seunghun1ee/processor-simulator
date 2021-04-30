@@ -4,7 +4,10 @@ public class LSU2 extends ExecutionUnit2{
 
     }
 
-    public int agu(int input1, int input2) {
-        return input1 + input2;
+    public Integer agu() {
+        if(this.executing.data1 == null || this.executing.data2 == null) {
+            return null;
+        }
+        return this.executing.data1 + this.executing.data2;
     }
 }

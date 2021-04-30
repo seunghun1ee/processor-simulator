@@ -15,6 +15,9 @@ public class ALU2 extends ExecutionUnit2 {
         else {
             busy = false;
             unitCycles = 0;
+            if(executing.data1 == null || executing.data2 == null) {
+                return null;
+            }
             return evaluate(executing.opcode, executing.data1, executing.data2);
 
         }

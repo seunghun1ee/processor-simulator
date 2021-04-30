@@ -440,7 +440,7 @@ public class Processor9 {
                 dispatchedIndexSet.add(readyIndex);
                 dispatchOperands(readyIndex);
                 // put it to ALU
-                ALUs[i].update(RS[i].ins);
+                ALUs[i].update(RS[readyIndex].ins);
             }
         }
         loadBufferFull = loadBuffer.size() >= QUEUE_SIZE;
@@ -450,7 +450,7 @@ public class Processor9 {
                 dispatchedIndexSet.add(readyIndex);
                 dispatchOperands(readyIndex);
                 // put it to LOAD
-                LOADs[i].update(RS[i].ins);
+                LOADs[i].update(RS[readyIndex].ins);
             }
         }
         for(int i=0; i < numOfSTORE; i++) {
@@ -459,7 +459,7 @@ public class Processor9 {
                 dispatchedIndexSet.add(readyIndex);
                 dispatchOperands(readyIndex);
                 // put it to STORE
-                STOREs[i].update(RS[i].ins);
+                STOREs[i].update(RS[readyIndex].ins);
             }
         }
         for(int i=0; i < numOfBRU; i++) {
@@ -468,7 +468,7 @@ public class Processor9 {
                 dispatchedIndexSet.add(readyIndex);
                 dispatchOperands(readyIndex);
                 // put it to BRU
-                BRUs[i].update(RS[i].ins);
+                BRUs[i].update(RS[readyIndex].ins);
             }
         }
     }
@@ -483,6 +483,7 @@ public class Processor9 {
                     && RS[i].type.equals(opType)
                     && RS[i].Q1 == -1
                     && RS[i].Q2 == -1
+                    && RS[i].Qs == -1
                     && !dispatchedIndexSet.contains(i)
             ) {
                 // if this was fetched earlier than current priority
@@ -506,6 +507,7 @@ public class Processor9 {
                     && RS[i].type.equals(OpType.LOAD)
                     && RS[i].Q1 == -1
                     && RS[i].Q2 == -1
+                    && RS[i].Qs == -1
                     && !dispatchedIndexSet.contains(i)
             ) {
                 int j = RS[i].robIndex; // j is ROB index of the ins
@@ -562,6 +564,92 @@ public class Processor9 {
 
     private void Execute() {
 
+        for(int i=0; i < numOfBRU; i++) {
+            // branch prediction evaluation
+        }
+
+        aluExecution();
+        loadExecution();
+    }
+
+    private void aluExecution() {
+        for(int i=0; i < numOfALU; i++) {
+            int rsIndex = ALUs[i].destination;
+            Integer result = ALUs[i].execute();
+            if(rsIndex != -1) {
+                RS[rsIndex].executing = true;
+                // add execute cycle save
+            }
+            if(result != null) {
+                // update RS and ROB with result
+                int robIndex = RS[rsIndex].robIndex;
+                RS[rsIndex].ins.result = result;
+                ROB.buffer[robIndex].value = result;
+                ROB.buffer[robIndex].ready = true;
+                // result forwarding
+                resultForwardingFromRS(RS[rsIndex].ins);
+                // clear used ALU
+                ALUs[i].reset();
+                executedInsts++;
+            }
+        }
+    }
+
+    private void loadExecution() {
+        for(int i=0; i < numOfLOAD; i++) {
+            int rsIndex = LOADs[i].destination;
+            Integer memAddress = LOADs[i].agu();
+            if(rsIndex != -1) {
+                RS[rsIndex].executing = true;
+            }
+            if(memAddress != null) {
+                // update RS
+                RS[rsIndex].ins.memAddress = memAddress;
+                // push to load buffer
+                loadBuffer.add(RS[rsIndex].ins);
+                // clear used LOAD
+                LOADs[i].reset();
+                executedInsts++;
+            }
+        }
+    }
+
+    private void resultForwardingFromRS(Instruction forwarding) {
+        int b = RS[forwarding.rsIndex].robIndex;
+        if(b == -1) {
+            return;
+        }
+        for(ReservationStation rs : RS) {
+            if(rs.Q1 == b) {
+                rs.V1 = forwarding.result;
+                rs.Q1 = -1;
+            }
+            if(rs.Q2 == b) {
+                rs.V2 = forwarding.result;
+                rs.Q2 = -1;
+            }
+            if(rs.Qs == b) {
+                rs.Vs = forwarding.result;
+                rs.Qs = -1;
+            }
+        }
+    }
+
+    private void resultForwardingFromROB(int robIndex, int value) {
+        for(ReservationStation rs : RS) {
+            if(rs.Q1 == robIndex) {
+                rs.V1 = value;
+                rs.Q1 = -1;
+            }
+            if(rs.Q2 == robIndex) {
+                rs.V2 = value;
+                rs.Q2 = -1;
+            }
+            if(rs.Qs == robIndex) {
+                rs.Vs = value;
+                rs.Qs = -1;
+            }
+        }
     }
 
     private void init() {
@@ -593,18 +681,6 @@ public class Processor9 {
 //            WriteBack();
 //            Memory();
             Execute();
-//            for(int i = 0; i < numOfALU; i++) {
-//                ALUs[i].reset();
-//            }
-//            for(int i = 0; i < numOfLOAD; i++) {
-//                LOADs[i].reset();
-//            }
-//            for(int i = 0; i < numOfSTORE; i++) {
-//                STOREs[i].reset();
-//            }
-//            for(int i = 0; i < numOfBRU; i++) {
-//                BRUs[i].reset();
-//            }
             Dispatch();
             Issue();
             Decode();

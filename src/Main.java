@@ -163,9 +163,6 @@ public class Main {
         testInstructions[4] = new Instruction(Opcode.LDI,4,0,0,4);
         testInstructions[5] = new Instruction(Opcode.HALT,0,0,0,0);
 
-        System.out.println("Test");
-        Processor9 tester = new Processor9(testMem,testInstructions);
-        tester.RunProcessor();
         //Branch hell
 //        Instruction[] instructions5 = new Instruction[512];
 //        int[] mem5 = new int[1024];
@@ -181,6 +178,10 @@ public class Main {
 //
 //        instructions5[15] = new Instruction()
 
+
+//        System.out.println("Test");
+//        Processor9 tester = new Processor9(testMem,testInstructions);
+//        tester.RunProcessor();
 
 //        System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
 //        Processor9 processor = new Processor9(mem,instructions);
@@ -206,11 +207,11 @@ public class Main {
 //	    createDump(processor4.mem, "mem_bench4.txt");
 //	    createDump(processor4.rf,"rf_bench4.txt");
 
-//        System.out.println("Benchmark6 - Independent Math");
-//        Processor9 processor6 = new Processor9(mem6,instructions6);
-//        processor6.RunProcessor();
-//        createDump(processor6.mem, "mem_bench6.txt");
-//        createDump(processor6.rf,"rf_bench6.txt");
+        System.out.println("Benchmark6 - Independent Math");
+        Processor9 processor6 = new Processor9(mem6,instructions6);
+        processor6.RunProcessor();
+        createDump(processor6.mem, "mem_bench6.txt");
+        createDump(processor6.rf,"rf_bench6.txt");
 
     }
 
