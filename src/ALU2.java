@@ -25,6 +25,8 @@ public class ALU2 extends ExecutionUnit2 {
 
     private Integer evaluate(Opcode opcode, int input1, int input2) {
         switch (opcode) {
+            case NOOP:
+                return 0;
             case MOV:
             case MOVC:
                 return input1;

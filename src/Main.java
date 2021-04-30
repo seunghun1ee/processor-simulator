@@ -141,16 +141,16 @@ public class Main {
         instructions6[0] = new Instruction(Opcode.NOOP,0,0,0,0); // no op
         instructions6[1] = new Instruction(Opcode.MOVC,1,0,0,1); // $1 = 1
         instructions6[2] = new Instruction(Opcode.MOVC,2,0,0,2); // $2 = 2
-        instructions6[3] = new Instruction(Opcode.ADD,3,1,2,0); // $3 = $1 + $2 = 3
+        instructions6[3] = new Instruction(Opcode.ADDI,3,0,0,3); // $3 = $0 + 3 = 3
         instructions6[4] = new Instruction(Opcode.SUB,4,1,2,0); // $4 = $1 - $2 = -1
         instructions6[5] = new Instruction(Opcode.MOVC,6,0,0,11); // $6 = 11
         instructions6[6] = new Instruction(Opcode.ADDI,5,1,0,10); // $5 = $1 + 10 = 11
-        instructions6[7] = new Instruction(Opcode.SHL,7,6,2,0); // $7 = $6 << $2 = 44
+        instructions6[7] = new Instruction(Opcode.SHL,7,1,2,0); // $7 = $1 << $2 = 4
         instructions6[8] = new Instruction(Opcode.SHR,8,6,1,0); // $8 = $6 >> $1 = 5
         instructions6[9] = new Instruction(Opcode.NOT,9,2,0,0); // $9 = ~ $2 = -3
         instructions6[10] = new Instruction(Opcode.AND,10,1,2,0); // $10 = $1 & $2 = 0
         instructions6[11] = new Instruction(Opcode.OR,11,1,2,0); // $11 = $1 | $2 = 3
-        instructions6[12] = new Instruction(Opcode.CMP,12,7,8,0); // $12 = CMP($7,$8) = 1
+        instructions6[12] = new Instruction(Opcode.CMP,12,7,8,0); // $12 = CMP($7,$8) = -1
         instructions6[13] = new Instruction(Opcode.MOV,13,9,0,0); // $13 = $9 = -3
         instructions6[14] = new Instruction(Opcode.HALT,0,0,0,0); // halt
 
@@ -201,17 +201,17 @@ public class Main {
 //	    createDump(processor3.mem, "mem_bench3.txt");
 //	    createDump(processor3.rf,"rf_bench3.txt");
 
-//	    System.out.println("Benchmark4 - many dependencies");
-//	    Processor8 processor4 = new Processor8(mem4,instructions4);
-//	    processor4.RunProcessor();
-//	    createDump(processor4.mem, "mem_bench4.txt");
-//	    createDump(processor4.rf,"rf_bench4.txt");
+	    System.out.println("Benchmark4 - many dependencies");
+	    Processor9 processor4 = new Processor9(mem4,instructions4);
+	    processor4.RunProcessor();
+	    createDump(processor4.mem, "mem_bench4.txt");
+	    createDump(processor4.rf,"rf_bench4.txt");
 
-        System.out.println("Benchmark6 - Independent Math");
-        Processor9 processor6 = new Processor9(mem6,instructions6);
-        processor6.RunProcessor();
-        createDump(processor6.mem, "mem_bench6.txt");
-        createDump(processor6.rf,"rf_bench6.txt");
+//        System.out.println("Benchmark6 - Independent Math");
+//        Processor9 processor6 = new Processor9(mem6,instructions6);
+//        processor6.RunProcessor();
+//        createDump(processor6.mem, "mem_bench6.txt");
+//        createDump(processor6.rf,"rf_bench6.txt");
 
     }
 

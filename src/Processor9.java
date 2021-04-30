@@ -7,7 +7,7 @@ public class Processor9 {
     int superScalarWidth = 4;
     BranchMode branchMode = BranchMode.DYNAMIC_2BIT;
     Boolean isOoO = true;
-    int numOfALU = 2;
+    int numOfALU = 4;
     int numOfLOAD = 2;
     int numOfSTORE = 1;
     int numOfBRU = 1;
@@ -33,7 +33,7 @@ public class Processor9 {
     // components
     Queue<Instruction> fetchedQueue = new LinkedList<>();
     Queue<Instruction> decodedQueue = new LinkedList<>();
-    ReservationStation[] RS = new ReservationStation[ISSUE_SIZE * 2]; // unified reservation station
+    ReservationStation[] RS = new ReservationStation[ISSUE_SIZE * 4]; // unified reservation station
     CircularBufferROB ROB = new CircularBufferROB(ISSUE_SIZE * 4); // Reorder buffer
     Set<Integer> dispatchedIndexSet = new HashSet<>();
     Queue<Instruction> loadBuffer = new LinkedList<>();
@@ -45,6 +45,7 @@ public class Processor9 {
     LSU2[] LOADs = new LSU2[numOfLOAD];
     LSU2[] STOREs = new LSU2[numOfSTORE];
     BRU2[] BRUs = new BRU2[numOfBRU];
+    int otherReadyIndex = -1;
 
     // state of pipeline stages
     // fetch states
@@ -52,7 +53,7 @@ public class Processor9 {
     // decode states
     boolean nothingToDecode = false;
     boolean decodeBlocked = false;
-    boolean branchPredicted = false;
+    boolean branchTaken = false;
     // issue states
     boolean nothingToIssue = false;
     boolean issueBlocked = false;
@@ -94,7 +95,7 @@ public class Processor9 {
                 fetchedQueue.add(fetching);
 
                 // add instruction to debugging list
-                fetching.fetchComplete = pc;
+                fetching.fetchComplete = cycle;
                 finishedInsts.add(fetching);
             }
         }
@@ -105,29 +106,30 @@ public class Processor9 {
         if(fetching == null) {
             fetching = new Instruction(); // null fetched as NOOP
         }
-        fetching.id = insIdCount; // assign id
+        Instruction ins = new Instruction(fetching);
+        ins.id = insIdCount; // assign id
         insIdCount++;
-        fetching.insAddress = pc; // assign instruction address
+        ins.insAddress = pc; // assign instruction address
         pc++;
-        return fetching;
+        return ins;
     }
 
     private void Decode() {
         nothingToDecode = fetchedQueue.isEmpty();
         decodeBlocked = !decodedQueue.isEmpty();
-        branchPredicted = false;
+        branchTaken = false;
         if(!nothingToDecode && !decodeBlocked) {
             for(int i = 0; i < superScalarWidth; i++) {
-                if(!branchPredicted) {
-                    decodeLogic();
+                if(!branchTaken) {
+                    Instruction decoding = fetchedQueue.remove();
+                    decodeLogic(decoding);
                 }
             }
-            branchPredicted = false;
+            branchTaken = false;
         }
     }
 
-    private void decodeLogic() {
-        Instruction decoding = fetchedQueue.remove();
+    private void decodeLogic(Instruction decoding) {
         OpType opType = assignOpType(decoding.opcode);
         if(opType.equals(OpType.UNDEFINED)) {
             System.out.println("Undefined instruction detected at decode stage at cycle: " + cycle);
@@ -140,17 +142,17 @@ public class Processor9 {
             case BR:
                 pc = decoding.Const;
                 fetchedQueue.clear();
-                branchPredicted = true;
+                branchTaken = true;
                 return;
             case JMP:
                 pc += decoding.Const;
                 fetchedQueue.clear();
-                branchPredicted = true;
+                branchTaken = true;
                 return;
             case BRZ:
             case BRN:
                 decoding = new Instruction(branchPrediction(decoding));
-                branchPredicted = decoding.predicted;
+                branchTaken = decoding.taken;
                 break;
             default:
                 break;
@@ -247,9 +249,9 @@ public class Processor9 {
 
     private OpType assignOpType(Opcode opcode) {
         switch (opcode) {
-            case NOOP:
             case HALT:
                 return OpType.OTHER;
+            case NOOP:
             case ADD:
             case ADDI:
             case SUB:
@@ -421,6 +423,7 @@ public class Processor9 {
                 // no regStats set for branch operations
                 break;
             case OTHER:
+                beforeFinish = true;
                 break;
             default:
                 System.out.println("invalid instruction detected at issue stage");
@@ -471,6 +474,11 @@ public class Processor9 {
                 BRUs[i].update(RS[readyIndex].ins);
             }
         }
+        otherReadyIndex = getReadyOtherIndex();
+        if(otherReadyIndex != -1) {
+            dispatchedIndexSet.add(otherReadyIndex);
+            saveDispatchCycle(RS[otherReadyIndex].ins,cycle);
+        }
     }
 
     private int getReadyRSIndex(OpType opType) {
@@ -520,6 +528,33 @@ public class Processor9 {
         return readyIndex;
     }
 
+    private int getReadyOtherIndex() {
+        int priority = Integer.MAX_VALUE;
+        int readyIndex = -1;
+        for(int i=0; i < RS.length; i++) {
+            if(
+                    RS[i].busy
+                    && !RS[i].executing
+                    && RS[i].type.equals(OpType.OTHER)
+                    && RS[i].Q1 == -1
+                    && RS[i].Q2 == -1
+                    && RS[i].Qs == -1
+                    && !dispatchedIndexSet.contains(i)
+            ) {
+                if(RS[i].ins.opcode.equals(Opcode.HALT) && !ROB.peek().ins.equals(RS[i].ins)) {
+                    continue; // when it's HALT but if it's not the head of ROB, don't dispatch it
+                }
+                // if this was fetched earlier than current priority
+                if(RS[i].ins.id < priority) {
+                    // this is new ready RS
+                    priority = RS[i].ins.id;
+                    readyIndex = i;
+                }
+            }
+        }
+        return readyIndex;
+    }
+
     private boolean checkRobForLoadStage1(int currentRobIndex) {
         int j = currentRobIndex;
         while (j != ROB.head) {
@@ -556,8 +591,11 @@ public class Processor9 {
         //dispatch operands
         RS[rs_index].ins.data1 = RS[rs_index].V1;
         RS[rs_index].ins.data2 = RS[rs_index].V2;
-        RS[rs_index].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
-        Instruction dispatched = RS[rs_index].ins;
+        saveDispatchCycle(RS[rs_index].ins, cycle);
+    }
+
+    private void saveDispatchCycle(Instruction dispatched, int cycle) {
+        dispatched.dispatchComplete = cycle; // save cycle number of dispatch stage
         int i = finishedInsts.indexOf(dispatched);
         finishedInsts.set(i,dispatched);
     }
@@ -567,6 +605,14 @@ public class Processor9 {
         aluExecution();
         loadExecution();
         storeExecution();
+        if(otherReadyIndex != -1) {
+            RS[otherReadyIndex].executing = true;
+            Instruction ins = RS[otherReadyIndex].ins;
+            saveExecuteCycle(ins);
+            ROB.buffer[RS[otherReadyIndex].robIndex].ready = true;
+            executedInsts++;
+        }
+        otherReadyIndex = -1;
     }
 
     private void aluExecution() {
@@ -575,13 +621,13 @@ public class Processor9 {
             Integer result = ALUs[i].execute();
             if(rsIndex != -1) {
                 RS[rsIndex].executing = true;
-                // add execute cycle save
+                saveExecuteCycle(RS[rsIndex].ins);
             }
             if(result != null) {
                 // update RS and ROB with result
                 int robIndex = RS[rsIndex].robIndex;
-                RS[rsIndex].ins.result = result;
                 if(RS[rsIndex].ins.Rd != 0) { // if Rd is 0, result is ignored
+                    RS[rsIndex].ins.result = result;
                     ROB.buffer[robIndex].value = result;
                 }
                 ROB.buffer[robIndex].ready = true;
@@ -600,6 +646,7 @@ public class Processor9 {
             Integer memAddress = LOADs[i].agu();
             if(rsIndex != -1) {
                 RS[rsIndex].executing = true;
+                saveExecuteCycle(RS[rsIndex].ins);
             }
             if(memAddress != null) {
                 // update RS
@@ -619,6 +666,7 @@ public class Processor9 {
             Integer memAddress = STOREs[i].agu();
             if(rsIndex != -1) {
                 RS[rsIndex].executing = true;
+                saveExecuteCycle(RS[rsIndex].ins);
             }
             if(memAddress != null) {
                 // update RS and ROB
@@ -640,6 +688,7 @@ public class Processor9 {
             int rsIndex = BRUs[i].destination;
             if(BRUs[i].executing.opType.equals(OpType.BRU)) {
                 RS[rsIndex].executing = true;
+                saveExecuteCycle(RS[rsIndex].ins);
                 Instruction executing = BRUs[i].executing;
                 if(!executing.predicted) {
                     // the branch was not predicted
@@ -648,9 +697,19 @@ public class Processor9 {
                     boolean realCondition = BRUs[i].evaluateCondition();
                     branchEvaluation(executing,realCondition);
                 }
+                BRUs[i].reset();
             }
             // branch prediction evaluation
         }
+    }
+
+    private void saveExecuteCycle(Instruction executing) {
+        if(executing.executeComplete > 0) {
+            return;
+        }
+        executing.executeComplete = cycle;
+        int i = finishedInsts.indexOf(executing);
+        finishedInsts.set(i,executing);
     }
 
     private void branchEvaluation(Instruction executing, boolean realCondition) {
@@ -667,6 +726,7 @@ public class Processor9 {
             ROB.buffer[RS[executing.rsIndex].robIndex].mispredicted = true;
             probes.add(new Probe(cycle,15,executing.id));
         }
+        ROB.buffer[RS[executing.rsIndex].robIndex].ready = true;
     }
 
     private void updateWellPredicted2BitBTB(Instruction ins, boolean taken) {
@@ -693,6 +753,27 @@ public class Processor9 {
                     break;
             }
         }
+    }
+
+    private void updateMispredicted2BitBTB(int insAddress) {
+        BTBstatus oldStatus = BTB_2BIT.get(insAddress);
+        BTBstatus newStatus = oldStatus;
+        switch (oldStatus) {
+            case STRONG_YES:
+            case NO:
+                newStatus = BTBstatus.YES;
+                break;
+            case YES:
+            case STRONG_NO:
+                newStatus = BTBstatus.NO;
+                break;
+        }
+        BTB_2BIT.put(insAddress,newStatus);
+    }
+
+    private void updateMispredicted1BitBTB(int insAddress) {
+        boolean oldBool = BTB_1BIT.get(insAddress);
+        BTB_1BIT.put(insAddress,!oldBool);
     }
 
     private void resultForwardingFromRS(Instruction forwarding) {
@@ -758,7 +839,136 @@ public class Processor9 {
             }
             ROB.buffer[RS[loading.rsIndex].robIndex].ready = true;
             loadBuffer.remove();
+
+            loading.memoryComplete = cycle; // save cycle number of memory stage
+            int j = finishedInsts.indexOf(loading);
+            finishedInsts.set(j,loading);
+            beforeWriteBack.add(loading);
         }
+    }
+
+    private void Commit() {
+        // flushing all ready ops
+        while(!ROB.isEmpty()) {
+            int headIndex = ROB.head;
+            ReorderBuffer robHead = ROB.peek();
+            if(!robHead.ready) { // nothing to pop
+                probes.add(new Probe(cycle,13,robHead.ins.id));
+                return;
+            }
+            else if(robHead.ins.opType.equals(OpType.BRU)) {
+                // branch commit
+                if(robHead.mispredicted) {
+                    handleMisprediction(robHead);
+                }
+                else {
+                    // save commit cycle
+                    int i = finishedInsts.indexOf(robHead.ins);
+                    Instruction committing = finishedInsts.get(i);
+                    committing.memoryComplete = cycle;
+                    committing.commitComplete = cycle;
+                    finishedInsts.set(i,committing);
+
+                    ROB.buffer[ROB.head].busy = false;
+                    RS[robHead.ins.rsIndex] = new ReservationStation();
+                    ROB.pop(); // free up ROB entry, new head
+                    return;
+                }
+            }
+            else if(robHead.ins.opType.equals(OpType.STORE)) {
+                // store commit
+                storeToMemory(robHead);
+            }
+            else if(robHead.ins.opcode.equals(Opcode.HALT)) {
+                finished = true;
+            }
+            else {
+                // normal commits
+                int Rd = robHead.destination;
+                if(Rd != 0) { // if destination is not zero
+                    rf[Rd] = robHead.value; // update register file
+                }
+                resultForwardingFromROB(headIndex,robHead.value);
+                if(regStats[Rd].busy && regStats[Rd].robIndex == headIndex) {
+                    regStats[Rd] = new RegisterStatus(); // free up register status entry
+                }
+            }
+
+            // save commit cycle
+            int i = finishedInsts.indexOf(robHead.ins);
+            Instruction committing = finishedInsts.get(i);
+            if(!robHead.ins.opType.equals(OpType.LOAD)) {
+                committing.memoryComplete = cycle;
+            }
+            committing.commitComplete = cycle;
+            finishedInsts.set(i,committing);
+
+            ROB.buffer[ROB.head].busy = false;
+            RS[robHead.ins.rsIndex] = new ReservationStation();
+            ROB.pop(); // free up ROB entry, new head
+        }
+    }
+
+    private void storeToMemory(ReorderBuffer robHead) {
+        if(robHead.address >= mem.length || robHead.address < 0) {
+            finished = true;
+            System.out.println("memory index out of range at commit at cycle: " + cycle);
+            return;
+        }
+        mem[robHead.address] = robHead.value; // update memory here
+    }
+
+    private void handleMisprediction(ReorderBuffer robHead) {
+        switch (branchMode) {
+            case DYNAMIC_1BIT:
+                updateMispredicted1BitBTB(robHead.ins.insAddress);
+                break;
+            case DYNAMIC_2BIT:
+                updateMispredicted2BitBTB(robHead.ins.insAddress);
+                break;
+            default:
+                break;
+        }
+        flushAll();
+        // change to correct pc
+        if(robHead.ins.taken) {
+            pc = robHead.ins.insAddress + 1;
+        }
+        else {
+            pc = robHead.ins.Const;
+        }
+        probes.add(new Probe(cycle,16,robHead.ins.id));
+    }
+
+    private void flushAll() {
+        // clear reorder buffer
+        ROB.clear();
+        // clear register status
+        for(int i = 0; i < regStats.length; i++) {
+            regStats[i] = new RegisterStatus();
+        }
+        // clear reservation station entries that is later than this branch
+        for(int i = 0; i < RS.length; i++) {
+            RS[i] = new ReservationStation();
+        }
+        // flush queues
+        fetchedQueue.clear();
+        decodedQueue.clear();
+        loadBuffer.clear();
+        // flush EUs
+        for(int i = 0; i < numOfALU; i++) {
+            ALUs[i].reset();
+        }
+        for(int i = 0; i < numOfLOAD; i++) {
+            LOADs[i].reset();
+        }
+        for(int i = 0; i < numOfSTORE; i++) {
+            STOREs[i].reset();
+        }
+        for(int i = 0; i < numOfBRU; i++) {
+            BRUs[i].reset();
+        }
+        beforeFinish = false;
     }
 
     private void init() {
@@ -786,7 +996,7 @@ public class Processor9 {
         init();
         int cycleLimit = 10000;
         while(!finished && pc < instructions.length && cycle < cycleLimit) {
-//            Commit();
+            Commit();
             Memory();
             Execute();
             Dispatch();
@@ -794,6 +1004,7 @@ public class Processor9 {
             Decode();
             Fetch();
             cycle++;
+            System.out.println("pc: " + pc + " cycle: " + cycle);
 
 //            if(!beforeFinish) {
 //                if(fetchBlocked || decodeBlocked || issueBlocked || executeBlocked || euAllBusy || loadBufferFull) {
@@ -820,19 +1031,19 @@ public class Processor9 {
         if(cycle >= cycleLimit) {
             System.out.println("Time out");
         }
-//        System.out.println(superScalarWidth + "-way Superscalar Out of Order 8-stage pipeline processor Terminated");
-//        System.out.println(executedInsts + " instructions executed");
-//        System.out.println(cycle + " cycles spent");
-//        System.out.println(stalledCycle + " stalled cycles");
-//        System.out.println(waitingCycle + " Waiting cycles");
-//        System.out.println(predictedBranches + " branches predicted");
-//        System.out.println(correctPrediction + " correct predictions");
-//        System.out.println(misprediction + " incorrect predictions");
-//        System.out.println("cycles/instruction ratio: " + ((float) cycle) / (float) executedInsts);
-//        System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
-//        System.out.println("stalled_cycle/cycle ratio: " + ((float) stalledCycle / (float) cycle));
-//        System.out.println("wasted_cycle/cycle ratio: " + ((float) (stalledCycle + waitingCycle) / (float) cycle));
-//        System.out.println("correct prediction rate: "+ ((float) correctPrediction / (float) (correctPrediction + misprediction)));
+        System.out.println(superScalarWidth + "-way Superscalar Out of Order 7-stage pipeline processor Terminated");
+        System.out.println(executedInsts + " instructions executed");
+        System.out.println(cycle + " cycles spent");
+        System.out.println(stalledCycle + " stalled cycles");
+        System.out.println(waitingCycle + " Waiting cycles");
+        System.out.println(predictedBranches + " branches predicted");
+        System.out.println(correctPrediction + " correct predictions");
+        System.out.println(misprediction + " incorrect predictions");
+        System.out.println("cycles/instruction ratio: " + ((float) cycle) / (float) executedInsts);
+        System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
+        System.out.println("stalled_cycle/cycle ratio: " + ((float) stalledCycle / (float) cycle));
+        System.out.println("wasted_cycle/cycle ratio: " + ((float) (stalledCycle + waitingCycle) / (float) cycle));
+        System.out.println("correct prediction rate: "+ ((float) correctPrediction / (float) (correctPrediction + misprediction)));
     }
 
 }
