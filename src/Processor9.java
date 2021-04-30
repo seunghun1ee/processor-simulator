@@ -29,15 +29,22 @@ public class Processor9 {
     boolean finished = false;
     int QUEUE_SIZE = 4;
     int ISSUE_SIZE = 16;
+
+    // components
     Queue<Instruction> fetchedQueue = new LinkedList<>();
     Queue<Instruction> decodedQueue = new LinkedList<>();
     ReservationStation[] RS = new ReservationStation[ISSUE_SIZE * 2]; // unified reservation station
     CircularBufferROB ROB = new CircularBufferROB(ISSUE_SIZE * 4); // Reorder buffer
+    Set<Integer> dispatchedIndexSet = new HashSet<>();
     Queue<Instruction> loadBuffer = new LinkedList<>();
     // final result registers before write back
     Queue<Instruction> beforeWriteBack = new LinkedList<>();
     Map<Integer,BTBstatus> BTB_2BIT = new HashMap<>(); // 2-bit Branch Target Buffer, Key: insAddress, Value: BTB status
     Map<Integer,Boolean> BTB_1BIT = new HashMap<>(); // 1-bit Branch Target Buffer, Key: insAddress, Value: Boolean
+    ALU2[] ALUs = new ALU2[numOfALU];
+    LSU2[] LOADs = new LSU2[numOfLOAD];
+    LSU2[] STOREs = new LSU2[numOfSTORE];
+    BRU2[] BRUs = new BRU2[numOfBRU];
 
     // state of pipeline stages
     // fetch states
@@ -425,21 +432,126 @@ public class Processor9 {
         finishedInsts.set(i,ins);
     }
 
+    private void Dispatch() {
+        dispatchedIndexSet.clear();
+        for(int i=0; i < numOfALU; i++) {
+            int readyIndex = getReadyRSIndex(OpType.ALU);
+            if(!ALUs[i].busy && readyIndex != -1) {
+                dispatchedIndexSet.add(readyIndex);
+                dispatchOperands(readyIndex);
+                // put it to ALU
+                ALUs[i].update(RS[i].ins);
+            }
+        }
+        loadBufferFull = loadBuffer.size() >= QUEUE_SIZE;
+        for(int i=0; i < numOfLOAD; i++) {
+            int readyIndex = getReadyRSIndex(OpType.LOAD);
+            if(!LOADs[i].busy && readyIndex != -1 && !loadBufferFull) {
+                dispatchedIndexSet.add(readyIndex);
+                dispatchOperands(readyIndex);
+                // put it to LOAD
+                LOADs[i].update(RS[i].ins);
+            }
+        }
+        for(int i=0; i < numOfSTORE; i++) {
+            int readyIndex = getReadyRSIndex(OpType.STORE);
+            if(!STOREs[i].busy && readyIndex != -1) {
+                dispatchedIndexSet.add(readyIndex);
+                dispatchOperands(readyIndex);
+                // put it to STORE
+                STOREs[i].update(RS[i].ins);
+            }
+        }
+        for(int i=0; i < numOfBRU; i++) {
+            int readyIndex = getReadyRSIndex(OpType.BRU);
+            if(!BRUs[i].busy && readyIndex != -1) {
+                dispatchedIndexSet.add(readyIndex);
+                dispatchOperands(readyIndex);
+                // put it to BRU
+                BRUs[i].update(RS[i].ins);
+            }
+        }
+    }
 
-    public void RunProcessor() {
+    private int getReadyRSIndex(OpType opType) {
+        int priority = Integer.MAX_VALUE;
+        int readyIndex = -1;
+        for(int i=0; i < RS.length; i++) {
+            if(
+                    RS[i].busy
+                    && !RS[i].executing
+                    && RS[i].type.equals(opType)
+                    && RS[i].Q1 == -1
+                    && RS[i].Q2 == -1
+                    && !dispatchedIndexSet.contains(i)
+            ) {
+                // if this was fetched earlier than current priority
+                if(RS[i].ins.id < priority) {
+                    // this is new ready RS
+                    priority = RS[i].ins.id;
+                    readyIndex = i;
+                }
+            }
+        }
+        return readyIndex;
+    }
+
+    private void dispatchOperands(int rs_index) {
+        //dispatch operands
+        RS[rs_index].ins.data1 = RS[rs_index].V1;
+        RS[rs_index].ins.data2 = RS[rs_index].V2;
+        RS[rs_index].ins.dispatchComplete = cycle; // save cycle number of dispatch stage
+        Instruction dispatched = RS[rs_index].ins;
+        int i = finishedInsts.indexOf(dispatched);
+        finishedInsts.set(i,dispatched);
+    }
+
+    private void Execute() {
+
+    }
+
+    private void init() {
         for(int i=0; i < RS.length; i++) {
             RS[i] = new ReservationStation();
         }
         for(int i=0; i < regStats.length; i++) {
             regStats[i] = new RegisterStatus();
         }
+        for(int i=0; i < numOfALU; i++) {
+            ALUs[i] = new ALU2();
+        }
+        for(int i=0; i < numOfLOAD; i++) {
+            LOADs[i] = new LSU2();
+        }
+        for(int i=0; i < numOfSTORE; i++) {
+            STOREs[i] = new LSU2();
+        }
+        for(int i=0; i < numOfBRU; i++) {
+            BRUs[i] = new BRU2();
+        }
+    }
+
+    public void RunProcessor() {
+        init();
         int cycleLimit = 10000;
         while(!finished && pc < instructions.length && cycle < cycleLimit) {
 //            Commit();
 //            WriteBack();
 //            Memory();
-//            Execute();
-//            Dispatch();
+            Execute();
+//            for(int i = 0; i < numOfALU; i++) {
+//                ALUs[i].reset();
+//            }
+//            for(int i = 0; i < numOfLOAD; i++) {
+//                LOADs[i].reset();
+//            }
+//            for(int i = 0; i < numOfSTORE; i++) {
+//                STOREs[i].reset();
+//            }
+//            for(int i = 0; i < numOfBRU; i++) {
+//                BRUs[i].reset();
+//            }
+            Dispatch();
             Issue();
             Decode();
             Fetch();

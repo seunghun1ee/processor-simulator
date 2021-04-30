@@ -19,7 +19,6 @@ public class LSU extends ExecutionUnit{
         }
     }
 
-    @Override
     public Integer evaluate(Opcode opcode, Integer input1, Integer input2) {
         switch (opcode) {
             case LD:

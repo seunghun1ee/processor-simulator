@@ -154,7 +154,18 @@ public class Main {
         instructions6[13] = new Instruction(Opcode.MOV,13,9,0,0); // $13 = $9 = -3
         instructions6[14] = new Instruction(Opcode.HALT,0,0,0,0); // halt
 
+        Instruction[] testInstructions = new Instruction[512];
+        int[] testMem = new int[1024];
+        testInstructions[0] = new Instruction(Opcode.LD,2,0,0,0);
+        testInstructions[1] = new Instruction(Opcode.LDI,1,0,0,2);
+        testInstructions[2] = new Instruction(Opcode.LD,3,0,0,0);
+        testInstructions[3] = new Instruction(Opcode.LD,5,0,0,0);
+        testInstructions[4] = new Instruction(Opcode.LDI,4,0,0,4);
+        testInstructions[5] = new Instruction(Opcode.HALT,0,0,0,0);
 
+        System.out.println("Test");
+        Processor9 tester = new Processor9(testMem,testInstructions);
+        tester.RunProcessor();
         //Branch hell
 //        Instruction[] instructions5 = new Instruction[512];
 //        int[] mem5 = new int[1024];
@@ -177,11 +188,11 @@ public class Main {
 //        createDump(processor.mem, "mem_bench1.txt");
 //        createDump(processor.rf,"rf_bench1.txt");
 
-        System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
-        Processor9 processor2 = new Processor9(mem2,instructions2);
-        processor2.RunProcessor();
-        createDump(processor2.mem, "mem_bench2.txt");
-        createDump(processor2.rf,"rf_bench2.txt");
+//        System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
+//        Processor9 processor2 = new Processor9(mem2,instructions2);
+//        processor2.RunProcessor();
+//        createDump(processor2.mem, "mem_bench2.txt");
+//        createDump(processor2.rf,"rf_bench2.txt");
 
 //        System.out.println("Benchmark3 - Factorial(" + num + ")");
 //	    Processor7 processor3 = new Processor7(mem3,instructions3);
