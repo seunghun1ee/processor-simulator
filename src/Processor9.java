@@ -443,10 +443,10 @@ public class Processor9 {
                 ALUs[i].update(RS[readyIndex].ins);
             }
         }
-        loadBufferFull = loadBuffer.size() >= QUEUE_SIZE;
         for(int i=0; i < numOfLOAD; i++) {
             int readyIndex = getReadyLoadRSIndex();
-            if(!LOADs[i].busy && readyIndex != -1 && !loadBufferFull) {
+            // the load unit is not busy, there's available op, load buffer has space for this op
+            if(!LOADs[i].busy && readyIndex != -1 && QUEUE_SIZE - loadBuffer.size() > i) {
                 dispatchedIndexSet.add(readyIndex);
                 dispatchOperands(readyIndex);
                 // put it to LOAD
