@@ -445,7 +445,7 @@ public class Processor9 {
         }
         loadBufferFull = loadBuffer.size() >= QUEUE_SIZE;
         for(int i=0; i < numOfLOAD; i++) {
-            int readyIndex = getReadyRSIndex(OpType.LOAD);
+            int readyIndex = getReadyLoadRSIndex();
             if(!LOADs[i].busy && readyIndex != -1 && !loadBufferFull) {
                 dispatchedIndexSet.add(readyIndex);
                 dispatchOperands(readyIndex);
@@ -494,6 +494,60 @@ public class Processor9 {
             }
         }
         return readyIndex;
+    }
+
+    private int getReadyLoadRSIndex() {
+        int priority = Integer.MAX_VALUE;
+        int readyIndex = -1;
+        for(int i=0; i < RS.length; i++) {
+            if(
+                    RS[i].busy
+                    && !RS[i].executing
+                    && RS[i].type.equals(OpType.LOAD)
+                    && RS[i].Q1 == -1
+                    && RS[i].Q2 == -1
+                    && !dispatchedIndexSet.contains(i)
+            ) {
+                int j = RS[i].robIndex; // j is ROB index of the ins
+                if(checkRobForLoadStage1(j) && RS[i].ins.id < priority) {
+                    priority = RS[i].ins.id;
+                    readyIndex = i;
+                }
+            }
+        }
+        return readyIndex;
+    }
+
+    private boolean checkRobForLoadStage1(int currentRobIndex) {
+        int j = currentRobIndex;
+        while (j != ROB.head) {
+            if(j == 0) {
+                j = ROB.capacity -1;
+            }
+            else {
+                j--;
+            }
+            if(ROB.buffer[j] != null && ROB.buffer[j].ins.opType.equals(OpType.STORE)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean checkRobForLoadStage2(int currentRobIndex, int loadAddress) {
+        int j = currentRobIndex;
+        while (j != ROB.head) {
+            if(j == 0) {
+                j = ROB.capacity -1;
+            }
+            else {
+                j--;
+            }
+            if(ROB.buffer[j] != null && ROB.buffer[j].busy && ROB.buffer[j].ins.opType.equals(OpType.STORE) && ROB.buffer[j].address == loadAddress) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void dispatchOperands(int rs_index) {
