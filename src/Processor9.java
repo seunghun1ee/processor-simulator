@@ -563,13 +563,10 @@ public class Processor9 {
     }
 
     private void Execute() {
-
-        for(int i=0; i < numOfBRU; i++) {
-            // branch prediction evaluation
-        }
-
+        bruExecution();
         aluExecution();
         loadExecution();
+        storeExecution();
     }
 
     private void aluExecution() {
@@ -610,6 +607,86 @@ public class Processor9 {
                 // clear used LOAD
                 LOADs[i].reset();
                 executedInsts++;
+            }
+        }
+    }
+
+    private void storeExecution() {
+        for(int i=0; i < numOfSTORE; i++) {
+            int rsIndex = STOREs[i].destination;
+            Integer address = STOREs[i].agu();
+            if(rsIndex != -1) {
+                RS[rsIndex].executing = true;
+            }
+            if(address != null) {
+                // update RS and ROB
+                RS[rsIndex].A = address;
+                int robIndex = RS[rsIndex].robIndex;
+                ROB.buffer[robIndex].address = address;
+                ROB.buffer[robIndex].ready = true;
+                // clear used STORE
+                STOREs[i].reset();
+                executedInsts++;
+            }
+        }
+    }
+
+    private void bruExecution() {
+        for(int i=0; i < numOfBRU; i++) {
+            int rsIndex = BRUs[i].destination;
+            if(BRUs[i].executing.opType.equals(OpType.BRU)) {
+                RS[rsIndex].executing = true;
+                Instruction executing = BRUs[i].executing;
+                if(!executing.predicted) {
+                    // the branch was not predicted
+                }
+                else { // the branch was predicted
+                    boolean realCondition = BRUs[i].evaluateCondition();
+                    branchEvaluation(executing,realCondition);
+                }
+            }
+            // branch prediction evaluation
+        }
+    }
+
+    private void branchEvaluation(Instruction executing, boolean realCondition) {
+        if(realCondition == executing.taken) {
+            // well predicted
+            correctPrediction++;
+            if(branchMode.equals(BranchMode.DYNAMIC_2BIT)) {
+                updateWellPredicted2BitBTB(executing, executing.taken);
+            }
+        }
+        else {
+            // wrong prediction
+            misprediction++;
+            ROB.buffer[RS[executing.rsIndex].robIndex].mispredicted = true;
+            probes.add(new Probe(cycle,15,executing.id));
+        }
+    }
+
+    private void updateWellPredicted2BitBTB(Instruction ins, boolean taken) {
+        BTBstatus oldStatus = BTB_2BIT.get(ins.insAddress);
+        if(taken) {
+            switch (oldStatus) {
+                case STRONG_YES:
+                case YES:
+                    BTB_2BIT.put(ins.insAddress,BTBstatus.STRONG_YES);
+                    break;
+                default:
+                    System.out.println("Illegal BTB status at execute stage at cycle: " + cycle);
+                    break;
+            }
+        }
+        else {
+            switch (oldStatus) {
+                case NO:
+                case STRONG_NO:
+                    BTB_2BIT.put(ins.insAddress,BTBstatus.STRONG_NO);
+                    break;
+                default:
+                    System.out.println("Illegal BTB status at execute stage at cycle: " + cycle);
+                    break;
             }
         }
     }
@@ -678,7 +755,6 @@ public class Processor9 {
         int cycleLimit = 10000;
         while(!finished && pc < instructions.length && cycle < cycleLimit) {
 //            Commit();
-//            WriteBack();
 //            Memory();
             Execute();
             Dispatch();
