@@ -1036,7 +1036,9 @@ public class Processor9 {
         if(cycle >= cycleLimit) {
             System.out.println("Time out");
         }
-        System.out.println(superScalarWidth + "-way Superscalar Out of Order 7-stage pipeline processor Terminated");
+        System.out.println("Processor Configuration");
+        System.out.println("Super scalar width: " + superScalarWidth + " Branch prediction mode: "+ branchMode.toString());
+        System.out.println(numOfALU + " ALUs " + numOfLOAD + " LOADs " + numOfSTORE + " STOREs " + numOfBRU + " BRUs");
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");
         System.out.println(stalledCycle + " stalled cycles");
@@ -1049,6 +1051,7 @@ public class Processor9 {
         System.out.println("stalled_cycle/cycle ratio: " + ((float) stalledCycle / (float) cycle));
         System.out.println("wasted_cycle/cycle ratio: " + ((float) (stalledCycle + waitingCycle) / (float) cycle));
         System.out.println("correct prediction rate: "+ ((float) correctPrediction / (float) (correctPrediction + misprediction)));
+        System.out.println();
     }
 
 }

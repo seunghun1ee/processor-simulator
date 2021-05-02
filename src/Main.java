@@ -5,6 +5,40 @@ import java.io.PrintWriter;
 public class Main {
 
     public static void main(String[] args) throws IOException {
+        for(int i = 0; i< args.length; i++) {
+            System.out.println("args[" + i + "]: " + args[i]);
+        }
+        // Configurations
+        int superScalarWidth = 4;
+        BranchMode branchMode = BranchMode.DYNAMIC_2BIT;
+        int numOfALU = 4;
+        int numOfLOAD = 2;
+        int numOfSTORE = 1;
+        int numOfBRU = 1;
+        if(args[0] != null && Integer.parseInt(args[0]) > 0) {
+            superScalarWidth = Integer.parseInt(args[0]);
+        }
+        if(args[1] != null && Integer.parseInt(args[1]) > 0) {
+            switch (Integer.parseInt(args[1])) {
+                case 1:
+                    branchMode = BranchMode.FIXED_NOT_TAKEN;
+                    break;
+                case 2:
+                    branchMode = BranchMode.FIXED_TAKEN;
+                    break;
+                case 3:
+                    branchMode = BranchMode.STATIC;
+                    break;
+                case 4:
+                    branchMode = BranchMode.DYNAMIC_1BIT;
+                    break;
+                case 5:
+                default:
+                    branchMode = BranchMode.DYNAMIC_2BIT;
+                    break;
+            }
+        }
+
         Instruction[] instructions = new Instruction[512];
         int[] mem = new int[1024];
 
