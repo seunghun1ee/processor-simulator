@@ -97,7 +97,7 @@ public class Main {
         instructions3[121] = new Instruction(Opcode.LDI,8,29,0,0); // $8 = mem[sp + 0] (ra)
         instructions3[122] = new Instruction(Opcode.MUL,2,2,9,0); // $2 *= arg
         instructions3[123] = new Instruction(Opcode.ADDI,29,29,0,-2); // sp -= 2
-        instructions3[124] = new Instruction(Opcode.BR,0,8,0,0); // return to ra
+        instructions3[124] = new Instruction(Opcode.BRR,0,8,0,0); // return to ra
         //base case
         instructions3[130] = new Instruction(Opcode.MOVC,2,0,0,1); // result register $2 = 1
         instructions3[131] = new Instruction(Opcode.STI,2,29,0,1); // replace zero with 1
@@ -195,17 +195,17 @@ public class Main {
 //        createDump(processor2.mem, "mem_bench2.txt");
 //        createDump(processor2.rf,"rf_bench2.txt");
 
-//        System.out.println("Benchmark3 - Factorial(" + num + ")");
-//	    Processor7 processor3 = new Processor7(mem3,instructions3);
-//	    processor3.RunProcessor();
-//	    createDump(processor3.mem, "mem_bench3.txt");
-//	    createDump(processor3.rf,"rf_bench3.txt");
+        System.out.println("Benchmark3 - Factorial(" + num + ")");
+	    Processor9 processor3 = new Processor9(mem3,instructions3);
+	    processor3.RunProcessor();
+	    createDump(processor3.mem, "mem_bench3.txt");
+	    createDump(processor3.rf,"rf_bench3.txt");
 
-	    System.out.println("Benchmark4 - many dependencies");
-	    Processor9 processor4 = new Processor9(mem4,instructions4);
-	    processor4.RunProcessor();
-	    createDump(processor4.mem, "mem_bench4.txt");
-	    createDump(processor4.rf,"rf_bench4.txt");
+//	    System.out.println("Benchmark4 - many dependencies");
+//	    Processor9 processor4 = new Processor9(mem4,instructions4);
+//	    processor4.RunProcessor();
+//	    createDump(processor4.mem, "mem_bench4.txt");
+//	    createDump(processor4.rf,"rf_bench4.txt");
 
 //        System.out.println("Benchmark6 - Independent Math");
 //        Processor9 processor6 = new Processor9(mem6,instructions6);

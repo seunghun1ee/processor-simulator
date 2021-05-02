@@ -6,7 +6,6 @@ public class Processor9 {
     // Configures
     int superScalarWidth = 4;
     BranchMode branchMode = BranchMode.DYNAMIC_2BIT;
-    Boolean isOoO = true;
     int numOfALU = 4;
     int numOfLOAD = 2;
     int numOfSTORE = 1;
@@ -29,6 +28,8 @@ public class Processor9 {
     boolean finished = false;
     int QUEUE_SIZE = 4;
     int ISSUE_SIZE = 16;
+    int cycleBeforeFinish = 0;
+    int executedInstsBeforeFinish = 0;
 
     // components
     Queue<Instruction> fetchedQueue = new LinkedList<>();
@@ -424,6 +425,8 @@ public class Processor9 {
                 break;
             case OTHER:
                 beforeFinish = true;
+                cycleBeforeFinish = cycle;
+                executedInstsBeforeFinish = executedInsts;
                 break;
             default:
                 System.out.println("invalid instruction detected at issue stage");
@@ -690,13 +693,12 @@ public class Processor9 {
                 RS[rsIndex].executing = true;
                 saveExecuteCycle(RS[rsIndex].ins);
                 Instruction executing = BRUs[i].executing;
-                if(!executing.predicted) {
-                    // the branch was not predicted
+                boolean realCondition = BRUs[i].evaluateCondition();
+                branchEvaluation(executing,realCondition);
+                if(executing.opcode.equals(Opcode.BRR)) {
+                    ROB.buffer[RS[executing.rsIndex].robIndex].value = executing.data1;
                 }
-                else { // the branch was predicted
-                    boolean realCondition = BRUs[i].evaluateCondition();
-                    branchEvaluation(executing,realCondition);
-                }
+                ROB.buffer[RS[executing.rsIndex].robIndex].ready = true;
                 BRUs[i].reset();
             }
             // branch prediction evaluation
@@ -726,7 +728,6 @@ public class Processor9 {
             ROB.buffer[RS[executing.rsIndex].robIndex].mispredicted = true;
             probes.add(new Probe(cycle,15,executing.id));
         }
-        ROB.buffer[RS[executing.rsIndex].robIndex].ready = true;
     }
 
     private void updateWellPredicted2BitBTB(Instruction ins, boolean taken) {
@@ -757,6 +758,9 @@ public class Processor9 {
 
     private void updateMispredicted2BitBTB(int insAddress) {
         BTBstatus oldStatus = BTB_2BIT.get(insAddress);
+        if(oldStatus == null) {
+            oldStatus = BTBstatus.NO;
+        }
         BTBstatus newStatus = oldStatus;
         switch (oldStatus) {
             case STRONG_YES:
@@ -934,6 +938,9 @@ public class Processor9 {
         if(robHead.ins.taken) {
             pc = robHead.ins.insAddress + 1;
         }
+        else if(robHead.ins.opcode.equals(Opcode.BRR)) {
+            pc = robHead.value;
+        }
         else {
             pc = robHead.ins.Const;
         }
@@ -1006,14 +1013,14 @@ public class Processor9 {
             cycle++;
             System.out.println("pc: " + pc + " cycle: " + cycle);
 
-//            if(!beforeFinish) {
-//                if(fetchBlocked || decodeBlocked || issueBlocked || executeBlocked || euAllBusy || loadBufferFull) {
-//                    stalledCycle++;
-//                }
-//                else if(nothingToDecode || nothingToIssue || noReadyInstruction || nothingToExecute || nothingToMemory || nothingToWriteBack) {
-//                    waitingCycle++;
-//                }
-//            }
+            if(!beforeFinish) {
+                if(fetchBlocked || decodeBlocked || issueBlocked || executeBlocked || euAllBusy || loadBufferFull) {
+                    stalledCycle++;
+                }
+                else if(nothingToDecode || nothingToIssue || noReadyInstruction || nothingToExecute || nothingToMemory || nothingToWriteBack) {
+                    waitingCycle++;
+                }
+            }
         }
         finishedInsts.sort(Comparator.comparingInt((Instruction i) -> i.id));
         TraceEncoder traceEncoder = new TraceEncoder(finishedInsts);
@@ -1041,6 +1048,7 @@ public class Processor9 {
         System.out.println(misprediction + " incorrect predictions");
         System.out.println("cycles/instruction ratio: " + ((float) cycle) / (float) executedInsts);
         System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
+        System.out.println("subset Instructions/cycle ratio: " + ((float) executedInstsBeforeFinish / (float) cycleBeforeFinish));
         System.out.println("stalled_cycle/cycle ratio: " + ((float) stalledCycle / (float) cycle));
         System.out.println("wasted_cycle/cycle ratio: " + ((float) (stalledCycle + waitingCycle) / (float) cycle));
         System.out.println("correct prediction rate: "+ ((float) correctPrediction / (float) (correctPrediction + misprediction)));
