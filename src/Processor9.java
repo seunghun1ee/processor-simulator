@@ -16,7 +16,6 @@ public class Processor9 {
     int executedInsts = 0; // Number of instructions executed
     int stalledCycle = 0;
     int waitingCycle = 0;
-    int predictedBranches = 0;
     int correctPrediction = 0;
     int misprediction = 0;
     int insIdCount = 1; // for assigning id to instructions
@@ -74,9 +73,6 @@ public class Processor9 {
     boolean commitUnavailable = false;
 
     boolean loadBufferFull = false;
-
-    int predictionLayerLimit = 1;
-    int speculativeExecution = 0;
 
     //For visualisation
     List<Instruction> finishedInsts = new ArrayList<>();
@@ -724,7 +720,9 @@ public class Processor9 {
         }
         else {
             // wrong prediction
-            misprediction++;
+            if(!executing.opcode.equals(Opcode.BRR)) {
+                misprediction++;
+            }
             ROB.buffer[RS[executing.rsIndex].robIndex].mispredicted = true;
             probes.add(new Probe(cycle,15,executing.id));
         }
@@ -1011,7 +1009,7 @@ public class Processor9 {
             Decode();
             Fetch();
             cycle++;
-            System.out.println("pc: " + pc + " cycle: " + cycle);
+//            System.out.println("pc: " + pc + " cycle: " + cycle);
 
             if(!beforeFinish) {
                 if(fetchBlocked || decodeBlocked || issueBlocked || executeBlocked || euAllBusy || loadBufferFull) {
@@ -1043,7 +1041,6 @@ public class Processor9 {
         System.out.println(cycle + " cycles spent");
         System.out.println(stalledCycle + " stalled cycles");
         System.out.println(waitingCycle + " Waiting cycles");
-        System.out.println(predictedBranches + " branches predicted");
         System.out.println(correctPrediction + " correct predictions");
         System.out.println(misprediction + " incorrect predictions");
         System.out.println("cycles/instruction ratio: " + ((float) cycle) / (float) executedInsts);

@@ -137,22 +137,28 @@ public class Main {
         // Independent Math
         Instruction[] instructions6 = new Instruction[512];
         int[] mem6 = new int[1024];
-
         instructions6[0] = new Instruction(Opcode.NOOP,0,0,0,0); // no op
         instructions6[1] = new Instruction(Opcode.MOVC,1,0,0,1); // $1 = 1
         instructions6[2] = new Instruction(Opcode.MOVC,2,0,0,2); // $2 = 2
         instructions6[3] = new Instruction(Opcode.ADDI,3,0,0,3); // $3 = $0 + 3 = 3
-        instructions6[4] = new Instruction(Opcode.SUB,4,1,2,0); // $4 = $1 - $2 = -1
-        instructions6[5] = new Instruction(Opcode.MOVC,6,0,0,11); // $6 = 11
-        instructions6[6] = new Instruction(Opcode.ADDI,5,1,0,10); // $5 = $1 + 10 = 11
-        instructions6[7] = new Instruction(Opcode.SHL,7,1,2,0); // $7 = $1 << $2 = 4
-        instructions6[8] = new Instruction(Opcode.SHR,8,6,1,0); // $8 = $6 >> $1 = 5
-        instructions6[9] = new Instruction(Opcode.NOT,9,2,0,0); // $9 = ~ $2 = -3
-        instructions6[10] = new Instruction(Opcode.AND,10,1,2,0); // $10 = $1 & $2 = 0
-        instructions6[11] = new Instruction(Opcode.OR,11,1,2,0); // $11 = $1 | $2 = 3
-        instructions6[12] = new Instruction(Opcode.CMP,12,7,8,0); // $12 = CMP($7,$8) = -1
-        instructions6[13] = new Instruction(Opcode.MOV,13,9,0,0); // $13 = $9 = -3
-        instructions6[14] = new Instruction(Opcode.HALT,0,0,0,0); // halt
+        instructions6[4] = new Instruction(Opcode.ADDI,4,0,0,4); // $4 = $0 + 4 = 4
+        instructions6[5] = new Instruction(Opcode.SUB,5,0,0,5); // $5 = $0 - 5 = -5
+        instructions6[6] = new Instruction(Opcode.SHL,6,0,0,0); // $6 = $0 << $0 = 0
+        instructions6[7] = new Instruction(Opcode.SHR,7,0,0,0); // $7 = $0 >> $0 = 0
+        instructions6[8] = new Instruction(Opcode.NOT,8,0,0,0); // $8 = ~ $0 = -1
+        instructions6[9] = new Instruction(Opcode.AND,9,0,0,0); // $9 = $0 & $0 = 0
+        instructions6[10] = new Instruction(Opcode.OR,10,0,0,0); // $10 = $0 | $0 = 0
+        instructions6[11] = new Instruction(Opcode.NOOP,0,0,0,0); // no op
+        instructions6[12] = new Instruction(Opcode.MOVC,11,0,0,1); // $1 = 1
+        instructions6[13] = new Instruction(Opcode.MOVC,12,0,0,2); // $2 = 2
+        instructions6[14] = new Instruction(Opcode.ADDI,13,0,0,3); // $3 = $0 + 3 = 3
+        instructions6[15] = new Instruction(Opcode.ADDI,14,0,0,4); // $4 = $0 + 4 = 4
+        instructions6[16] = new Instruction(Opcode.SUB,15,0,0,5); // $5 = $0 - 5 = -5
+        instructions6[17] = new Instruction(Opcode.SHL,16,0,0,0); // $6 = $0 << $0 = 0
+        instructions6[18] = new Instruction(Opcode.SHR,17,0,0,0); // $7 = $0 >> $0 = 0
+        instructions6[19] = new Instruction(Opcode.NOT,18,0,0,0); // $8 = ~ $0 = -1
+        instructions6[20] = new Instruction(Opcode.AND,19,0,0,0); // $9 = $0 & $0 = 0
+        instructions6[21] = new Instruction(Opcode.OR,20,0,0,0); // $10 = $0 | $0 = 0
 
         Instruction[] testInstructions = new Instruction[512];
         int[] testMem = new int[1024];
@@ -183,17 +189,17 @@ public class Main {
 //        Processor9 tester = new Processor9(testMem,testInstructions);
 //        tester.RunProcessor();
 
-//        System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
-//        Processor9 processor = new Processor9(mem,instructions);
-//        processor.RunProcessor();
-//        createDump(processor.mem, "mem_bench1.txt");
-//        createDump(processor.rf,"rf_bench1.txt");
+        System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
+        Processor9 processor = new Processor9(mem,instructions);
+        processor.RunProcessor();
+        createDump(processor.mem, "mem_bench1.txt");
+        createDump(processor.rf,"rf_bench1.txt");
 
-//        System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
-//        Processor9 processor2 = new Processor9(mem2,instructions2);
-//        processor2.RunProcessor();
-//        createDump(processor2.mem, "mem_bench2.txt");
-//        createDump(processor2.rf,"rf_bench2.txt");
+        System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
+        Processor9 processor2 = new Processor9(mem2,instructions2);
+        processor2.RunProcessor();
+        createDump(processor2.mem, "mem_bench2.txt");
+        createDump(processor2.rf,"rf_bench2.txt");
 
         System.out.println("Benchmark3 - Factorial(" + num + ")");
 	    Processor9 processor3 = new Processor9(mem3,instructions3);
@@ -201,17 +207,17 @@ public class Main {
 	    createDump(processor3.mem, "mem_bench3.txt");
 	    createDump(processor3.rf,"rf_bench3.txt");
 
-//	    System.out.println("Benchmark4 - many dependencies");
-//	    Processor9 processor4 = new Processor9(mem4,instructions4);
-//	    processor4.RunProcessor();
-//	    createDump(processor4.mem, "mem_bench4.txt");
-//	    createDump(processor4.rf,"rf_bench4.txt");
+	    System.out.println("Benchmark4 - many dependencies");
+	    Processor9 processor4 = new Processor9(mem4,instructions4);
+	    processor4.RunProcessor();
+	    createDump(processor4.mem, "mem_bench4.txt");
+	    createDump(processor4.rf,"rf_bench4.txt");
 
-//        System.out.println("Benchmark6 - Independent Math");
-//        Processor9 processor6 = new Processor9(mem6,instructions6);
-//        processor6.RunProcessor();
-//        createDump(processor6.mem, "mem_bench6.txt");
-//        createDump(processor6.rf,"rf_bench6.txt");
+        System.out.println("Benchmark6 - Independent Math");
+        Processor9 processor6 = new Processor9(mem6,instructions6);
+        processor6.RunProcessor();
+        createDump(processor6.mem, "mem_bench6.txt");
+        createDump(processor6.rf,"rf_bench6.txt");
 
     }
 
