@@ -5,21 +5,22 @@ import java.io.PrintWriter;
 public class Main {
 
     public static void main(String[] args) throws IOException {
+        int[] argValues = new int[args.length];
         for(int i = 0; i< args.length; i++) {
-            System.out.println("args[" + i + "]: " + args[i]);
+            argValues[i] = Integer.parseInt(args[i]);
         }
-        // Configurations
+        // Default Configurations
         int superScalarWidth = 4;
         BranchMode branchMode = BranchMode.DYNAMIC_2BIT;
         int numOfALU = 4;
         int numOfLOAD = 2;
         int numOfSTORE = 1;
         int numOfBRU = 1;
-        if(args[0] != null && Integer.parseInt(args[0]) > 0) {
-            superScalarWidth = Integer.parseInt(args[0]);
+        if(argValues[0] > 0) {
+            superScalarWidth = argValues[0];
         }
-        if(args[1] != null && Integer.parseInt(args[1]) > 0) {
-            switch (Integer.parseInt(args[1])) {
+        if(argValues[1] > 0) {
+            switch (argValues[1]) {
                 case 1:
                     branchMode = BranchMode.FIXED_NOT_TAKEN;
                     break;
@@ -38,6 +39,19 @@ public class Main {
                     break;
             }
         }
+        if(argValues[2] > 0) {
+            numOfALU = argValues[2];
+        }
+        if(argValues[3] > 0) {
+            numOfLOAD = argValues[3];
+        }
+        if(argValues[4] > 0) {
+            numOfSTORE = argValues[4];
+        }
+        if(argValues[5] > 0) {
+            numOfBRU = argValues[5];
+        }
+
 
         Instruction[] instructions = new Instruction[512];
         int[] mem = new int[1024];
@@ -224,31 +238,31 @@ public class Main {
 //        tester.RunProcessor();
 
         System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
-        Processor9 processor = new Processor9(mem,instructions);
+        Processor9 processor = new Processor9(mem,instructions,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
         processor.RunProcessor();
         createDump(processor.mem, "mem_bench1.txt");
         createDump(processor.rf,"rf_bench1.txt");
 
         System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
-        Processor9 processor2 = new Processor9(mem2,instructions2);
+        Processor9 processor2 = new Processor9(mem2,instructions2,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
         processor2.RunProcessor();
         createDump(processor2.mem, "mem_bench2.txt");
         createDump(processor2.rf,"rf_bench2.txt");
 
         System.out.println("Benchmark3 - Factorial(" + num + ")");
-	    Processor9 processor3 = new Processor9(mem3,instructions3);
+	    Processor9 processor3 = new Processor9(mem3,instructions3,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
 	    processor3.RunProcessor();
 	    createDump(processor3.mem, "mem_bench3.txt");
 	    createDump(processor3.rf,"rf_bench3.txt");
 
 	    System.out.println("Benchmark4 - many dependencies");
-	    Processor9 processor4 = new Processor9(mem4,instructions4);
+	    Processor9 processor4 = new Processor9(mem4,instructions4,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
 	    processor4.RunProcessor();
 	    createDump(processor4.mem, "mem_bench4.txt");
 	    createDump(processor4.rf,"rf_bench4.txt");
 
         System.out.println("Benchmark6 - Independent Math");
-        Processor9 processor6 = new Processor9(mem6,instructions6);
+        Processor9 processor6 = new Processor9(mem6,instructions6,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
         processor6.RunProcessor();
         createDump(processor6.mem, "mem_bench6.txt");
         createDump(processor6.rf,"rf_bench6.txt");

@@ -83,6 +83,17 @@ public class Processor9 {
         this.instructions = instructions;
     }
 
+    public Processor9(int[] mem, Instruction[] instructions, int superScalarWidth, BranchMode branchMode, int numOfALU, int numOfLOAD, int numOfSTORE, int numOfBRU) {
+        this.mem = mem;
+        this.instructions = instructions;
+        this.superScalarWidth = superScalarWidth;
+        this.branchMode = branchMode;
+        this.numOfALU = numOfALU;
+        this.numOfLOAD = numOfLOAD;
+        this.numOfSTORE = numOfSTORE;
+        this.numOfBRU = numOfBRU;
+    }
+
     private void Fetch() {
         fetchBlocked = !fetchedQueue.isEmpty();
         // fetching is not blocked, not finished, pc is within instruction memory range
