@@ -61,18 +61,12 @@ public class Processor9 {
     boolean noReadyInstruction = false;
     // execute states
     boolean nothingToExecute = false;
-    boolean executeBlocked = false;
     boolean euAllBusy = false;
     // memory states
+    boolean loadBufferFull = false;
     boolean nothingToMemory = false;
-    // write back states
-    boolean nothingToWriteBack = false;
-    boolean writeBackBufferFull = false;
     // commit states
     boolean robEmpty = false;
-    boolean commitUnavailable = false;
-
-    boolean loadBufferFull = false;
 
     //For visualisation
     List<Instruction> finishedInsts = new ArrayList<>();
@@ -432,8 +426,6 @@ public class Processor9 {
                 break;
             case OTHER:
                 beforeFinish = true;
-                cycleBeforeFinish = cycle;
-                executedInstsBeforeFinish = executedInsts;
                 break;
             default:
                 System.out.println("invalid instruction detected at issue stage");
@@ -458,8 +450,9 @@ public class Processor9 {
         }
         for(int i=0; i < numOfLOAD; i++) {
             int readyIndex = getReadyLoadRSIndex();
+            loadBufferFull = QUEUE_SIZE - loadBuffer.size() <= i;
             // the load unit is not busy, there's available op, load buffer has space for this op
-            if(!LOADs[i].busy && readyIndex != -1 && QUEUE_SIZE - loadBuffer.size() > i) {
+            if(!LOADs[i].busy && readyIndex != -1 && !loadBufferFull) {
                 dispatchedIndexSet.add(readyIndex);
                 dispatchOperands(readyIndex);
                 // put it to LOAD
@@ -489,6 +482,7 @@ public class Processor9 {
             dispatchedIndexSet.add(otherReadyIndex);
             saveDispatchCycle(RS[otherReadyIndex].ins,cycle);
         }
+        noReadyInstruction = dispatchedIndexSet.isEmpty() && otherReadyIndex == -1;
     }
 
     private int getReadyRSIndex(OpType opType) {
@@ -611,6 +605,8 @@ public class Processor9 {
     }
 
     private void Execute() {
+        nothingToExecute = getNumberOfReadyEUs() == 0;
+        euAllBusy = getNumberOfBusyEUs() == ALUs.length + LOADs.length + STOREs.length + BRUs.length;
         bruExecution();
         aluExecution();
         loadExecution();
@@ -623,6 +619,40 @@ public class Processor9 {
             executedInsts++;
         }
         otherReadyIndex = -1;
+    }
+
+    private int getNumberOfReadyEUs() {
+        int actives = 0;
+        for(ALU2 alu : ALUs) {
+            if(alu.ready) actives++;
+        }
+        for(LSU2 load : LOADs) {
+            if(load.ready) actives++;
+        }
+        for(LSU2 store : STOREs) {
+            if(store.ready) actives++;
+        }
+        for(BRU2 bru : BRUs) {
+            if(bru.ready) actives++;
+        }
+        return actives;
+    }
+
+    private int getNumberOfBusyEUs() {
+        int actives = 0;
+        for(ALU2 alu : ALUs) {
+            if(alu.busy) actives++;
+        }
+        for(LSU2 load : LOADs) {
+            if(load.busy) actives++;
+        }
+        for(LSU2 store : STOREs) {
+            if(store.busy) actives++;
+        }
+        for(BRU2 bru : BRUs) {
+            if(bru.busy) actives++;
+        }
+        return actives;
     }
 
     private void aluExecution() {
@@ -861,6 +891,7 @@ public class Processor9 {
     }
 
     private void Commit() {
+        robEmpty = ROB.isEmpty();
         // flushing all ready ops
         while(!ROB.isEmpty()) {
             int headIndex = ROB.head;
@@ -1023,10 +1054,10 @@ public class Processor9 {
 //            System.out.println("pc: " + pc + " cycle: " + cycle);
 
             if(!beforeFinish) {
-                if(fetchBlocked || decodeBlocked || issueBlocked || executeBlocked || euAllBusy || loadBufferFull) {
+                if(fetchBlocked || decodeBlocked || issueBlocked || euAllBusy || loadBufferFull) {
                     stalledCycle++;
                 }
-                else if(nothingToDecode || nothingToIssue || noReadyInstruction || nothingToExecute || nothingToMemory || nothingToWriteBack) {
+                else if(nothingToDecode || nothingToIssue || noReadyInstruction || nothingToExecute) {
                     waitingCycle++;
                 }
             }
@@ -1058,7 +1089,6 @@ public class Processor9 {
         System.out.println(misprediction + " incorrect predictions");
         System.out.println("cycles/instruction ratio: " + ((float) cycle) / (float) executedInsts);
         System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
-        System.out.println("subset Instructions/cycle ratio: " + ((float) executedInstsBeforeFinish / (float) cycleBeforeFinish));
         System.out.println("stalled_cycle/cycle ratio: " + ((float) stalledCycle / (float) cycle));
         System.out.println("wasted_cycle/cycle ratio: " + ((float) (stalledCycle + waitingCycle) / (float) cycle));
         System.out.println("correct prediction rate: "+ ((float) correctPrediction / (float) (correctPrediction + misprediction)));

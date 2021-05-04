@@ -1,5 +1,3 @@
-import java.util.Queue;
-
 public class ALU2 extends ExecutionUnit2 {
 
     public ALU2() {
