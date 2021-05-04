@@ -159,7 +159,7 @@ public class Processor9 {
                 return;
             case BRZ:
             case BRN:
-                decoding = new Instruction(branchPrediction(decoding));
+                decoding = branchPrediction(decoding);
                 branchTaken = decoding.taken;
                 break;
             default:
@@ -168,8 +168,8 @@ public class Processor9 {
 
         decodedQueue.add(decoding);
         saveDecodeCycle(decoding,cycle);
-
     }
+
     //return value: updated instruction object
     private Instruction branchPrediction(Instruction ins) {
         switch (branchMode) {
@@ -212,7 +212,7 @@ public class Processor9 {
                 }
                 break;
         }
-        return ins;
+        return new Instruction(ins);
     }
 
     // return values of predictors = true if taken, false if not taken
