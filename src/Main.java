@@ -5,6 +5,54 @@ import java.io.PrintWriter;
 public class Main {
 
     public static void main(String[] args) throws IOException {
+        int[] argValues = new int[args.length];
+        for(int i = 0; i< args.length; i++) {
+            argValues[i] = Integer.parseInt(args[i]);
+        }
+        // Default Configurations
+        int superScalarWidth = 4;
+        BranchMode branchMode = BranchMode.DYNAMIC_2BIT;
+        int numOfALU = 4;
+        int numOfLOAD = 2;
+        int numOfSTORE = 1;
+        int numOfBRU = 1;
+        if(argValues[0] > 0) {
+            superScalarWidth = argValues[0];
+        }
+        if(argValues[1] > 0) {
+            switch (argValues[1]) {
+                case 1:
+                    branchMode = BranchMode.FIXED_NOT_TAKEN;
+                    break;
+                case 2:
+                    branchMode = BranchMode.FIXED_TAKEN;
+                    break;
+                case 3:
+                    branchMode = BranchMode.STATIC;
+                    break;
+                case 4:
+                    branchMode = BranchMode.DYNAMIC_1BIT;
+                    break;
+                case 5:
+                default:
+                    branchMode = BranchMode.DYNAMIC_2BIT;
+                    break;
+            }
+        }
+        if(argValues[2] > 0) {
+            numOfALU = argValues[2];
+        }
+        if(argValues[3] > 0) {
+            numOfLOAD = argValues[3];
+        }
+        if(argValues[4] > 0) {
+            numOfSTORE = argValues[4];
+        }
+        if(argValues[5] > 0) {
+            numOfBRU = argValues[5];
+        }
+
+
         Instruction[] instructions = new Instruction[512];
         int[] mem = new int[1024];
 
@@ -36,7 +84,7 @@ public class Main {
         int[] mem2 = new int[1024];
 
         int[] arrayToSort = {512,52,61,3,-6,-127,75,21,98,1,874,-1239,431,94,10,36};
-//        int[] arrayToSort = {512,52,61,3-6,-127};
+//        int[] arrayToSort = {512,52,61,-3,-127};
         int pointer = 2;
         System.arraycopy(arrayToSort,0,mem2,pointer,arrayToSort.length);
         instructions2[0] = new Instruction(Opcode.MOVC,1,0,0,pointer); // load array pointer
@@ -97,7 +145,7 @@ public class Main {
         instructions3[121] = new Instruction(Opcode.LDI,8,29,0,0); // $8 = mem[sp + 0] (ra)
         instructions3[122] = new Instruction(Opcode.MUL,2,2,9,0); // $2 *= arg
         instructions3[123] = new Instruction(Opcode.ADDI,29,29,0,-2); // sp -= 2
-        instructions3[124] = new Instruction(Opcode.BR,0,8,0,0); // return to ra
+        instructions3[124] = new Instruction(Opcode.BRR,0,8,0,0); // return to ra
         //base case
         instructions3[130] = new Instruction(Opcode.MOVC,2,0,0,1); // result register $2 = 1
         instructions3[131] = new Instruction(Opcode.STI,2,29,0,1); // replace zero with 1
@@ -134,6 +182,42 @@ public class Main {
         instructions4[51] = new Instruction(Opcode.STI,15,3,0,2); // mem[5 + 2] = $15
         instructions4[52] = new Instruction(Opcode.BR,0,0,0,20); // jump back to halt
 
+        // Independent Math
+        Instruction[] instructions6 = new Instruction[512];
+        int[] mem6 = new int[1024];
+        instructions6[0] = new Instruction(Opcode.NOOP,0,0,0,0); // no op
+        instructions6[1] = new Instruction(Opcode.MOVC,1,0,0,1); // $1 = 1
+        instructions6[2] = new Instruction(Opcode.MOVC,2,0,0,2); // $2 = 2
+        instructions6[3] = new Instruction(Opcode.ADDI,3,0,0,3); // $3 = $0 + 3 = 3
+        instructions6[4] = new Instruction(Opcode.ADDI,4,0,0,4); // $4 = $0 + 4 = 4
+        instructions6[5] = new Instruction(Opcode.SUB,5,0,0,5); // $5 = $0 - 5 = -5
+        instructions6[6] = new Instruction(Opcode.SHL,6,0,0,0); // $6 = $0 << $0 = 0
+        instructions6[7] = new Instruction(Opcode.SHR,7,0,0,0); // $7 = $0 >> $0 = 0
+        instructions6[8] = new Instruction(Opcode.NOT,8,0,0,0); // $8 = ~ $0 = -1
+        instructions6[9] = new Instruction(Opcode.AND,9,0,0,0); // $9 = $0 & $0 = 0
+        instructions6[10] = new Instruction(Opcode.OR,10,0,0,0); // $10 = $0 | $0 = 0
+        instructions6[11] = new Instruction(Opcode.NOOP,0,0,0,0); // no op
+        instructions6[12] = new Instruction(Opcode.MOVC,11,0,0,1); // $1 = 1
+        instructions6[13] = new Instruction(Opcode.MOVC,12,0,0,2); // $2 = 2
+        instructions6[14] = new Instruction(Opcode.ADDI,13,0,0,3); // $3 = $0 + 3 = 3
+        instructions6[15] = new Instruction(Opcode.ADDI,14,0,0,4); // $4 = $0 + 4 = 4
+        instructions6[16] = new Instruction(Opcode.SUB,15,0,0,5); // $5 = $0 - 5 = -5
+        instructions6[17] = new Instruction(Opcode.SHL,16,0,0,0); // $6 = $0 << $0 = 0
+        instructions6[18] = new Instruction(Opcode.SHR,17,0,0,0); // $7 = $0 >> $0 = 0
+        instructions6[19] = new Instruction(Opcode.NOT,18,0,0,0); // $8 = ~ $0 = -1
+        instructions6[20] = new Instruction(Opcode.AND,19,0,0,0); // $9 = $0 & $0 = 0
+        instructions6[21] = new Instruction(Opcode.OR,20,0,0,0); // $10 = $0 | $0 = 0
+        instructions6[450] = new Instruction(Opcode.HALT,0,0,0,0); // halt
+
+        Instruction[] testInstructions = new Instruction[512];
+        int[] testMem = new int[1024];
+        testInstructions[0] = new Instruction(Opcode.LD,2,0,0,0);
+        testInstructions[1] = new Instruction(Opcode.LDI,1,0,0,2);
+        testInstructions[2] = new Instruction(Opcode.LD,3,0,0,0);
+        testInstructions[3] = new Instruction(Opcode.LD,5,0,0,0);
+        testInstructions[4] = new Instruction(Opcode.LDI,4,0,0,4);
+        testInstructions[5] = new Instruction(Opcode.HALT,0,0,0,0);
+
         //Branch hell
 //        Instruction[] instructions5 = new Instruction[512];
 //        int[] mem5 = new int[1024];
@@ -150,29 +234,39 @@ public class Main {
 //        instructions5[15] = new Instruction()
 
 
+//        System.out.println("Test");
+//        Processor9 tester = new Processor9(testMem,testInstructions);
+//        tester.RunProcessor();
+
         System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
-        Processor8 processor = new Processor8(mem,instructions);
+        Processor9 processor = new Processor9(mem,instructions,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
         processor.RunProcessor();
         createDump(processor.mem, "mem_bench1.txt");
         createDump(processor.rf,"rf_bench1.txt");
 
         System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
-        Processor8 processor2 = new Processor8(mem2,instructions2);
+        Processor9 processor2 = new Processor9(mem2,instructions2,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
         processor2.RunProcessor();
         createDump(processor2.mem, "mem_bench2.txt");
         createDump(processor2.rf,"rf_bench2.txt");
 
-//        System.out.println("Benchmark3 - Factorial(" + num + ")");
-//	    Processor7 processor3 = new Processor7(mem3,instructions3);
-//	    processor3.RunProcessor();
-//	    createDump(processor3.mem, "mem_bench3.txt");
-//	    createDump(processor3.rf,"rf_bench3.txt");
+        System.out.println("Benchmark3 - Factorial(" + num + ")");
+	    Processor9 processor3 = new Processor9(mem3,instructions3,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
+	    processor3.RunProcessor();
+	    createDump(processor3.mem, "mem_bench3.txt");
+	    createDump(processor3.rf,"rf_bench3.txt");
 
 	    System.out.println("Benchmark4 - many dependencies");
-	    Processor8 processor4 = new Processor8(mem4,instructions4);
+	    Processor9 processor4 = new Processor9(mem4,instructions4,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
 	    processor4.RunProcessor();
 	    createDump(processor4.mem, "mem_bench4.txt");
 	    createDump(processor4.rf,"rf_bench4.txt");
+
+        System.out.println("Benchmark6 - Independent Math");
+        Processor9 processor6 = new Processor9(mem6,instructions6,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
+        processor6.RunProcessor();
+        createDump(processor6.mem, "mem_bench6.txt");
+        createDump(processor6.rf,"rf_bench6.txt");
 
     }
 

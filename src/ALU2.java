@@ -1,25 +1,30 @@
-public class ALU extends ExecutionUnit {
+public class ALU2 extends ExecutionUnit2 {
 
-    public ALU() {
+    public ALU2() {
 
     }
 
-    public Instruction execute() {
+    public Integer execute() {
         busy = true;
-        if(unitCycles < opcodeCycle.getOpCycle(op) - 1) {
+        if(unitCycles < opcodeCycle.getOpCycle(executing.opcode) - 1) {
             unitCycles++;
             return null;
         }
         else {
             busy = false;
             unitCycles = 0;
-            executing.result = evaluate(op,input1,input2);
-            return executing;
+            if(executing.data1 == null || executing.data2 == null) {
+                return null;
+            }
+            return evaluate(executing.opcode, executing.data1, executing.data2);
+
         }
     }
 
-    public Integer evaluate(Opcode opcode, Integer input1, Integer input2) {
+    private Integer evaluate(Opcode opcode, int input1, int input2) {
         switch (opcode) {
+            case NOOP:
+                return 0;
             case MOV:
             case MOVC:
                 return input1;

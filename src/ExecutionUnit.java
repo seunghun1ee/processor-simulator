@@ -21,5 +21,4 @@ public abstract class ExecutionUnit {
         executing = new Instruction();
     }
 
-    public abstract Integer evaluate(Opcode opcode, Integer input1, Integer input2);
 }

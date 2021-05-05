@@ -5,7 +5,7 @@ public class Instruction {
     Integer Rs1 = 0; //Source register 1
     Integer Rs2 = 0; //Source register 2
     Integer Const = 0; //Constant for immediate operations
-    OpType opType;
+    OpType opType = OpType.UNDEFINED;
 
     int rsIndex = -1;
     // data from source registers

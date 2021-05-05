@@ -15,14 +15,13 @@ public class TraceEncoder {
         FileWriter fileWriter = new FileWriter(filePath);
         PrintWriter printWriter = new PrintWriter(fileWriter);
         for(Instruction ins : instructions) {
-            printWriter.printf("%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%s %d, %d, %d, %d\n",
+            printWriter.printf("%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%s %d, %d, %d, %d\n",
                     ins.fetchComplete,
                     ins.decodeComplete,
                     ins.issueComplete,
                     ins.dispatchComplete,
                     ins.executeComplete,
                     ins.memoryComplete,
-                    ins.writeBackComplete,
                     ins.commitComplete,
                     ins.insAddress,
                     0,
