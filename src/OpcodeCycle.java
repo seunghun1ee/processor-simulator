@@ -17,7 +17,7 @@ public class OpcodeCycle {
                 break;
             case DIV:
             case DIVI:
-                cycle = 6;  //change it to 16 later
+                cycle = 16;  //change it to 16 later
                 break;
             default:
                 break;
