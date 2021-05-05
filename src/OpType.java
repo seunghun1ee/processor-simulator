@@ -3,7 +3,6 @@ public enum OpType {
     ALU,
     LOAD,
     STORE,
-    LSU,
     BRU,
     OTHER
 }
