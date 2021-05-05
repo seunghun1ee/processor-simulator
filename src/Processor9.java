@@ -41,10 +41,10 @@ public class Processor9 {
     Queue<Instruction> beforeWriteBack = new LinkedList<>();
     Map<Integer,BTBstatus> BTB_2BIT = new HashMap<>(); // 2-bit Branch Target Buffer, Key: insAddress, Value: BTB status
     Map<Integer,Boolean> BTB_1BIT = new HashMap<>(); // 1-bit Branch Target Buffer, Key: insAddress, Value: Boolean
-    ALU2[] ALUs = new ALU2[numOfALU];
-    LSU2[] LOADs = new LSU2[numOfLOAD];
-    LSU2[] STOREs = new LSU2[numOfSTORE];
-    BRU2[] BRUs = new BRU2[numOfBRU];
+    ALU[] ALUs = new ALU[numOfALU];
+    LSU[] LOADs = new LSU[numOfLOAD];
+    LSU[] STOREs = new LSU[numOfSTORE];
+    BRU[] BRUs = new BRU[numOfBRU];
     int otherReadyIndex = -1;
 
     // state of pipeline stages
@@ -646,16 +646,16 @@ public class Processor9 {
 
     private int getNumberOfReadyEUs() {
         int actives = 0;
-        for(ALU2 alu : ALUs) {
+        for(ALU alu : ALUs) {
             if(alu.ready) actives++;
         }
-        for(LSU2 load : LOADs) {
+        for(LSU load : LOADs) {
             if(load.ready) actives++;
         }
-        for(LSU2 store : STOREs) {
+        for(LSU store : STOREs) {
             if(store.ready) actives++;
         }
-        for(BRU2 bru : BRUs) {
+        for(BRU bru : BRUs) {
             if(bru.ready) actives++;
         }
         return actives;
@@ -663,16 +663,16 @@ public class Processor9 {
 
     private int getNumberOfBusyEUs() {
         int actives = 0;
-        for(ALU2 alu : ALUs) {
+        for(ALU alu : ALUs) {
             if(alu.busy) actives++;
         }
-        for(LSU2 load : LOADs) {
+        for(LSU load : LOADs) {
             if(load.busy) actives++;
         }
-        for(LSU2 store : STOREs) {
+        for(LSU store : STOREs) {
             if(store.busy) actives++;
         }
-        for(BRU2 bru : BRUs) {
+        for(BRU bru : BRUs) {
             if(bru.busy) actives++;
         }
         return actives;
@@ -1048,16 +1048,16 @@ public class Processor9 {
             regStats[i] = new RegisterStatus();
         }
         for(int i=0; i < numOfALU; i++) {
-            ALUs[i] = new ALU2();
+            ALUs[i] = new ALU();
         }
         for(int i=0; i < numOfLOAD; i++) {
-            LOADs[i] = new LSU2();
+            LOADs[i] = new LSU();
         }
         for(int i=0; i < numOfSTORE; i++) {
-            STOREs[i] = new LSU2();
+            STOREs[i] = new LSU();
         }
         for(int i=0; i < numOfBRU; i++) {
-            BRUs[i] = new BRU2();
+            BRUs[i] = new BRU();
         }
     }
 

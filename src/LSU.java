@@ -1,6 +1,6 @@
-public class LSU2 extends ExecutionUnit2{
+public class LSU extends ExecutionUnit {
 
-    public LSU2() {
+    public LSU() {
 
     }
 

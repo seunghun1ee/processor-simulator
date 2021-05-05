@@ -28,7 +28,6 @@ public class Instruction {
     int dispatchComplete = 0;
     int executeComplete = 0;
     int memoryComplete = 0;
-    int writeBackComplete = 0;
     int commitComplete = 0;
 
     public Instruction() {
@@ -65,7 +64,6 @@ public class Instruction {
         this.dispatchComplete = ins.dispatchComplete;
         this.executeComplete = ins.executeComplete;
         this.memoryComplete = ins.memoryComplete;
-        this.writeBackComplete = ins.writeBackComplete;
         this.commitComplete = ins.commitComplete;
     }
 

@@ -1,6 +1,6 @@
-public class ALU2 extends ExecutionUnit2 {
+public class ALU extends ExecutionUnit {
 
-    public ALU2() {
+    public ALU() {
 
     }
 

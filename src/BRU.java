@@ -1,6 +1,6 @@
-public class BRU2 extends ExecutionUnit2{
+public class BRU extends ExecutionUnit {
 
-    public BRU2() {
+    public BRU() {
 
     }
 

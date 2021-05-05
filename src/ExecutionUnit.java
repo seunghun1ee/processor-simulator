@@ -1,4 +1,4 @@
-public class ExecutionUnit2 {
+public class ExecutionUnit {
 
     public boolean busy = false;
     public boolean ready = false;
