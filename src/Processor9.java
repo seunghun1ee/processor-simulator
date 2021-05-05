@@ -101,6 +101,9 @@ public class Processor9 {
                 finishedInsts.add(fetching);
             }
         }
+        if(fetchBlocked) {
+            probes.add(new Probe(cycle,0,0));
+        }
     }
 
     private Instruction fetchLogic() {
@@ -119,6 +122,10 @@ public class Processor9 {
     private void Decode() {
         nothingToDecode = fetchedQueue.isEmpty();
         decodeBlocked = !decodedQueue.isEmpty();
+        if(decodeBlocked && !nothingToDecode) {
+            Instruction ins = fetchedQueue.peek();
+            probes.add(new Probe(cycle,1,ins.id));
+        }
         branchTaken = false;
         if(!nothingToDecode && !decodeBlocked) {
             for(int i = 0; i < superScalarWidth; i++) {
@@ -296,6 +303,15 @@ public class Processor9 {
             boolean robBlocked = ROB.size() >= ROB.capacity; // ROB full
             issueBlocked = rsBlocked || robBlocked;
             nothingToIssue = decodedQueue.isEmpty();
+            if(!nothingToIssue) {
+                Instruction ins = decodedQueue.peek();
+                if(rsBlocked) {
+                    probes.add(new Probe(cycle,4,ins.id));
+                }
+                if(robBlocked) {
+                    probes.add(new Probe(cycle,5,ins.id));
+                }
+            }
             if(!issueBlocked && !nothingToIssue) {
                 issueLogic(decodedQueue.remove(), rsIndex);
             }
@@ -458,6 +474,9 @@ public class Processor9 {
                 // put it to LOAD
                 LOADs[i].update(RS[readyIndex].ins);
             }
+            if(loadBufferFull && readyIndex != -1) {
+                probes.add(new Probe(cycle,10,RS[readyIndex].ins.id));
+            }
         }
         for(int i=0; i < numOfSTORE; i++) {
             int readyIndex = getReadyRSIndex(OpType.STORE);
@@ -569,6 +588,7 @@ public class Processor9 {
                 j--;
             }
             if(ROB.buffer[j] != null && ROB.buffer[j].ins.opType.equals(OpType.STORE)) {
+                probes.add(new Probe(cycle,11,ROB.buffer[currentRobIndex].ins.id));
                 return false;
             }
         }
@@ -607,6 +627,9 @@ public class Processor9 {
     private void Execute() {
         nothingToExecute = getNumberOfReadyEUs() == 0;
         euAllBusy = getNumberOfBusyEUs() == ALUs.length + LOADs.length + STOREs.length + BRUs.length;
+        if(euAllBusy) {
+            probes.add(new Probe(cycle,9,0));
+        }
         bruExecution();
         aluExecution();
         loadExecution();
@@ -897,7 +920,6 @@ public class Processor9 {
             int headIndex = ROB.head;
             ReorderBuffer robHead = ROB.peek();
             if(!robHead.ready) { // nothing to pop
-                probes.add(new Probe(cycle,13,robHead.ins.id));
                 return;
             }
             else if(robHead.ins.opType.equals(OpType.BRU)) {

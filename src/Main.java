@@ -207,6 +207,7 @@ public class Main {
         instructions6[19] = new Instruction(Opcode.NOT,18,0,0,0); // $8 = ~ $0 = -1
         instructions6[20] = new Instruction(Opcode.AND,19,0,0,0); // $9 = $0 & $0 = 0
         instructions6[21] = new Instruction(Opcode.OR,20,0,0,0); // $10 = $0 | $0 = 0
+        instructions6[450] = new Instruction(Opcode.HALT,0,0,0,0); // halt
 
         Instruction[] testInstructions = new Instruction[512];
         int[] testMem = new int[1024];
