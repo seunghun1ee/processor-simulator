@@ -185,6 +185,10 @@ public class Main {
         // Independent Math
         Instruction[] bench5inst = new Instruction[512];
         int[] bench5mem = new int[1024];
+//        for(int i = 0; i < 30; i++) {
+//            bench5inst[i] = new Instruction(Opcode.ADDI,i,0,0,i);
+//        }
+//        bench5inst[30] = new Instruction(Opcode.HALT,0,0,0,0);
         bench5inst[0] = new Instruction(Opcode.NOOP,0,0,0,0); // no op
         bench5inst[1] = new Instruction(Opcode.MOVC,1,0,0,1); // $1 = 1
         bench5inst[2] = new Instruction(Opcode.MOVC,2,0,0,2); // $2 = 2
@@ -212,11 +216,11 @@ public class Main {
         //Independent memory load
         Instruction[] bench6Inst = new Instruction[512];
         int[] bench6mem = new int[1024];
-        for(int i = 0; i < 50; i++) {
+        for(int i = 0; i < 64; i++) {
             bench6mem[i] = i; // mem[i] = i
-            bench6Inst[i] = new Instruction(Opcode.LDI,i,0,0,i); // $i <- mem[i]
+            bench6Inst[i] = new Instruction(Opcode.LDI,i % 32,0,0,i); // $i <- mem[i]
         }
-        bench6Inst[50] = new Instruction(Opcode.HALT,0,0,0,0);
+        bench6Inst[64] = new Instruction(Opcode.HALT,0,0,0,0);
 
         System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
         Processor9 bench1 = new Processor9(bench1mem,bench1inst,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
@@ -248,11 +252,11 @@ public class Main {
         createDump(bench5.mem, "mem_bench5.txt");
         createDump(bench5.rf,"rf_bench5.txt");
 
-        System.out.println("Benchmark6 - Independent Load");
-        Processor9 bench6 = new Processor9(bench6mem,bench6Inst,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
-        bench6.RunProcessor();
-        createDump(bench6.mem,"mem_bench6.txt");
-        createDump(bench6.rf,"rf_bench6.txt");
+//        System.out.println("Benchmark6 - Independent Load");
+//        Processor9 bench6 = new Processor9(bench6mem,bench6Inst,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
+//        bench6.RunProcessor();
+//        createDump(bench6.mem,"mem_bench6.txt");
+//        createDump(bench6.rf,"rf_bench6.txt");
 
     }
 

@@ -20,31 +20,31 @@ public class Processor9 {
     int misprediction = 0;
     int insIdCount = 1; // for assigning id to instructions
     int[] mem; // memory from user
-    int[] rf = new int[64]; //Register file (physical)
+    int[] rf = new int[32]; //Register file (physical)
     RegisterStatus[] regStats = new RegisterStatus[rf.length];
     Instruction[] instructions; // instructions from user
     boolean beforeFinish = false;
     boolean finished = false;
     int QUEUE_SIZE = 4;
-    int ISSUE_SIZE = 16;
+    int ISSUE_SIZE = 8;
     int cycleBeforeFinish = 0;
     int executedInstsBeforeFinish = 0;
 
     // components
     Queue<Instruction> fetchedQueue = new LinkedList<>();
     Queue<Instruction> decodedQueue = new LinkedList<>();
-    ReservationStation[] RS = new ReservationStation[ISSUE_SIZE * 4]; // unified reservation station
-    CircularBufferROB ROB = new CircularBufferROB(ISSUE_SIZE * 4); // Reorder buffer
+    ReservationStation[] RS = new ReservationStation[ISSUE_SIZE * 8]; // unified reservation station
+    CircularBufferROB ROB = new CircularBufferROB(ISSUE_SIZE * 8); // Reorder buffer
     Set<Integer> dispatchedIndexSet = new HashSet<>();
     Queue<Instruction> loadBuffer = new LinkedList<>();
     // final result registers before write back
     Queue<Instruction> beforeWriteBack = new LinkedList<>();
     Map<Integer,BTBstatus> BTB_2BIT = new HashMap<>(); // 2-bit Branch Target Buffer, Key: insAddress, Value: BTB status
     Map<Integer,Boolean> BTB_1BIT = new HashMap<>(); // 1-bit Branch Target Buffer, Key: insAddress, Value: Boolean
-    ALU[] ALUs = new ALU[numOfALU];
-    LSU[] LOADs = new LSU[numOfLOAD];
-    LSU[] STOREs = new LSU[numOfSTORE];
-    BRU[] BRUs = new BRU[numOfBRU];
+    ALU[] ALUs;
+    LSU[] LOADs;
+    LSU[] STOREs;
+    BRU[] BRUs;
     int otherReadyIndex = -1;
 
     // state of pipeline stages
@@ -445,6 +445,8 @@ public class Processor9 {
                 break;
             case OTHER:
                 beforeFinish = true;
+                cycleBeforeFinish = cycle;
+                executedInstsBeforeFinish = executedInsts;
                 break;
             default:
                 System.out.println("invalid instruction detected at issue stage");
@@ -1050,6 +1052,10 @@ public class Processor9 {
     }
 
     private void init() {
+        ALUs = new ALU[numOfALU];
+        LOADs = new LSU[numOfLOAD];
+        STOREs = new LSU[numOfSTORE];
+        BRUs = new BRU[numOfBRU];
         for(int i=0; i < RS.length; i++) {
             RS[i] = new ReservationStation();
         }
@@ -1109,6 +1115,8 @@ public class Processor9 {
         if(cycle >= cycleLimit) {
             System.out.println("Time out");
         }
+
+
         System.out.println("Processor Configuration");
         System.out.println("Super scalar width: " + superScalarWidth + " Branch prediction mode: "+ branchMode.toString());
         System.out.println(numOfALU + " ALUs " + numOfLOAD + " LOADs " + numOfSTORE + " STOREs " + numOfBRU + " BRUs");
@@ -1120,6 +1128,7 @@ public class Processor9 {
         System.out.println(misprediction + " incorrect predictions");
         System.out.println("cycles/instruction ratio: " + ((float) cycle) / (float) executedInsts);
         System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
+        System.out.println("subset Instructions/cycle ratio: " + ((float) executedInstsBeforeFinish / (float) cycleBeforeFinish));
         System.out.println("stalled_cycle/cycle ratio: " + ((float) stalledCycle / (float) cycle));
         System.out.println("wasted_cycle/cycle ratio: " + ((float) (stalledCycle + waitingCycle) / (float) cycle));
         System.out.println("correct prediction rate: "+ ((float) correctPrediction / (float) (correctPrediction + misprediction)));
