@@ -59,12 +59,13 @@ public class Processor9 {
     boolean issueBlocked = false;
     // dispatch states
     boolean noReadyInstruction = false;
+    boolean loadStage1Blocked = false;
     // execute states
     boolean nothingToExecute = false;
     boolean euAllBusy = false;
     // memory states
     boolean loadBufferFull = false;
-    boolean nothingToMemory = false;
+    boolean loadStage2Blocked = false;
     // commit states
     boolean robEmpty = false;
 
@@ -588,10 +589,12 @@ public class Processor9 {
                 j--;
             }
             if(ROB.buffer[j] != null && ROB.buffer[j].ins.opType.equals(OpType.STORE)) {
+                loadStage1Blocked = true;
                 probes.add(new Probe(cycle,11,ROB.buffer[currentRobIndex].ins.id));
                 return false;
             }
         }
+        loadStage1Blocked = false;
         return true;
     }
 
@@ -892,9 +895,11 @@ public class Processor9 {
                 break;
             }
             if(!checkRobForLoadStage2(RS[loading.rsIndex].robIndex,loading.memAddress)) {
+                loadStage2Blocked = true;
                 probes.add(new Probe(cycle,11,loading.id));
                 break;
             }
+            loadStage2Blocked = false;
             // access memory
             loading.result = mem[loading.memAddress];
             // result forwarding
@@ -1076,7 +1081,7 @@ public class Processor9 {
 //            System.out.println("pc: " + pc + " cycle: " + cycle);
 
             if(!beforeFinish) {
-                if(fetchBlocked || decodeBlocked || issueBlocked || euAllBusy || loadBufferFull) {
+                if(fetchBlocked || decodeBlocked || issueBlocked || euAllBusy || loadBufferFull || loadStage1Blocked || loadStage2Blocked) {
                     stalledCycle++;
                 }
                 else if(nothingToDecode || nothingToIssue || noReadyInstruction || nothingToExecute) {
