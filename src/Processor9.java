@@ -224,26 +224,28 @@ public class Processor9 {
     }
 
     private boolean dynamicPredictor1Bit(Instruction ins) {
-        Boolean condition = BTB_1BIT.get(ins.insAddress);
+        int btbAddress = ins.insAddress & 0x0000FFFF;
+        Boolean condition = BTB_1BIT.get(btbAddress);
         probes.add(new Probe(cycle,14,ins.id));
         if(condition == null) {
             boolean newCondition = staticBranchPredictor(ins);
-            BTB_1BIT.put(ins.insAddress,newCondition);
+            BTB_1BIT.put(btbAddress,newCondition);
             return newCondition;
         }
         return condition;
     }
 
     private boolean dynamicPredictor2Bit(Instruction ins) {
-        BTBstatus btbCondition = BTB_2BIT.get(ins.insAddress); // get saved condition for the insAddress
+        int btbAddress = ins.insAddress & 0x0000FFFF; // using 16bit address
+        BTBstatus btbCondition = BTB_2BIT.get(btbAddress); // get saved condition for the insAddress
         probes.add(new Probe(cycle,14,ins.id));
         if(btbCondition == null) { // when there's no saved condition
             if(staticBranchPredictor(ins)) {
-                BTB_2BIT.put(ins.insAddress,BTBstatus.YES);
+                BTB_2BIT.put(btbAddress,BTBstatus.YES);
                 return true;
             }
             else {
-                BTB_2BIT.put(ins.insAddress,BTBstatus.NO);
+                BTB_2BIT.put(btbAddress,BTBstatus.NO);
                 return false;
             }
         }
@@ -796,12 +798,13 @@ public class Processor9 {
     }
 
     private void updateWellPredicted2BitBTB(Instruction ins, boolean taken) {
-        BTBstatus oldStatus = BTB_2BIT.get(ins.insAddress);
+        int btbAddress = ins.insAddress & 0x0000FFFF;
+        BTBstatus oldStatus = BTB_2BIT.get(btbAddress);
         if(taken) {
             switch (oldStatus) {
                 case STRONG_YES:
                 case YES:
-                    BTB_2BIT.put(ins.insAddress,BTBstatus.STRONG_YES);
+                    BTB_2BIT.put(btbAddress,BTBstatus.STRONG_YES);
                     break;
                 default:
                     System.out.println("Illegal BTB status at execute stage at cycle: " + cycle);
@@ -812,7 +815,7 @@ public class Processor9 {
             switch (oldStatus) {
                 case NO:
                 case STRONG_NO:
-                    BTB_2BIT.put(ins.insAddress,BTBstatus.STRONG_NO);
+                    BTB_2BIT.put(btbAddress,BTBstatus.STRONG_NO);
                     break;
                 default:
                     System.out.println("Illegal BTB status at execute stage at cycle: " + cycle);
@@ -821,8 +824,8 @@ public class Processor9 {
         }
     }
 
-    private void updateMispredicted2BitBTB(int insAddress) {
-        BTBstatus oldStatus = BTB_2BIT.get(insAddress);
+    private void updateMispredicted2BitBTB(int btbAddress) {
+        BTBstatus oldStatus = BTB_2BIT.get(btbAddress);
         if(oldStatus == null) {
             oldStatus = BTBstatus.NO;
         }
@@ -837,12 +840,12 @@ public class Processor9 {
                 newStatus = BTBstatus.NO;
                 break;
         }
-        BTB_2BIT.put(insAddress,newStatus);
+        BTB_2BIT.put(btbAddress,newStatus);
     }
 
-    private void updateMispredicted1BitBTB(int insAddress) {
-        boolean oldBool = BTB_1BIT.get(insAddress);
-        BTB_1BIT.put(insAddress,!oldBool);
+    private void updateMispredicted1BitBTB(int btbAddress) {
+        boolean oldBool = BTB_1BIT.get(btbAddress);
+        BTB_1BIT.put(btbAddress,!oldBool);
     }
 
     private void resultForwardingFromRS(Instruction forwarding) {
@@ -990,12 +993,13 @@ public class Processor9 {
     }
 
     private void handleMisprediction(ReorderBuffer robHead) {
+        int btbAddress = robHead.ins.insAddress & 0x0000FFFF;
         switch (branchMode) {
             case DYNAMIC_1BIT:
-                updateMispredicted1BitBTB(robHead.ins.insAddress);
+                updateMispredicted1BitBTB(btbAddress);
                 break;
             case DYNAMIC_2BIT:
-                updateMispredicted2BitBTB(robHead.ins.insAddress);
+                updateMispredicted2BitBTB(btbAddress);
                 break;
             default:
                 break;
