@@ -16,6 +16,7 @@ public class Main {
         int numOfLOAD = 2;
         int numOfSTORE = 1;
         int numOfBRU = 1;
+        int RS_SIZE = 64;
         if(argValues[0] > 0) {
             superScalarWidth = argValues[0];
         }
@@ -51,6 +52,9 @@ public class Main {
         if(argValues[5] > 0) {
             numOfBRU = argValues[5];
         }
+        if(argValues[6] > 0) {
+            RS_SIZE = argValues[6];
+        }
 
 
         Instruction[] bench1inst = new Instruction[512];
@@ -65,18 +69,18 @@ public class Main {
             bench1mem[ap + i] = i; //assigning A[i]
             bench1mem[bp + i] = 2 * i; //assigning B[i]
         }
-        bench1inst[0] = new Instruction(Opcode.MOVC,1,0,0,ap); //pointer to array A
-        bench1inst[1] = new Instruction(Opcode.MOVC,2,0,0,bp); //pointer to array B
-        bench1inst[2] = new Instruction(Opcode.MOVC,3,0,0,cp); //pointer to array C
+        bench1inst[0] = new Instruction(Opcode.MOVC,1,0,0,ap); // pointer to array A
+        bench1inst[1] = new Instruction(Opcode.MOVC,2,0,0,bp); // pointer to array B
+        bench1inst[2] = new Instruction(Opcode.MOVC,3,0,0,cp); // pointer to array C
         bench1inst[3] = new Instruction(Opcode.MOVC,4,0,0,0); // i = 0
         bench1inst[4] = new Instruction(Opcode.MOVC,8,0,0,length); // for loop limit
-        bench1inst[5] = new Instruction(Opcode.LD,5,1,4,0); // a = A[&A + i], for loop starts
-        bench1inst[6] = new Instruction(Opcode.LD,6,2,4,0); // b = B[&B + i]
-        bench1inst[7] = new Instruction(Opcode.ADD,7,5,6,0); // c = a + b
-        bench1inst[8] = new Instruction(Opcode.ST,7,3,4,0); // C[&C + i] = c
+        bench1inst[5] = new Instruction(Opcode.LD,5,1,4,0); // $5 = mem[&A + i], for loop starts
+        bench1inst[6] = new Instruction(Opcode.LD,6,2,4,0); //$6 = mem[&B + i]
+        bench1inst[7] = new Instruction(Opcode.ADD,7,5,6,0); // $7 = $5 + $6
+        bench1inst[8] = new Instruction(Opcode.ST,7,3,4,0); // mem[&C + i] = $7
         bench1inst[9] = new Instruction(Opcode.ADDI,4,4,0,1); // i++
-        bench1inst[10] = new Instruction(Opcode.CMP,10,4,8,0); // $10 = cmp($4,$8)
-        bench1inst[11] = new Instruction(Opcode.BRN,0,10,0,5); //branch back to for loop if i < 100
+        bench1inst[10] = new Instruction(Opcode.CMP,10,4,8,0); // $10 = cmp(i,$8)
+        bench1inst[11] = new Instruction(Opcode.BRN,0,10,0,5); //branch back to for loop if i < 10
         bench1inst[12] = new Instruction(Opcode.HALT,0,0,0,0); //Terminate
 
         //Bubble sort
@@ -84,7 +88,6 @@ public class Main {
         int[] bench2mem = new int[1024];
 
         int[] arrayToSort = {512,52,61,3,-6,-127,75,21,98,1,874,-1239,431,94,10,36};
-//        int[] arrayToSort = {512,52,61,-3,-127};
         int pointer = 2;
         System.arraycopy(arrayToSort,0,bench2mem,pointer,arrayToSort.length);
         bench2inst[0] = new Instruction(Opcode.MOVC,1,0,0,pointer); // load array pointer
@@ -157,38 +160,45 @@ public class Main {
         bench4mem[5] = 1000;
         bench4mem[10] = 123;
         bench4mem[11] = bench4mem[10] * 8;
-        bench4inst[0] = new Instruction(Opcode.MOVC,1,0,0,10); // $1 = 10
+        bench4inst[0] = new Instruction(Opcode.MOVC,1,0,0,10); // First loop starting point, $1 = 10
         bench4inst[1] = new Instruction(Opcode.MOVC,2,0,0,2); // $2 = 2
-        bench4inst[2] = new Instruction(Opcode.DIV,3,1,2,0); // $3 = $1 / $2 = 5 (6 cycles)
+        bench4inst[2] = new Instruction(Opcode.DIV,3,1,2,0); // $3 = $1 / $2 = 5 (16 cycles)
         bench4inst[3] = new Instruction(Opcode.LD,10,3,0,0); // $10 = mem[ 5 + 0 ] (2 cycles, dependent:2)
         bench4inst[4] = new Instruction(Opcode.MUL,4,1,2,0); // $4 = $1 * $2 = 20 (2 cycles)
         bench4inst[5] = new Instruction(Opcode.SUB,6,3,1,0); // $6 = $3 - $1 = -5 (div dependent:2)
         bench4inst[6] = new Instruction(Opcode.ADD,5,1,2,0); // $5 = $1 + $2 = 12
-        bench4inst[7] = new Instruction(Opcode.SHL,11,1,2,0); // $11 = $1 << $2 = 40
+        bench4inst[7] = new Instruction(Opcode.SHL,11,5,2,0); // $11 = $5 << $2 = 48 (dependent: 6)
         bench4inst[8] = new Instruction(Opcode.STI,6,3,0,1); // mem[ 5 + 1 ] = $6 (2 cycles, dependent:2,5)
         bench4inst[9] = new Instruction(Opcode.ADDI,7,2,0,4); // $7 = $2 + 4 = 6
         bench4inst[10] = new Instruction(Opcode.LDI,8,0,0,10); // $8 = mem[10] (2 cycles)
         bench4inst[11] = new Instruction(Opcode.LDI,9,0,0,11); // $9 = mem[11] (2 cycles)
-        bench4inst[12] = new Instruction(Opcode.DIV, 12,9,8,0); // $12 = $9 / $8 = 8 (6 cycles, dependent:10,11)
-        bench4inst[13] = new Instruction(Opcode.DIVI,13,12,0,2); // $13 = $12 / 2 = 4 (6 cycles, dependent:12)
+        bench4inst[12] = new Instruction(Opcode.DIV, 12,9,8,0); // $12 = $9 / $8 = 8 (16 cycles, dependent:10,11)
+        bench4inst[13] = new Instruction(Opcode.DIVI,13,12,0,2); // $13 = $12 / 2 = 4 (16 cycles, dependent:12)
         bench4inst[14] = new Instruction(Opcode.NOT,14,0,0,0); // $14 = ¬ $0 = -1
-        bench4inst[15] = new Instruction(Opcode.ADDI,1,1,0,20); // $1 = $1 + 20 = 30
-        bench4inst[16] = new Instruction(Opcode.MUL,4,4,4,0); // $4 = $4 * $4 = 400 (2 cycles)
-        bench4inst[17] = new Instruction(Opcode.ADD,2,2,1,0); // $2 = $2 + $1 = 32
-        bench4inst[18] = new Instruction(Opcode.AND,11,14,1,0); // $11 = $14 & $1 = 30
-        bench4inst[19] = new Instruction(Opcode.BR,0,0,0,50); // PC <- 50
-        bench4inst[20] = new Instruction(Opcode.HALT,0,0,0,0); // HALT
-        bench4inst[50] = new Instruction(Opcode.ADD,15,1,2,0); // $15 = $1 + $2 = 62
-        bench4inst[51] = new Instruction(Opcode.STI,15,3,0,2); // mem[5 + 2] = $15
-        bench4inst[52] = new Instruction(Opcode.BR,0,0,0,20); // jump back to halt
+        bench4inst[15] = new Instruction(Opcode.DIVI,20,9,0,8); // $20 = $9 / 8 (16 cycles, dependent:11)
+        bench4inst[16] = new Instruction(Opcode.ADDI,22,22,0,1); // $22 += 1
+        bench4inst[17] = new Instruction(Opcode.MUL,4,4,4,0); // $4 = $4 * $4 = 400 (2 cycles)
+        bench4inst[18] = new Instruction(Opcode.SHR,21,20,2,0); // $21 = $20 >> $2 (dependent: 15)
+        bench4inst[19] = new Instruction(Opcode.ADD,2,2,1,0); // $2 = $2 + $1 = 12
+        bench4inst[20] = new Instruction(Opcode.AND,11,14,1,0); // $11 = $14 & $1 = 30
+        bench4inst[21] = new Instruction(Opcode.ADDI,30,30,0,1); // $30 += 1
+        bench4inst[22] = new Instruction(Opcode.ST,22,30,0,0); // mem[ $30 ] = $22 (dependent: 16, 21)
+        bench4inst[23] = new Instruction(Opcode.CMP,31,22,1,0); // $31 = cmp($22,$1) (dep: 16)
+        bench4inst[24] = new Instruction(Opcode.BRN,0,31,0,50); // branch to second loop
+        bench4inst[25] = new Instruction(Opcode.NOOP,0,0,0,0);
+        bench4inst[26] = new Instruction(Opcode.NOOP,0,0,0,0);
+        bench4inst[27] = new Instruction(Opcode.HALT,0,0,0,0); // HALT
+        bench4inst[50] = new Instruction(Opcode.ADDI,18,18,0,2); // Second loop starting point, $18 += 2
+        bench4inst[51] = new Instruction(Opcode.NOOP,0,0,0,0);
+        bench4inst[52] = new Instruction(Opcode.AND,19,18,0,0); // $19 = $18 & $0 = 0
+        bench4inst[53] = new Instruction(Opcode.CMP,29,18,1,0); // $29 = cmp($18,$1) (dep: 50, 52)
+        bench4inst[54] = new Instruction(Opcode.BRN,0,29,0,50); // branch to second loop
+        bench4inst[55] = new Instruction(Opcode.MOVC,18,0,0,0); // $18 = 0
+        bench4inst[56] = new Instruction(Opcode.BR,0,0,0,0); // branch to first loop
 
         // Independent Math
         Instruction[] bench5inst = new Instruction[512];
         int[] bench5mem = new int[1024];
-//        for(int i = 0; i < 30; i++) {
-//            bench5inst[i] = new Instruction(Opcode.ADDI,i,0,0,i);
-//        }
-//        bench5inst[30] = new Instruction(Opcode.HALT,0,0,0,0);
         bench5inst[0] = new Instruction(Opcode.NOOP,0,0,0,0); // no op
         bench5inst[1] = new Instruction(Opcode.MOVC,1,0,0,1); // $1 = 1
         bench5inst[2] = new Instruction(Opcode.MOVC,2,0,0,2); // $2 = 2
@@ -213,51 +223,35 @@ public class Main {
         bench5inst[21] = new Instruction(Opcode.OR,20,0,0,0); // $10 = $0 | $0 = 0
         bench5inst[450] = new Instruction(Opcode.HALT,0,0,0,0); // halt
 
-        //Independent memory load
-        Instruction[] bench6Inst = new Instruction[512];
-        int[] bench6mem = new int[1024];
-        for(int i = 0; i < 64; i++) {
-            bench6mem[i] = i; // mem[i] = i
-            bench6Inst[i] = new Instruction(Opcode.LDI,i % 32,0,0,i); // $i <- mem[i]
-        }
-        bench6Inst[64] = new Instruction(Opcode.HALT,0,0,0,0);
-
         System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
-        Processor9 bench1 = new Processor9(bench1mem,bench1inst,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
+        Processor9 bench1 = new Processor9(bench1mem,bench1inst,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU,RS_SIZE);
         bench1.RunProcessor();
         createDump(bench1.mem, "mem_bench1.txt");
         createDump(bench1.rf,"rf_bench1.txt");
 
         System.out.println("Benchmark2 - Bubble sort (size: " + arrayToSort.length + ")");
-        Processor9 bench2 = new Processor9(bench2mem,bench2inst,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
+        Processor9 bench2 = new Processor9(bench2mem,bench2inst,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU,RS_SIZE);
         bench2.RunProcessor();
         createDump(bench2.mem, "mem_bench2.txt");
         createDump(bench2.rf,"rf_bench2.txt");
 
         System.out.println("Benchmark3 - Factorial(" + num + ")");
-	    Processor9 bench3 = new Processor9(bench3mem,bench3inst,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
+	    Processor9 bench3 = new Processor9(bench3mem,bench3inst,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU,RS_SIZE);
 	    bench3.RunProcessor();
 	    createDump(bench3.mem, "mem_bench3.txt");
 	    createDump(bench3.rf,"rf_bench3.txt");
 
 	    System.out.println("Benchmark4 - many dependencies");
-	    Processor9 bench4 = new Processor9(bench4mem,bench4inst,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
+	    Processor9 bench4 = new Processor9(bench4mem,bench4inst,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU,RS_SIZE);
 	    bench4.RunProcessor();
 	    createDump(bench4.mem, "mem_bench4.txt");
 	    createDump(bench4.rf,"rf_bench4.txt");
 
         System.out.println("Benchmark5 - Independent Math");
-        Processor9 bench5 = new Processor9(bench5mem,bench5inst,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
+        Processor9 bench5 = new Processor9(bench5mem,bench5inst,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU,RS_SIZE);
         bench5.RunProcessor();
         createDump(bench5.mem, "mem_bench5.txt");
         createDump(bench5.rf,"rf_bench5.txt");
-
-//        System.out.println("Benchmark6 - Independent Load");
-//        Processor9 bench6 = new Processor9(bench6mem,bench6Inst,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU);
-//        bench6.RunProcessor();
-//        createDump(bench6.mem,"mem_bench6.txt");
-//        createDump(bench6.rf,"rf_bench6.txt");
-
     }
 
     private static void createDump(int[] array, String filePath) throws IOException {

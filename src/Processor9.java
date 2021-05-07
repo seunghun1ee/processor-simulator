@@ -25,16 +25,16 @@ public class Processor9 {
     Instruction[] instructions; // instructions from user
     boolean beforeFinish = false;
     boolean finished = false;
+    int RS_SIZE = 64;
     int QUEUE_SIZE = 4;
-    int ISSUE_SIZE = 8;
     int cycleBeforeFinish = 0;
     int executedInstsBeforeFinish = 0;
 
     // components
     Queue<Instruction> fetchedQueue = new LinkedList<>();
     Queue<Instruction> decodedQueue = new LinkedList<>();
-    ReservationStation[] RS = new ReservationStation[ISSUE_SIZE * 8]; // unified reservation station
-    CircularBufferROB ROB = new CircularBufferROB(ISSUE_SIZE * 8); // Reorder buffer
+    ReservationStation[] RS; // unified reservation station
+    CircularBufferROB ROB; // Reorder buffer
     Set<Integer> dispatchedIndexSet = new HashSet<>();
     Queue<Instruction> loadBuffer = new LinkedList<>();
     // final result registers before write back
@@ -78,7 +78,7 @@ public class Processor9 {
         this.instructions = instructions;
     }
 
-    public Processor9(int[] mem, Instruction[] instructions, int superScalarWidth, BranchMode branchMode, int numOfALU, int numOfLOAD, int numOfSTORE, int numOfBRU) {
+    public Processor9(int[] mem, Instruction[] instructions, int superScalarWidth, BranchMode branchMode, int numOfALU, int numOfLOAD, int numOfSTORE, int numOfBRU, int RS_SIZE) {
         this.mem = mem;
         this.instructions = instructions;
         this.superScalarWidth = superScalarWidth;
@@ -87,6 +87,7 @@ public class Processor9 {
         this.numOfLOAD = numOfLOAD;
         this.numOfSTORE = numOfSTORE;
         this.numOfBRU = numOfBRU;
+        this.RS_SIZE = RS_SIZE;
     }
 
     private void Fetch() {
@@ -790,10 +791,10 @@ public class Processor9 {
             }
         }
         else {
-            // wrong prediction
-            if(!executing.opcode.equals(Opcode.BRR)) {
-                misprediction++;
-            }
+//            // wrong prediction
+//            if(!executing.opcode.equals(Opcode.BRR)) {
+//                misprediction++;
+//            }
             ROB.buffer[RS[executing.rsIndex].robIndex].mispredicted = true;
             probes.add(new Probe(cycle,15,executing.id));
         }
@@ -846,7 +847,11 @@ public class Processor9 {
     }
 
     private void updateMispredicted1BitBTB(int btbAddress) {
-        boolean oldBool = BTB_1BIT.get(btbAddress);
+        Boolean oldBool = BTB_1BIT.get(btbAddress);
+        if(oldBool == null) {
+            BTB_1BIT.put(btbAddress,false);
+            return;
+        }
         BTB_1BIT.put(btbAddress,!oldBool);
     }
 
@@ -1049,9 +1054,12 @@ public class Processor9 {
             BRUs[i].reset();
         }
         beforeFinish = false;
+        misprediction++;
     }
 
     private void init() {
+        RS = new ReservationStation[RS_SIZE]; // unified reservation station
+        ROB = new CircularBufferROB(RS_SIZE); // Reorder buffer
         ALUs = new ALU[numOfALU];
         LOADs = new LSU[numOfLOAD];
         STOREs = new LSU[numOfSTORE];
@@ -1118,20 +1126,20 @@ public class Processor9 {
 
 
         System.out.println("Processor Configuration");
-        System.out.println("Super scalar width: " + superScalarWidth + " Branch prediction mode: "+ branchMode.toString());
+        System.out.println("Pipeline width: " + superScalarWidth + ", Branch prediction mode: "+ branchMode.toString());
         System.out.println(numOfALU + " ALUs " + numOfLOAD + " LOADs " + numOfSTORE + " STOREs " + numOfBRU + " BRUs");
+        System.out.println("RS/ROB size: " + RS_SIZE);
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");
         System.out.println(stalledCycle + " stalled cycles");
         System.out.println(waitingCycle + " Waiting cycles");
         System.out.println(correctPrediction + " correct predictions");
         System.out.println(misprediction + " incorrect predictions");
-        System.out.println("cycles/instruction ratio: " + ((float) cycle) / (float) executedInsts);
         System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
-        System.out.println("subset Instructions/cycle ratio: " + ((float) executedInstsBeforeFinish / (float) cycleBeforeFinish));
+        System.out.println("Subset Instructions/cycle ratio: " + ((float) executedInstsBeforeFinish / (float) cycleBeforeFinish));
         System.out.println("stalled_cycle/cycle ratio: " + ((float) stalledCycle / (float) cycle));
         System.out.println("wasted_cycle/cycle ratio: " + ((float) (stalledCycle + waitingCycle) / (float) cycle));
-        System.out.println("correct prediction rate: "+ ((float) correctPrediction / (float) (correctPrediction + misprediction)));
+        System.out.println("Correct prediction rate: "+ ((float) correctPrediction / (float) (correctPrediction + misprediction)));
         System.out.println();
     }
 
