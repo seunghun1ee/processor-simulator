@@ -44,3 +44,66 @@ pop:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 2
 	jr $ra
+
+
+Benchmark6 - Game of life
+gol:
+    movc $1 3
+    movc $2 old_pointer
+    movc $3 new_pointer
+    movc $29 1 // cell
+    movc $30 2 // low limit
+    movc $31 3 // high limit
+logic:
+    movc $4 0 //row
+    movc $5 0 //col, logic outer loop start
+    muli $6 $4 5 //row * 5, logic inner loop start
+    add $6 $6 $5 // col + row * 5 (offset)
+    add $13 $6 $2 // $13 = address
+    ldi $7 $13 0 // $7 = cell
+    mov $20 $13 // $20 is arg of count
+    br count
+    sub $8 $26 $7 // logic return point, $8 is number of neighbour (counter - cell)
+    mov $14 $6 // $14 is arg for update cases (offset)
+    cmp $9 $0 $7 // $9 is cell state (-1: alive, 0:dead)
+    brn $9 alive_case
+    cmp $10 $31 $8 // $10 is 0 when cell is dead and has exactly 3 neighbours
+    brz $10 reproduce_case
+    addi $5 $5 1 // col++, comeback_point
+    cmp $11 $5 $1 // compare $5 with 3
+    brn $11 logic_inner_loop_start
+    addi $4 $4 1 // row++
+    cmp $12 $4 $1 // compare $4 with 3
+    brn $12 logic_outer_loop_start
+
+alive_case:
+    cmp $15 $8 $30 // compare $8 with 2
+    brn $15 dead_case
+    cmp $16 $31 $8 // compare $8 with 3
+    brn $16 dead_case
+    br reproduce_case
+
+dead_case:
+    st $0 $3 $14 // store new dead cell (new_pointer + offset)
+    br comeback_point
+
+reproduce_case:
+    st $29 $3 $14 // store new alive cell (new_pointer + offset)
+    br comeback_point
+count:
+    addi $21 $20 -6 //$21 = left top corner neighbour pointer
+    movc $26 0 // counter reset
+    movc $22 0 // row
+    movc $23 0 // col, outer loop start
+    muli $24 $22 5 // row * 5, inner loop start
+    add $24 $24 $23 // col + row * 5
+    add $24 $24 $21 // $24 is neighbour address
+    ldi $25 $24 0 // $25 is neighbour
+    add $26 $26 $25 // counter += neighbour
+    addi $23 $23 1 // col++
+    cmp $27 $23 $1 // compare $23 and 3
+    brn $27 count_inner_loop
+    addi $22 $22 1 // row++
+    cmp $28 $22 $1 // compare $22 and 3
+    brn $28 count_outer_loop
+    br logic_return

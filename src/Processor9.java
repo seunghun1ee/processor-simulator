@@ -791,10 +791,7 @@ public class Processor9 {
             }
         }
         else {
-//            // wrong prediction
-//            if(!executing.opcode.equals(Opcode.BRR)) {
-//                misprediction++;
-//            }
+            // wrong prediction
             ROB.buffer[RS[executing.rsIndex].robIndex].mispredicted = true;
             probes.add(new Probe(cycle,15,executing.id));
         }
@@ -1012,6 +1009,9 @@ public class Processor9 {
                 break;
         }
         flushAll();
+        if(!robHead.ins.opcode.equals(Opcode.BRR)) {
+            misprediction++;
+        }
         // change to correct pc
         if(robHead.ins.taken) {
             pc = robHead.ins.insAddress + 1;
@@ -1054,7 +1054,6 @@ public class Processor9 {
             BRUs[i].reset();
         }
         beforeFinish = false;
-        misprediction++;
     }
 
     private void init() {

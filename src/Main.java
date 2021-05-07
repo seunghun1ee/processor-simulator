@@ -223,6 +223,81 @@ public class Main {
         bench5inst[21] = new Instruction(Opcode.OR,20,0,0,0); // $10 = $0 | $0 = 0
         bench5inst[450] = new Instruction(Opcode.HALT,0,0,0,0); // halt
 
+        // 3 x 3 Game of life 1 iteration
+        Instruction[] bench6inst = new Instruction[512];
+        int[] bench6mem = new int[1024];
+        int old_pointer = 6;
+        int new_pointer = 31;
+        // Glider (expected result: 1 at mem[36], mem[38], mem[42] and mem[43])
+        bench6mem[old_pointer] = 0;
+        bench6mem[old_pointer + 1] = 1;
+        bench6mem[old_pointer + 2] = 0;
+        bench6mem[old_pointer + 5] = 0;
+        bench6mem[old_pointer + 6] = 0;
+        bench6mem[old_pointer + 7] = 1;
+        bench6mem[old_pointer + 10] = 1;
+        bench6mem[old_pointer + 11] = 1;
+        bench6mem[old_pointer + 12] = 1;
+        //gol_prep
+        bench6inst[0] = new Instruction(Opcode.MOVC,1,0,0,3); // loop limit
+        bench6inst[1] = new Instruction(Opcode.MOVC,2,0,0,old_pointer);
+        bench6inst[2] = new Instruction(Opcode.MOVC,3,0,0,new_pointer);
+        bench6inst[3] = new Instruction(Opcode.MOVC,29,0,0,1); // cell
+        bench6inst[4] = new Instruction(Opcode.MOVC,30,0,0,2); // low limit
+        bench6inst[5] = new Instruction(Opcode.MOVC,31,0,0,3); // high limit
+        //gol_logic
+        bench6inst[6] = new Instruction(Opcode.MOVC,4,0,0,0); // row
+        bench6inst[7] = new Instruction(Opcode.MOVC,5,0,0,0); // col, logic_outer_loop_start
+        bench6inst[8] = new Instruction(Opcode.MULI,6,4,0,5); // logic_inner_loop_start
+        bench6inst[9] = new Instruction(Opcode.ADD,6,6,5,0); // offset
+        bench6inst[10] = new Instruction(Opcode.ADD,13,6,2,0); // old cell address
+        bench6inst[11] = new Instruction(Opcode.LDI,7,13,0,0); // get old cell
+        bench6inst[12] = new Instruction(Opcode.MOV,20,13,0,0); // pass arg to count
+        bench6inst[13] = new Instruction(Opcode.BR,0,0,0,400); // call count, $26 is return value
+        bench6inst[14] = new Instruction(Opcode.SUB,8,26,7,0); // logic return point, $8 is num of neighbour
+        bench6inst[15] = new Instruction(Opcode.MOV,14,6,0,0); // pass arg for updating (offset)
+        bench6inst[16] = new Instruction(Opcode.CMP,9,0,7,0); // $9 is cell state (-1: alive, 0:dead)
+        bench6inst[17] = new Instruction(Opcode.BRN,0,9,0,100); // call alive_case
+        bench6inst[18] = new Instruction(Opcode.CMP,10,31,8,0); // $10 is 0 when cell is dead and has exactly 3 neighbours
+        bench6inst[19] = new Instruction(Opcode.BRZ,0,10,0,300); // call reproduce_case
+        bench6inst[20] = new Instruction(Opcode.ADDI,5,5,0,1); // col++, comeback_point
+        bench6inst[21] = new Instruction(Opcode.CMP,11,5,1,0); // compare col with 3
+        bench6inst[22] = new Instruction(Opcode.BRN,0,11,0,8); // branch back to logic_inner_loop_start
+        bench6inst[23] = new Instruction(Opcode.ADDI,4,4,0,1); // row++
+        bench6inst[24] = new Instruction(Opcode.CMP,12,4,1,0); // compare row with 3
+        bench6inst[25] = new Instruction(Opcode.BRN,0,12,0,7); // branch back to logic_outer_loop_start
+        bench6inst[26] = new Instruction(Opcode.NOOP,0,0,0,0);
+        bench6inst[27] = new Instruction(Opcode.HALT,0,0,0,0); // HALT
+        //alive case
+        bench6inst[100] = new Instruction(Opcode.CMP,15,8,30,0); // compare number of neighbours with 2
+        bench6inst[101] = new Instruction(Opcode.BRN,0,15,0,200); // call dead_case
+        bench6inst[102] = new Instruction(Opcode.CMP,16,31,8,0); // compare 3 with number of neighbours
+        bench6inst[103] = new Instruction(Opcode.BRN,0,16,0,200); //call dead_case
+        bench6inst[104] = new Instruction(Opcode.BR,0,0,0,300); // call reproduce_case
+        //dead case
+        bench6inst[200] = new Instruction(Opcode.ST,0,3,14,0); // store new dead cell
+        bench6inst[201] = new Instruction(Opcode.BR,0,0,0,20); // branch back to comeback_point
+        //reproduce case
+        bench6inst[300] = new Instruction(Opcode.ST,29,3,14,0); // store new alive cell
+        bench6inst[301] = new Instruction(Opcode.BR,0,0,0,20); // branch back to comeback_point
+        //count
+        bench6inst[400] = new Instruction(Opcode.ADDI,21,20,0,-6); // $21 is left top corner neighbour pointer
+        bench6inst[401] = new Instruction(Opcode.MOVC,26,0,0,0); // counter reset
+        bench6inst[402] = new Instruction(Opcode.MOVC,22,0,0,0); // row
+        bench6inst[403] = new Instruction(Opcode.MOVC,23,0,0,0); // col, outer_loop_start
+        bench6inst[404] = new Instruction(Opcode.MULI,24,22,0,5); // row * 5, inner loop start
+        bench6inst[405] = new Instruction(Opcode.ADD,24,24,23,0); // col + row * 5
+        bench6inst[406] = new Instruction(Opcode.ADD,24,24,21,0); // $24 is neighbour address
+        bench6inst[407] = new Instruction(Opcode.LDI,25,24,0,0); // $25 is neighbour
+        bench6inst[408] = new Instruction(Opcode.ADD,26,26,25,0); // counter += neighbour
+        bench6inst[409] = new Instruction(Opcode.ADDI,23,23,0,1); // col++
+        bench6inst[410] = new Instruction(Opcode.CMP,27,23,1,0); // compare col with 3
+        bench6inst[411] = new Instruction(Opcode.BRN,0,27,0,404); // branch back to inner loop
+        bench6inst[412] = new Instruction(Opcode.ADDI,22,22,0,1); // row++
+        bench6inst[413] = new Instruction(Opcode.CMP,28,22,1,0); // compare row with 3
+        bench6inst[414] = new Instruction(Opcode.BRN,0,28,0,403); // branch back to outer loop
+        bench6inst[415] = new Instruction(Opcode.BR,0,0,0,14); // branch back to logic_return_point
+
         System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
         Processor9 bench1 = new Processor9(bench1mem,bench1inst,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU,RS_SIZE);
         bench1.RunProcessor();
@@ -252,6 +327,12 @@ public class Main {
         bench5.RunProcessor();
         createDump(bench5.mem, "mem_bench5.txt");
         createDump(bench5.rf,"rf_bench5.txt");
+
+        System.out.println("Benchmark6 - 3 x 3 Game of life 1 iteration");
+        Processor9 bench6 = new Processor9(bench6mem,bench6inst,superScalarWidth,branchMode,numOfALU,numOfLOAD,numOfSTORE,numOfBRU,RS_SIZE);
+        bench6.RunProcessor();
+        createDump(bench6.mem,"mem_bench6.txt");
+        createDump(bench6.rf,"rf_bench6.txt");
     }
 
     private static void createDump(int[] array, String filePath) throws IOException {
