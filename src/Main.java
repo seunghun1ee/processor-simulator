@@ -97,9 +97,9 @@ public class Main {
         bench2inst[4] = new Instruction(Opcode.SUB,6,4,2,0); // length - i, outer loop starting point
         bench2inst[5] = new Instruction(Opcode.MOVC,3,0,0,0); // j = 0
         bench2inst[6] = new Instruction(Opcode.ADDI,6,6,0,-1); //inner for loop limit = length - i - 1
-        bench2inst[7] = new Instruction(Opcode.LD,7,1,3,0); // a = array[j], inner loop starting point
+        bench2inst[7] = new Instruction(Opcode.LD,7,1,3,0); // a = array[j], inner loop starting point (WAR: 16)
         bench2inst[8] = new Instruction(Opcode.ADD,9,1,3,0); // pointer + j
-        bench2inst[9] = new Instruction(Opcode.LDI,8,9,0,1); // b = array[j + 1]
+        bench2inst[9] = new Instruction(Opcode.LDI,8,9,0,1); // b = array[j + 1] (WAR: 17)
         bench2inst[10] = new Instruction(Opcode.CMP,11,8,7,0); // $11 = cmp(b,a)
         bench2inst[11] = new Instruction(Opcode.BRN,0,11,0,13); // if($11 < 0)
         bench2inst[12] = new Instruction(Opcode.BR,0,0,0,18); //if not b < a skip to the end of inner loop
@@ -112,7 +112,7 @@ public class Main {
         bench2inst[19] = new Instruction(Opcode.CMP,11,3,6,0); // $11 = cmp(j, length - i - 1)
         bench2inst[20] = new Instruction(Opcode.BRN,0,11,0,7); // loop back to inner starting point if j < length - i - 1
         bench2inst[21] = new Instruction(Opcode.ADDI,2,2,0,1); // i++
-        bench2inst[22] = new Instruction(Opcode.CMP,11,2,5,0); // $11 = cmp(i, length - 1)
+        bench2inst[22] = new Instruction(Opcode.CMP,11,2,5,0); // $11 = cmp(i, length - 1) (WAW hazard: 19)
         bench2inst[23] = new Instruction(Opcode.BRN,0,11,0,4); // loop back to outer starting point if i < length - 1
         bench2inst[24] = new Instruction(Opcode.HALT,0,0,0,0); // halt
 
@@ -134,7 +134,7 @@ public class Main {
         bench3inst[7] = new Instruction(Opcode.STI,2,0,0,loc+1); // store returned result at mem[loc + 1]
         bench3inst[8] = new Instruction(Opcode.HALT,0,0,0,0); // halt
         //fac
-        bench3inst[100] = new Instruction(Opcode.LDI,13,29,0,1); // $13 = mem[sp + 1] (arg)
+        bench3inst[100] = new Instruction(Opcode.LDI,13,29,0,1); // $13 = mem[sp + 1] (arg) (WAR hazard: 107)
         bench3inst[101] = new Instruction(Opcode.CMP,15,13,0,0); // $t7(15) = cmp($13,$zero)
         bench3inst[102] = new Instruction(Opcode.BRZ,0,15,0,130); // branch to base if zero
         bench3inst[103] = new Instruction(Opcode.ADDI,13,13,0,-1); // decrement arg
@@ -169,7 +169,7 @@ public class Main {
         bench4inst[6] = new Instruction(Opcode.ADD,5,1,2,0); // $5 = $1 + $2 = 12
         bench4inst[7] = new Instruction(Opcode.SHL,11,5,2,0); // $11 = $5 << $2 = 48 (dependent: 6)
         bench4inst[8] = new Instruction(Opcode.STI,6,3,0,1); // mem[ 5 + 1 ] = $6 (2 cycles, dependent:2,5)
-        bench4inst[9] = new Instruction(Opcode.ADDI,7,2,0,4); // $7 = $2 + 4 = 6
+        bench4inst[9] = new Instruction(Opcode.ADDI,6,2,0,4); // $6 = $2 + 4 = 6 (WAR: 8)
         bench4inst[10] = new Instruction(Opcode.LDI,8,0,0,10); // $8 = mem[10] (2 cycles)
         bench4inst[11] = new Instruction(Opcode.LDI,9,0,0,11); // $9 = mem[11] (2 cycles)
         bench4inst[12] = new Instruction(Opcode.DIV, 12,9,8,0); // $12 = $9 / $8 = 8 (16 cycles, dependent:10,11)
@@ -258,11 +258,11 @@ public class Main {
         bench6inst[15] = new Instruction(Opcode.MOV,14,6,0,0); // pass arg for updating (offset)
         bench6inst[16] = new Instruction(Opcode.CMP,9,0,7,0); // $9 is cell state (-1: alive, 0:dead)
         bench6inst[17] = new Instruction(Opcode.BRN,0,9,0,100); // call alive_case
-        bench6inst[18] = new Instruction(Opcode.CMP,10,31,8,0); // $10 is 0 when cell is dead and has exactly 3 neighbours
-        bench6inst[19] = new Instruction(Opcode.BRZ,0,10,0,300); // call reproduce_case
+        bench6inst[18] = new Instruction(Opcode.CMP,9,31,8,0); // $10 is 0 when cell is dead and has exactly 3 neighbours (WAW: 16)
+        bench6inst[19] = new Instruction(Opcode.BRZ,0,9,0,300); // call reproduce_case
         bench6inst[20] = new Instruction(Opcode.ADDI,5,5,0,1); // col++, comeback_point
-        bench6inst[21] = new Instruction(Opcode.CMP,11,5,1,0); // compare col with 3
-        bench6inst[22] = new Instruction(Opcode.BRN,0,11,0,8); // branch back to logic_inner_loop_start
+        bench6inst[21] = new Instruction(Opcode.CMP,9,5,1,0); // compare col with 3 (WAW: 18)
+        bench6inst[22] = new Instruction(Opcode.BRN,0,9,0,8); // branch back to logic_inner_loop_start
         bench6inst[23] = new Instruction(Opcode.ADDI,4,4,0,1); // row++
         bench6inst[24] = new Instruction(Opcode.CMP,12,4,1,0); // compare row with 3
         bench6inst[25] = new Instruction(Opcode.BRN,0,12,0,7); // branch back to logic_outer_loop_start
@@ -271,8 +271,8 @@ public class Main {
         //alive case
         bench6inst[100] = new Instruction(Opcode.CMP,15,8,30,0); // compare number of neighbours with 2
         bench6inst[101] = new Instruction(Opcode.BRN,0,15,0,200); // call dead_case
-        bench6inst[102] = new Instruction(Opcode.CMP,16,31,8,0); // compare 3 with number of neighbours
-        bench6inst[103] = new Instruction(Opcode.BRN,0,16,0,200); //call dead_case
+        bench6inst[102] = new Instruction(Opcode.CMP,15,31,8,0); // compare 3 with number of neighbours (WAW: 100)
+        bench6inst[103] = new Instruction(Opcode.BRN,0,15,0,200); //call dead_case
         bench6inst[104] = new Instruction(Opcode.BR,0,0,0,300); // call reproduce_case
         //dead case
         bench6inst[200] = new Instruction(Opcode.ST,0,3,14,0); // store new dead cell
@@ -294,8 +294,8 @@ public class Main {
         bench6inst[410] = new Instruction(Opcode.CMP,27,23,1,0); // compare col with 3
         bench6inst[411] = new Instruction(Opcode.BRN,0,27,0,404); // branch back to inner loop
         bench6inst[412] = new Instruction(Opcode.ADDI,22,22,0,1); // row++
-        bench6inst[413] = new Instruction(Opcode.CMP,28,22,1,0); // compare row with 3
-        bench6inst[414] = new Instruction(Opcode.BRN,0,28,0,403); // branch back to outer loop
+        bench6inst[413] = new Instruction(Opcode.CMP,27,22,1,0); // compare row with 3 (WAW: 410)
+        bench6inst[414] = new Instruction(Opcode.BRN,0,27,0,403); // branch back to outer loop
         bench6inst[415] = new Instruction(Opcode.BR,0,0,0,14); // branch back to logic_return_point
 
         System.out.println("Benchmark1 - Vector addition (size: " + length + ")");
