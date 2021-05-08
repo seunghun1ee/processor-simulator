@@ -1134,7 +1134,7 @@ public class Processor9 {
         System.out.println("Subset Instructions per cycle: " + ((float) executedInstsBeforeFinish / (float) cycleBeforeFinish));
         System.out.println("stalled_cycle/cycle: " + ((float) stalledCycle / (float) cycle));
         System.out.println("wasted_cycle/cycle: " + ((float) (stalledCycle + waitingCycle) / (float) cycle));
-        System.out.println("Correct prediction rate: "+ ((float) correctPrediction / (float) (correctPrediction + missPrediction)));
+        System.out.println("Branch prediction accuracy: "+ ((float) correctPrediction / (float) (correctPrediction + missPrediction)));
         System.out.println();
     }
 
