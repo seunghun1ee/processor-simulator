@@ -20,7 +20,7 @@ public class Main {
         if(argValues[0] > 0) {
             superScalarWidth = argValues[0];
         }
-        if(argValues[1] > 0) {
+        if(argValues[1] > 0 && argValues[1] <= 5) {
             switch (argValues[1]) {
                 case 1:
                     branchMode = BranchMode.FIXED_NOT_TAKEN;
