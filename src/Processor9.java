@@ -3,7 +3,7 @@ import java.util.*;
 
 public class Processor9 {
 
-    // Configures
+    // Configurations
     int superScalarWidth = 4;
     BranchMode branchMode = BranchMode.DYNAMIC_2BIT;
     int numOfALU = 4;
@@ -17,7 +17,7 @@ public class Processor9 {
     int stalledCycle = 0;
     int waitingCycle = 0;
     int correctPrediction = 0;
-    int misprediction = 0;
+    int missPrediction = 0;
     int insIdCount = 1; // for assigning id to instructions
     int[] mem; // memory from user
     int[] rf = new int[32]; //Register file (physical)
@@ -937,7 +937,7 @@ public class Processor9 {
             else if(robHead.ins.opType.equals(OpType.BRU)) {
                 // branch commit
                 if(robHead.mispredicted) {
-                    handleMisprediction(robHead);
+                    handleMissPrediction(robHead);
                 }
                 else {
                     // save commit cycle
@@ -996,7 +996,7 @@ public class Processor9 {
         mem[robHead.address] = robHead.value; // update memory here
     }
 
-    private void handleMisprediction(ReorderBuffer robHead) {
+    private void handleMissPrediction(ReorderBuffer robHead) {
         int btbAddress = robHead.ins.insAddress & 0x0000FFFF;
         switch (branchMode) {
             case DYNAMIC_1BIT:
@@ -1010,7 +1010,7 @@ public class Processor9 {
         }
         flushAll();
         if(!robHead.ins.opcode.equals(Opcode.BRR)) {
-            misprediction++;
+            missPrediction++;
         }
         // change to correct pc
         if(robHead.ins.taken) {
@@ -1095,8 +1095,6 @@ public class Processor9 {
             Decode();
             Fetch();
             cycle++;
-//            System.out.println("pc: " + pc + " cycle: " + cycle);
-
             if(!beforeFinish) {
                 if(fetchBlocked || decodeBlocked || issueBlocked || euAllBusy || loadBufferFull || loadStage1Blocked || loadStage2Blocked) {
                     stalledCycle++;
@@ -1110,35 +1108,33 @@ public class Processor9 {
         TraceEncoder traceEncoder = new TraceEncoder(finishedInsts);
         ProbeEncoder probeEncoder = new ProbeEncoder(probes,cycle);
         try {
-            traceEncoder.createTrace("../ACA-tracer/trace.out");
+            traceEncoder.createTrace("trace.out");
         } catch (IOException e) {
             e.printStackTrace();
         }
         try {
-            probeEncoder.createProbe("../ACA-tracer/probe.out");
+            probeEncoder.createProbe("probe.out");
         } catch (IOException e) {
             e.printStackTrace();
         }
         if(cycle >= cycleLimit) {
             System.out.println("Time out");
         }
-
-
         System.out.println("Processor Configuration");
         System.out.println("Pipeline width: " + superScalarWidth + ", Branch prediction mode: "+ branchMode.toString());
         System.out.println(numOfALU + " ALUs " + numOfLOAD + " LOADs " + numOfSTORE + " STOREs " + numOfBRU + " BRUs");
-        System.out.println("RS/ROB size: " + RS_SIZE);
+        System.out.println("RS and ROB size: " + RS_SIZE);
         System.out.println(executedInsts + " instructions executed");
         System.out.println(cycle + " cycles spent");
         System.out.println(stalledCycle + " stalled cycles");
         System.out.println(waitingCycle + " Waiting cycles");
         System.out.println(correctPrediction + " correct predictions");
-        System.out.println(misprediction + " incorrect predictions");
-        System.out.println("Instructions/cycle ratio: " + ((float) executedInsts / (float) cycle));
-        System.out.println("Subset Instructions/cycle ratio: " + ((float) executedInstsBeforeFinish / (float) cycleBeforeFinish));
-        System.out.println("stalled_cycle/cycle ratio: " + ((float) stalledCycle / (float) cycle));
-        System.out.println("wasted_cycle/cycle ratio: " + ((float) (stalledCycle + waitingCycle) / (float) cycle));
-        System.out.println("Correct prediction rate: "+ ((float) correctPrediction / (float) (correctPrediction + misprediction)));
+        System.out.println(missPrediction + " incorrect predictions");
+        System.out.println("Instructions per cycle: " + ((float) executedInsts / (float) cycle));
+        System.out.println("Subset Instructions per cycle: " + ((float) executedInstsBeforeFinish / (float) cycleBeforeFinish));
+        System.out.println("stalled_cycle/cycle: " + ((float) stalledCycle / (float) cycle));
+        System.out.println("wasted_cycle/cycle: " + ((float) (stalledCycle + waitingCycle) / (float) cycle));
+        System.out.println("Correct prediction rate: "+ ((float) correctPrediction / (float) (correctPrediction + missPrediction)));
         System.out.println();
     }
 
